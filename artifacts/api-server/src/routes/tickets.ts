@@ -788,6 +788,8 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> =>
     .limit(pageLimit ?? 10000)
 ;
 
+  const ticketIds = tickets.map((t) => t.id)
+;
 
   const creatorIds = [...new Set(tickets.map((t) => t.createdBy))]
 ;
@@ -810,42 +812,47 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> =>
 ;
 
 
-  const commentCounts = await db
+  const commentCounts = ticketIds.length > 0 ? await db
     .select(
 {
  ticketId: ticketCommentsTable.ticketId, count: sql<number>`count(*)` 
 }
 )
     .from(ticketCommentsTable)
+    .where(inArray(ticketCommentsTable.ticketId, ticketIds))
     .groupBy(ticketCommentsTable.ticketId)
+ : []
 ;
 
   const commentMap = new Map(commentCounts.map((c) => [c.ticketId, Number(c.count)]))
 ;
 
 
-  const noteCounts = await db
+  const noteCounts = ticketIds.length > 0 ? await db
     .select(
 {
  ticketId: ticketInternalNotesTable.ticketId, count: sql<number>`count(*)` 
 }
 )
     .from(ticketInternalNotesTable)
+    .where(inArray(ticketInternalNotesTable.ticketId, ticketIds))
     .groupBy(ticketInternalNotesTable.ticketId)
+ : []
 ;
 
   const noteMap = new Map(noteCounts.map((n) => [n.ticketId, Number(n.count)]))
 ;
 
 
-  const solutionTickets = await db
+  const solutionTickets = ticketIds.length > 0 ? await db
     .selectDistinct(
 {
  ticketId: ticketCommentsTable.ticketId 
 }
 )
     .from(ticketCommentsTable)
-    .where(eq(ticketCommentsTable.isSolution, true))
+    .where(and(eq(ticketCommentsTable.isSolution, true), inArray(ticketCommentsTable.ticketId, ticketIds)))
+ : []
 ;
 
   const solutionSet = new Set(solutionTickets.map((s) => s.ticketId))
@@ -890,9 +897,6 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> =>
 
 
   // Batch-fetch checklist progress (total and checked items) per ticket
-  const ticketIds = tickets.map((t) => t.id)
-;
-
   const checklistStats = ticketIds.length > 0
     ? await db
         .select(

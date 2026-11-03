@@ -281,6 +281,7 @@ export default function TicketList() {
 
   const deleteTicket = useDeleteTicket();
   const [focusedRowIdx, setFocusedRowIdx] = useState<number | null>(null);
+  const [renderedTicketCount, setRenderedTicketCount] = useState(100);
 
   const hasExtraFilters = locationValues.length > 0 || categoryValues.length > 0 || !!dateFrom || !!dateTo || userFilter !== 'all' || emailOrigin || clientIdFilter !== 'all' || overdueFilter;
   const hasActiveFilters = !!debouncedSearch || statusValues.length > 0 || priorityValues.length > 0 || hasExtraFilters || nonClosedFilter || scheduledFilter || recurringFilter;
@@ -493,6 +494,14 @@ export default function TicketList() {
       return sortDir === 'asc' ? cmp : -cmp;
     });
   }, [tickets, sortCol, sortDir]);
+  const renderedTickets = useMemo(
+    () => sortedTickets.slice(0, renderedTicketCount),
+    [sortedTickets, renderedTicketCount],
+  );
+
+  useEffect(() => {
+    setRenderedTicketCount(100);
+  }, [searchStr]);
 
   // J/K/Enter keyboard row navigation — via shared hook
   const handleJKey = useCallback(() => {
@@ -527,8 +536,14 @@ export default function TicketList() {
   // Scroll focused row into view
   useEffect(() => {
     if (focusedRowIdx === null) return;
+    if (focusedRowIdx >= renderedTicketCount) {
+      setRenderedTicketCount(Math.min(
+        sortedTickets.length,
+        (Math.floor(focusedRowIdx / 100) + 1) * 100,
+      ));
+    }
     document.querySelector(`[data-row-idx="${focusedRowIdx}"]`)?.scrollIntoView({ block: 'nearest' });
-  }, [focusedRowIdx]);
+  }, [focusedRowIdx, renderedTicketCount, sortedTickets.length]);
 
   // ── Selection helpers ────────────────────────────────────────────────────
   const allVisibleIds = sortedTickets.map((t) => t.id);
@@ -1185,7 +1200,8 @@ export default function TicketList() {
                   </TableCell>
                 </TableRow>
               ) : (
-                sortedTickets.map((ticket, rowIdx) => {
+                <>
+                {renderedTickets.map((ticket, rowIdx) => {
                   const isSelected = selectedIds.has(ticket.id);
                   const isFocused = focusedRowIdx === rowIdx;
                   return (
@@ -1356,7 +1372,22 @@ export default function TicketList() {
                       )}
                     </TableRow>
                   );
-                })
+                })}
+                {renderedTickets.length < sortedTickets.length && (
+                  <TableRow>
+                    <TableCell colSpan={colSpanTotal} align="center" sx={{ py: 1.5 }}>
+                      <Button
+                        size="small"
+                        onClick={() => setRenderedTicketCount((count) => Math.min(count + 100, sortedTickets.length))}
+                      >
+                        {lang === 'it'
+                          ? `Mostra altri ${Math.min(100, sortedTickets.length - renderedTickets.length)} ticket (${renderedTickets.length} di ${sortedTickets.length})`
+                          : `Show ${Math.min(100, sortedTickets.length - renderedTickets.length)} more tickets (${renderedTickets.length} of ${sortedTickets.length})`}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                )}
+                </>
               )}
             </TableBody>
           </Table>
