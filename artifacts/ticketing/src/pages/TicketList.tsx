@@ -20,6 +20,7 @@ import { useWorkspaceCollaborators } from '../hooks/useWorkspaceCollaborators';
 import { useEntityTerm } from '../hooks/useEntityTerm';
 import { useTicketStatuses } from '../hooks/useTicketStatuses';
 import DeadlineCell from '../components/DeadlineCell';
+import { trackEvent } from '../lib/analytics';
 function hashAvatarColor(name: string): string {
   const colors = ['#1976d2', '#388e3c', '#f57c00', '#7b1fa2', '#c62828', '#00838f', '#6a1b9a', '#0277bd'];
   let h = 0;
@@ -180,14 +181,18 @@ export default function TicketList() {
 
   const handleSavePreset = useCallback(() => {
     if (!user || !presetName.trim()) return;
+    const params = buildPresetParams();
     const newPreset: FilterPreset = {
       id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       name: presetName.trim(),
-      params: buildPresetParams(),
+      params,
     };
     const updated = [...presets, newPreset];
     setPresets(updated);
     savePresetsToStorage(user.id, updated);
+    trackEvent('ticket_filter_preset_saved', {
+      filter_count: new URLSearchParams(params).size,
+    });
     setSavePresetOpen(false);
     setPresetName('');
   }, [user, presetName, presets, buildPresetParams]);
@@ -197,9 +202,10 @@ export default function TicketList() {
     const updated = presets.filter((p) => p.id !== id);
     setPresets(updated);
     savePresetsToStorage(user.id, updated);
+    trackEvent('ticket_filter_preset_deleted');
   }, [user, presets]);
 
-  const applyPreset = useCallback((params: string) => {
+  const applyPreset = useCallback((params: string, source: 'quick' | 'saved' = 'quick') => {
     // Preserve sort params from current URL, apply filter params from preset
     const currentParams = new URLSearchParams(searchStr);
     const next = new URLSearchParams(params);
@@ -208,6 +214,10 @@ export default function TicketList() {
     if (currentParams.get('sortDir')) next.set('sortDir', currentParams.get('sortDir')!);
     const qs = next.toString();
     navigate(`/tickets${qs ? '?' + qs : ''}`, { replace: true } as any);
+    trackEvent('ticket_filter_preset_applied', {
+      source,
+      filter_count: new URLSearchParams(params).size,
+    });
     // Sync search input and close advanced filters panel
     setSearchInput(next.get('search') ?? '');
     setShowExtraManual(false);
@@ -301,6 +311,7 @@ export default function TicketList() {
 
   const setParam = useCallback((key: string, value: string, empty = 'all') => {
     const next = new URLSearchParams(searchStr);
+    const active = Boolean(value && value !== empty);
     if (!value || value === empty) {
       next.delete(key);
     } else {
@@ -308,6 +319,7 @@ export default function TicketList() {
     }
     const qs = next.toString();
     navigate(`/tickets${qs ? '?' + qs : ''}`, { replace: true } as any);
+    trackEvent('ticket_list_filter_changed', { filter: key, active });
   }, [searchStr, navigate]);
 
   const setMultiParam = useCallback((key: string, values: string[], allOptions?: string[]) => {
@@ -315,6 +327,7 @@ export default function TicketList() {
     if (key === 'status') next.delete('nonClosed');
     // Treat "all options selected" the same as "nothing selected" — no filter applied
     const isAll = allOptions && allOptions.length > 0 && allOptions.every((v) => values.includes(v));
+    const selectedCount = values.length === 0 || isAll ? 0 : values.length;
     if (values.length === 0 || isAll) {
       next.delete(key);
     } else {
@@ -322,6 +335,7 @@ export default function TicketList() {
     }
     const qs = next.toString();
     navigate(`/tickets${qs ? '?' + qs : ''}`, { replace: true } as any);
+    trackEvent('ticket_list_filter_changed', { filter: key, selected_count: selectedCount });
   }, [searchStr, navigate]);
 
   useEffect(() => {
@@ -752,7 +766,7 @@ export default function TicketList() {
             <Chip
               key={preset.id}
               label={preset.name}
-              onClick={() => applyPreset(preset.params)}
+              onClick={() => applyPreset(preset.params, 'saved')}
               onDelete={() => handleDeletePreset(preset.id)}
               deleteIcon={<CloseIcon sx={{ fontSize: '14px !important' }} />}
               variant="outlined"
@@ -772,7 +786,13 @@ export default function TicketList() {
               size="small"
               placeholder={lang === 'it' ? `Cerca ${entityTerm.pluralLower}...` : `Search ${entityTerm.pluralLower}...`}
               value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
+              onChange={(e) => {
+                const next = e.target.value;
+                if (!searchInput.trim() && next.trim()) {
+                  trackEvent('ticket_search_started');
+                }
+                setSearchInput(next);
+              }}
               InputProps={{
                 startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment>,
               }}
