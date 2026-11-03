@@ -51,8 +51,8 @@ describe("resolveWorkspaceUser", () => {
 
   it("keeps home billing ownership while applying the shared workspace role and members", async () => {
     queueSelectResults([
-      [{ id: 10, name: "Acme", isSharedWorkspace: false, billingOwnerOrganizationId: null }],
-      [{ id: 20, name: "Joint project", role: "admin", isSharedWorkspace: true, billingOwnerOrganizationId: 10 }],
+      [{ id: 10, name: "Acme", isSharedWorkspace: false, externalSharingEnabled: false, billingOwnerOrganizationId: null }],
+      [{ id: 20, name: "Joint project", role: "admin", isSharedWorkspace: true, externalSharingEnabled: true, billingOwnerOrganizationId: 10 }],
       [{ id: 1, role: "admin" }, { id: 2, role: "user" }],
     ]);
 
@@ -69,6 +69,7 @@ describe("resolveWorkspaceUser", () => {
       role: "admin",
       activeWorkspaceId: 20,
       isSharedWorkspace: true,
+      externalSharingEnabled: true,
       workspaceMemberIds: [1, 2],
       workspaceAdminMemberIds: [1],
     });
@@ -76,7 +77,7 @@ describe("resolveWorkspaceUser", () => {
 
   it("rejects a workspace the account does not belong to", async () => {
     queueSelectResults([
-      [{ id: 10, name: "Acme", isSharedWorkspace: false, billingOwnerOrganizationId: null }],
+      [{ id: 10, name: "Acme", isSharedWorkspace: false, externalSharingEnabled: false, billingOwnerOrganizationId: null }],
       [],
     ]);
 

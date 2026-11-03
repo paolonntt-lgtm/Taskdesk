@@ -341,7 +341,9 @@ router.get("/auth/me", async (req, res): Promise<void> => {
   }).from(organizationsTable).where(eq(organizationsTable.id, context.organizationId));
   res.json({ ...row, organizationId: context.organizationId, organizationName: activeContext.organizationName ?? row.organizationName, role: context.role,
     billingOrganizationId: row.organizationId, activeWorkspaceId: context.activeWorkspaceId,
-    isSharedWorkspace: activeContext.isSharedWorkspace ?? false, workspaces: context.workspaces, ...activeOrganization,
+    isSharedWorkspace: activeContext.isSharedWorkspace ?? false,
+    externalSharingEnabled: activeContext.externalSharingEnabled ?? false,
+    workspaces: context.workspaces, ...activeOrganization,
     ...permissionSummary, trialStatus });
 });
 

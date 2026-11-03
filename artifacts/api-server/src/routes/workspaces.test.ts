@@ -566,6 +566,7 @@ describe("shared workspaces", () => {
       activeWorkspaceId: workspaceId,
       role: "user",
       isSharedWorkspace: true,
+      externalSharingEnabled: true,
     });
     vi.mocked(sendEmailForOrg).mockResolvedValueOnce({ ok: false, error: "SMTP unavailable" });
     const failedDelivery = await invite(`workspace-outsider-${runId}@example.test`);
