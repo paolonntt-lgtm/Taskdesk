@@ -2358,6 +2358,7 @@ function Dashboard() {
   const isSuperAdmin = !!(user as unknown as Record<string, unknown>)?.isSuperAdmin;
   const isAdmin = user?.role === 'admin' || isSuperAdmin;
   const organizationId = (user as any)?.organizationId as number | null | undefined;
+  const [autoCollaboratorWidgetsEnabled, setAutoCollaboratorWidgetsEnabled] = useState(false);
   const collaboratorUsersQuery = useQuery<{ id: number; role?: string | null; isActive?: boolean | null }[]>({
     queryKey: ['dashboard-collaborator-users', user?.id, organizationId],
     queryFn: async () => {
@@ -2366,7 +2367,7 @@ function Dashboard() {
       const data = await response.json();
       return Array.isArray(data) ? data : (Array.isArray(data?.users) ? data.users : []);
     },
-    enabled: isAdmin && organizationId != null,
+    enabled: autoCollaboratorWidgetsEnabled && isAdmin && organizationId != null,
     staleTime: 30_000,
     refetchInterval: 60_000,
     refetchOnWindowFocus: true,
@@ -2377,14 +2378,14 @@ function Dashboard() {
   );
 
   useEffect(() => {
-    if (!isAdmin || organizationId == null) return;
+    if (!autoCollaboratorWidgetsEnabled || !isAdmin || organizationId == null) return;
     const onWorkspaceMembersChanged = (event: Event) => {
       const detail = (event as CustomEvent<{ workspaceId?: number }>).detail;
       if (detail?.workspaceId === organizationId) void collaboratorUsersQuery.refetch();
     };
     window.addEventListener('workspace-members-changed', onWorkspaceMembersChanged);
     return () => window.removeEventListener('workspace-members-changed', onWorkspaceMembersChanged);
-  }, [isAdmin, organizationId, collaboratorUsersQuery.refetch]);
+  }, [autoCollaboratorWidgetsEnabled, isAdmin, organizationId, collaboratorUsersQuery.refetch]);
 
   const clientsEnabled = (user as any)?.clientsEnabled !== false;
   const { data: organizationSettings } = useQuery<{ timeTrackingModuleEnabled?: boolean }>({
@@ -2511,7 +2512,9 @@ function Dashboard() {
     fetch('/api/dashboard-layout', { credentials: 'include' })
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
-        if (!data || !data.layout || !data.visibleIds) return;
+        if (!data) return;
+        setAutoCollaboratorWidgetsEnabled(data.autoCollaboratorWidgets === true);
+        if (!data.layout || !data.visibleIds) return;
         setLayout(data.layout as LayoutItem[]);
         setVisibleIds(data.visibleIds as string[]);
         try {
@@ -2557,7 +2560,7 @@ function Dashboard() {
   }, [visibleIds, dashboardLayoutHydrated]);
 
   useEffect(() => {
-    if (!dashboardLayoutHydrated || !isAdmin || !collaboratorUsersQuery.isSuccess) return;
+    if (!dashboardLayoutHydrated || !autoCollaboratorWidgetsEnabled || !isAdmin || !collaboratorUsersQuery.isSuccess) return;
 
     const visibleSet = new Set(visibleIds);
     const dismissedIds = layout
@@ -2611,6 +2614,7 @@ function Dashboard() {
     });
   }, [
     dashboardLayoutHydrated,
+    autoCollaboratorWidgetsEnabled,
     isAdmin,
     collaboratorUsersQuery.isSuccess,
     collaboratorWidgetIds,
@@ -2671,7 +2675,7 @@ function Dashboard() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSuperAdmin]);
 
-  const visibleDashboardIds = collaboratorUsersQuery.isSuccess && isAdmin
+  const visibleDashboardIds = autoCollaboratorWidgetsEnabled && collaboratorUsersQuery.isSuccess && isAdmin
     ? visibleIds.filter((id) => {
         return getCollaboratorIdFromWidgetInstanceId(id) == null || collaboratorWidgetIds.includes(id);
       })

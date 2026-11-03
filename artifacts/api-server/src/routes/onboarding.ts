@@ -28,11 +28,20 @@ router.post("/onboarding/complete", requireAuth, requireAdmin, async (req, res):
     return;
   }
 
+  const [existingOrganization] = await db
+    .select({ onboardingDone: organizationsTable.onboardingDone })
+    .from(organizationsTable)
+    .where(eq(organizationsTable.id, currentUser.organizationId));
+
+  if (!existingOrganization) {
+    res.status(400).json({ message: "Organizzazione non trovata" });
+    return;
+  }
+
   const categories = CATEGORIES_BY_TYPE[businessType];
 
   const orgKey = `org_${currentUser.organizationId}_categories`;
-
-  await Promise.all([
+  const operations = [
     db
       .update(organizationsTable)
       .set({ businessType, onboardingDone: true })
@@ -41,7 +50,19 @@ router.post("/onboarding/complete", requireAuth, requireAdmin, async (req, res):
       .insert(settingsTable)
       .values({ key: orgKey, value: JSON.stringify(categories) })
       .onConflictDoUpdate({ target: settingsTable.key, set: { value: JSON.stringify(categories) } }),
-  ]);
+  ];
+
+  if (!existingOrganization.onboardingDone) {
+    const featureKey = `org_${currentUser.organizationId}_auto_collaborator_dashboard_widgets`;
+    operations.push(
+      db
+        .insert(settingsTable)
+        .values({ key: featureKey, value: "true" })
+        .onConflictDoUpdate({ target: settingsTable.key, set: { value: "true" } }),
+    );
+  }
+
+  await Promise.all(operations);
 
   res.json({ success: true, businessType, categories });
 });

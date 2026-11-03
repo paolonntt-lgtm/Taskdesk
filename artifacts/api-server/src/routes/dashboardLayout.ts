@@ -1,27 +1,39 @@
 import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
-import { db, usersTable } from "@workspace/db";
+import { db, settingsTable, usersTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
 
 router.get("/dashboard-layout", requireAuth, async (req, res): Promise<void> => {
   const user = (req as any).currentUser;
-  const [row] = await db
-    .select({ dashboardLayout: usersTable.dashboardLayout })
-    .from(usersTable)
-    .where(eq(usersTable.id, user.id));
+  const featureKey = `org_${user.organizationId}_auto_collaborator_dashboard_widgets`;
+  const [[row], [feature]] = await Promise.all([
+    db
+      .select({ dashboardLayout: usersTable.dashboardLayout })
+      .from(usersTable)
+      .where(eq(usersTable.id, user.id)),
+    db
+      .select({ value: settingsTable.value })
+      .from(settingsTable)
+      .where(eq(settingsTable.key, featureKey)),
+  ]);
+  const autoCollaboratorWidgets = feature?.value === "true";
 
   if (!row || !row.dashboardLayout) {
-    res.json({ layout: null, visibleIds: null });
+    res.json({ layout: null, visibleIds: null, autoCollaboratorWidgets });
     return;
   }
 
   try {
     const parsed = JSON.parse(row.dashboardLayout);
-    res.json({ layout: parsed.layout ?? null, visibleIds: parsed.visibleIds ?? null });
+    res.json({
+      layout: parsed.layout ?? null,
+      visibleIds: parsed.visibleIds ?? null,
+      autoCollaboratorWidgets,
+    });
   } catch {
-    res.json({ layout: null, visibleIds: null });
+    res.json({ layout: null, visibleIds: null, autoCollaboratorWidgets });
   }
 });
 
