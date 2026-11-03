@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import {
   AppBar,
   Box,
@@ -91,6 +91,15 @@ import ReferralProgramAnnouncementDialog from './ReferralProgramAnnouncementDial
 import OneDriveLogo from './OneDriveLogo';
 
 const drawerWidth = 264;
+const sidebarTransitionMs = 150;
+
+function applyDesktopSidebarState(open: boolean) {
+  const root = document.documentElement;
+  root.dataset.sidebarOpen = String(open);
+  root.style.setProperty('--td-sidebar-offset', open ? `${drawerWidth}px` : '0px');
+  root.style.setProperty('--td-sidebar-transform', open ? 'translateX(0)' : `translateX(-${drawerWidth}px)`);
+  root.style.setProperty('--td-sidebar-toggle-display', open ? 'none' : 'inline-flex');
+}
 const botFabPositionStorageKey = 'td_bot_fab_position_v1';
 const taskdeskWhatsAppNumber = '393203177882';
 
@@ -192,9 +201,12 @@ export default function Layout({ children }: LayoutProps) {
   });
 
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(() => {
+  const [initialSidebarOpen] = useState(() => {
     try { return localStorage.getItem('sidebar_open') !== 'false'; } catch { return true; }
   });
+  useLayoutEffect(() => {
+    applyDesktopSidebarState(initialSidebarOpen);
+  }, [initialSidebarOpen]);
   const [botOpen, setBotOpen] = useState(() => {
     try { return sessionStorage.getItem('td_bot_open') === '1'; } catch { return false; }
   });
@@ -451,11 +463,9 @@ export default function Layout({ children }: LayoutProps) {
   };
 
   const toggleSidebar = () => {
-    setSidebarOpen((prev) => {
-      const next = !prev;
-      try { localStorage.setItem('sidebar_open', String(next)); } catch { /* ignore */ }
-      return next;
-    });
+    const next = document.documentElement.dataset.sidebarOpen !== 'true';
+    applyDesktopSidebarState(next);
+    try { localStorage.setItem('sidebar_open', String(next)); } catch { /* ignore */ }
   };
 
   const { data: notifications = [] } = useListNotifications({
@@ -991,8 +1001,8 @@ export default function Layout({ children }: LayoutProps) {
       <AppBar
         position="fixed"
         sx={{
-          width: { sm: sidebarOpen ? `calc(100% - ${drawerWidth}px)` : '100%' },
-          ml: { sm: sidebarOpen ? `${drawerWidth}px` : 0 },
+          width: { sm: `calc(100% - var(--td-sidebar-offset, ${drawerWidth}px))` },
+          ml: { sm: 'var(--td-sidebar-offset, 264px)' },
           borderBottom: '1px solid',
           borderColor: 'divider',
           boxShadow: '0 2px 12px rgba(15, 23, 42, .05)',
@@ -1000,7 +1010,7 @@ export default function Layout({ children }: LayoutProps) {
            backgroundColor: theme.palette.mode === 'light' ? 'rgba(255,254,249,.92)' : undefined,
           transition: theme.transitions.create(['width', 'margin'], {
             easing: theme.transitions.easing.sharp,
-            duration: theme.transitions.duration.leavingScreen,
+            duration: sidebarTransitionMs,
           }),
         }}
       >
@@ -1010,7 +1020,7 @@ export default function Layout({ children }: LayoutProps) {
             aria-label="apri menu"
             edge="start"
             onClick={isMobile ? handleDrawerToggle : toggleSidebar}
-            sx={{ mr: 1, ...(isMobile ? {} : { display: sidebarOpen ? 'none' : 'inline-flex' }) }}
+            sx={{ mr: 1, display: { xs: 'inline-flex', sm: 'var(--td-sidebar-toggle-display, none)' } }}
           >
             <MenuIcon />
           </IconButton>
@@ -1434,11 +1444,11 @@ export default function Layout({ children }: LayoutProps) {
       <Box
         component="nav"
         sx={{
-          width: { sm: sidebarOpen ? drawerWidth : 0 },
+          width: { sm: 'var(--td-sidebar-offset, 264px)' },
           flexShrink: { sm: 0 },
           transition: theme.transitions.create('width', {
             easing: theme.transitions.easing.sharp,
-            duration: theme.transitions.duration.leavingScreen,
+            duration: sidebarTransitionMs,
           }),
         }}
       >
@@ -1467,10 +1477,10 @@ export default function Layout({ children }: LayoutProps) {
               width: drawerWidth,
               backgroundColor: theme.palette.mode === 'light' ? '#eef2eb' : undefined,
               overflowX: 'hidden',
-              transform: sidebarOpen ? 'translateX(0)' : `translateX(-${drawerWidth}px)`,
+              transform: 'var(--td-sidebar-transform, translateX(0))',
               transition: theme.transitions.create('transform', {
                 easing: theme.transitions.easing.sharp,
-                duration: theme.transitions.duration.leavingScreen,
+                duration: sidebarTransitionMs,
               }),
             },
           }}
@@ -1488,13 +1498,13 @@ export default function Layout({ children }: LayoutProps) {
           minWidth: 0,
           overflowX: 'hidden',
           p: { xs: 1, sm: 3, md: 4 },
-          width: { sm: sidebarOpen ? `calc(100% - ${drawerWidth}px)` : '100%' },
+          width: { sm: `calc(100% - var(--td-sidebar-offset, ${drawerWidth}px))` },
           mt: { xs: '48px', sm: '64px' },
             bgcolor: theme.palette.mode === 'light' ? '#f7f7f1' : 'background.default',
           minHeight: { xs: 'calc(100vh - 48px)', sm: 'calc(100vh - 64px)' },
           transition: theme.transitions.create(['width', 'margin'], {
             easing: theme.transitions.easing.sharp,
-            duration: theme.transitions.duration.leavingScreen,
+            duration: sidebarTransitionMs,
           }),
         }}
       >
