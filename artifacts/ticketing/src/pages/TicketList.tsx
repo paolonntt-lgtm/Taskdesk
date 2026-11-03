@@ -35,6 +35,7 @@ function getInitials(name: string): string {
 }
 
 const VALID_PRIORITIES = ['low', 'medium', 'high', 'urgent'];
+const TICKET_RENDER_BATCH_SIZE = 25;
 
 const PRIORITY_ORDER: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
 const STATUS_ORDER: Record<string, number> = { open: 0, waiting: 1, resolved: 2, closed: 3 };
@@ -281,7 +282,7 @@ export default function TicketList() {
 
   const deleteTicket = useDeleteTicket();
   const [focusedRowIdx, setFocusedRowIdx] = useState<number | null>(null);
-  const [renderedTicketCount, setRenderedTicketCount] = useState(100);
+  const [renderedTicketCount, setRenderedTicketCount] = useState(TICKET_RENDER_BATCH_SIZE);
 
   const hasExtraFilters = locationValues.length > 0 || categoryValues.length > 0 || !!dateFrom || !!dateTo || userFilter !== 'all' || emailOrigin || clientIdFilter !== 'all' || overdueFilter;
   const hasActiveFilters = !!debouncedSearch || statusValues.length > 0 || priorityValues.length > 0 || hasExtraFilters || nonClosedFilter || scheduledFilter || recurringFilter;
@@ -500,7 +501,7 @@ export default function TicketList() {
   );
 
   useEffect(() => {
-    setRenderedTicketCount(100);
+    setRenderedTicketCount(TICKET_RENDER_BATCH_SIZE);
   }, [searchStr]);
 
   // J/K/Enter keyboard row navigation — via shared hook
@@ -539,7 +540,7 @@ export default function TicketList() {
     if (focusedRowIdx >= renderedTicketCount) {
       setRenderedTicketCount(Math.min(
         sortedTickets.length,
-        (Math.floor(focusedRowIdx / 100) + 1) * 100,
+        (Math.floor(focusedRowIdx / TICKET_RENDER_BATCH_SIZE) + 1) * TICKET_RENDER_BATCH_SIZE,
       ));
     }
     document.querySelector(`[data-row-idx="${focusedRowIdx}"]`)?.scrollIntoView({ block: 'nearest' });
@@ -1378,11 +1379,11 @@ export default function TicketList() {
                     <TableCell colSpan={colSpanTotal} align="center" sx={{ py: 1.5 }}>
                       <Button
                         size="small"
-                        onClick={() => setRenderedTicketCount((count) => Math.min(count + 100, sortedTickets.length))}
+                        onClick={() => setRenderedTicketCount((count) => Math.min(count + TICKET_RENDER_BATCH_SIZE, sortedTickets.length))}
                       >
                         {lang === 'it'
-                          ? `Mostra altri ${Math.min(100, sortedTickets.length - renderedTickets.length)} ticket (${renderedTickets.length} di ${sortedTickets.length})`
-                          : `Show ${Math.min(100, sortedTickets.length - renderedTickets.length)} more tickets (${renderedTickets.length} of ${sortedTickets.length})`}
+                          ? `Mostra altri ${Math.min(TICKET_RENDER_BATCH_SIZE, sortedTickets.length - renderedTickets.length)} ticket (${renderedTickets.length} di ${sortedTickets.length})`
+                          : `Show ${Math.min(TICKET_RENDER_BATCH_SIZE, sortedTickets.length - renderedTickets.length)} more tickets (${renderedTickets.length} of ${sortedTickets.length})`}
                       </Button>
                     </TableCell>
                   </TableRow>
