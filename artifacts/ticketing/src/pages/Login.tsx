@@ -185,6 +185,9 @@ export default function Login() {
           profession: professionalAttribution.profession,
           language: professionalAttribution.language,
         });
+        try {
+          sessionStorage.setItem('td_onboarding_profession', professionalAttribution.profession);
+        } catch {}
       }
       await login({ email, password });
     } catch { setLocalError(t.login.networkError); }

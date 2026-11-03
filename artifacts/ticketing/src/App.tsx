@@ -446,6 +446,11 @@ function AppShell() {
     if (params.get("oauth_trial_signup") !== "1") return;
 
     const attribution = parseProfessionalTrialAttribution(window.location.search);
+    if (user && attribution && hasConfirmedTrialRegistration(201, user)) {
+      try {
+        sessionStorage.setItem("td_onboarding_profession", attribution.profession);
+      } catch {}
+    }
     params.delete("oauth_trial_signup");
     params.delete("trial_profession");
     params.delete("trial_language");

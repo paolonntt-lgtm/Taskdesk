@@ -6,41 +6,46 @@ import {
 } from '@mui/material';
 import {
   Computer, Gavel, Campaign, Category, Add, Close, CheckCircle,
+  AccountBalance, WorkOutline, EditNote, Storefront,
 } from '@mui/icons-material';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import { trackEvent } from '../lib/analytics';
 import { dashboardPreferenceStorageKey } from '../lib/dashboardPreferenceStorage';
+import {
+  getOnboardingBusinessType,
+  getOnboardingDashboardPreset,
+  isProfessionalDashboardPresetId,
+  type OnboardingProfileId,
+} from '../lib/onboardingDashboardPresets';
 
 interface BusinessTypeOption {
-  value: string;
+  value: OnboardingProfileId;
   icon: React.ReactNode;
   color: string;
 }
 
 const DASHBOARD_VISIBLE_KEY = 'td_dashboard_visible_v4';
 const DASHBOARD_LAYOUT_KEY = 'td_dashboard_layout_v4';
+const ONBOARDING_PROFESSION_KEY = 'td_onboarding_profession';
 
-const DASHBOARD_PRESETS: Record<string, string[]> = {
-  it_support:          ['stat-open', 'stat-urgent', 'stat-overdue', 'stat-resolved', 'feed-my', 'feed-due', 'chart-trend', 'chart-status'],
-  professional_studio: ['stat-open', 'stat-resolved', 'feed-my', 'feed-due', 'chart-category', 'chart-priority'],
-  agency:              ['stat-open', 'stat-resolved', 'stat-urgent', 'feed-recent', 'feed-assigned', 'chart-trend', 'chart-assignee'],
-  other:               ['stat-open', 'stat-resolved', 'stat-urgent', 'stat-overdue', 'feed-my', 'feed-due', 'feed-recent'],
-};
-
-function applyDashboardPreset(businessType: string, userId: number | string | null | undefined): void {
+function applyDashboardPreset(profile: OnboardingProfileId, userId: number | string | null | undefined): void {
   try {
-    const preset = DASHBOARD_PRESETS[businessType] ?? DASHBOARD_PRESETS.other;
+    const preset = getOnboardingDashboardPreset(profile);
     localStorage.setItem(dashboardPreferenceStorageKey(DASHBOARD_VISIBLE_KEY, userId), JSON.stringify(preset));
     localStorage.removeItem(dashboardPreferenceStorageKey(DASHBOARD_LAYOUT_KEY, userId));
   } catch { /* ignore quota errors */ }
 }
 
 const OPTIONS: BusinessTypeOption[] = [
-  { value: 'it_support', icon: <Computer sx={{ fontSize: 48 }} />, color: '#1565c0' },
-  { value: 'professional_studio', icon: <Gavel sx={{ fontSize: 48 }} />, color: '#2e7d32' },
-  { value: 'agency', icon: <Campaign sx={{ fontSize: 48 }} />, color: '#6a1b9a' },
-  { value: 'other', icon: <Category sx={{ fontSize: 48 }} />, color: '#e65100' },
+  { value: 'commercialisti', icon: <AccountBalance sx={{ fontSize: 42 }} />, color: '#1565c0' },
+  { value: 'avvocati', icon: <Gavel sx={{ fontSize: 42 }} />, color: '#2e7d32' },
+  { value: 'consulenti-del-lavoro', icon: <WorkOutline sx={{ fontSize: 42 }} />, color: '#6a1b9a' },
+  { value: 'notai', icon: <EditNote sx={{ fontSize: 42 }} />, color: '#ad5b12' },
+  { value: 'commercio', icon: <Storefront sx={{ fontSize: 42 }} />, color: '#00838f' },
+  { value: 'agenzie', icon: <Campaign sx={{ fontSize: 42 }} />, color: '#6a1b9a' },
+  { value: 'it_support', icon: <Computer sx={{ fontSize: 42 }} />, color: '#1565c0' },
+  { value: 'other', icon: <Category sx={{ fontSize: 42 }} />, color: '#e65100' },
 ];
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -54,7 +59,16 @@ export default function Onboarding({ onComplete }: Props) {
   const { user } = useAuth();
 
   const [currentStep, setCurrentStep] = useState(1);
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<OnboardingProfileId | null>(() => {
+    try {
+      const fromUrl = new URLSearchParams(window.location.search).get('trial_profession');
+      if (isProfessionalDashboardPresetId(fromUrl)) return fromUrl;
+      const fromSession = sessionStorage.getItem(ONBOARDING_PROFESSION_KEY);
+      return isProfessionalDashboardPresetId(fromSession) ? fromSession : null;
+    } catch {
+      return null;
+    }
+  });
 
   const [emailInput, setEmailInput] = useState('');
   const [emails, setEmails] = useState<string[]>([]);
@@ -90,7 +104,7 @@ export default function Onboarding({ onComplete }: Props) {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ businessType: selected }),
+        body: JSON.stringify({ businessType: getOnboardingBusinessType(selected!) }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -98,11 +112,13 @@ export default function Onboarding({ onComplete }: Props) {
         return;
       }
       applyDashboardPreset(selected!, user?.id);
+      try { sessionStorage.removeItem(ONBOARDING_PROFESSION_KEY); } catch {}
       trackEvent('onboarding_completed', {
-        business_type: selected!,
+        business_type: getOnboardingBusinessType(selected!),
+        ...(isProfessionalDashboardPresetId(selected) ? { profession: selected } : {}),
         first_ticket_created: firstTicketCreated,
       });
-      onComplete(selected!);
+      onComplete(getOnboardingBusinessType(selected!));
     } catch {
       setGlobalError(t.onboarding.errorNetwork);
     } finally {
@@ -307,8 +323,8 @@ export default function Onboarding({ onComplete }: Props) {
 function StepBusinessType({
   selected, setSelected, onNext, t,
 }: {
-  selected: string | null;
-  setSelected: (v: string) => void;
+  selected: OnboardingProfileId | null;
+  setSelected: (v: OnboardingProfileId) => void;
   onNext: () => void;
   t: any;
 }) {

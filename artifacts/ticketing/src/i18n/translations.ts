@@ -1660,7 +1660,7 @@ const it = {
   },
   onboarding: {
     title: 'Come userai TaskDesk?',
-    subtitle: 'Seleziona il tipo di attività per configurare le categorie e i flussi di lavoro più adatti alla tua organizzazione.',
+    subtitle: 'Scegli la tua professione per trovare una dashboard già organizzata per il tuo lavoro. Potrai modificarla in qualsiasi momento.',
     confirm: 'Inizia',
     confirming: 'Configurazione in corso…',
     errorGeneric: 'Errore durante la configurazione. Riprova.',
@@ -1694,6 +1694,30 @@ const it = {
     ticketSuccessMsg: 'Ticket creato! Accedi alla dashboard per visualizzarlo.',
     ticketErrorGeneric: 'Errore durante la creazione del ticket. Riprova.',
     types: {
+      commercialisti: {
+        label: 'Commercialista',
+        description: 'Pratiche, scadenze e richieste dei clienti dello studio.',
+      },
+      avvocati: {
+        label: 'Avvocato',
+        description: 'Attività, priorità e richieste per lo studio legale.',
+      },
+      'consulenti-del-lavoro': {
+        label: 'Consulente del lavoro',
+        description: 'Attività ricorrenti, documenti e richieste dei clienti.',
+      },
+      notai: {
+        label: 'Notaio',
+        description: 'Pratiche, scadenze e coordinamento dei documenti.',
+      },
+      commercio: {
+        label: 'Commercio',
+        description: 'Richieste dei clienti e attività operative del team.',
+      },
+      agenzie: {
+        label: 'Agenzia',
+        description: 'Progetti, assegnazioni e consegne ai clienti.',
+      },
       it_support: {
         label: 'Supporto IT',
         description: 'Help desk, assistenza hardware e software, reti aziendali, gestione dispositivi.',
@@ -3852,7 +3876,7 @@ const en: typeof it = {
   },
   onboarding: {
     title: 'How will you use TaskDesk?',
-    subtitle: 'Select your business type to configure the most suitable categories and workflows for your organization.',
+    subtitle: 'Choose your profession to start with a dashboard organised for your work. You can change it whenever you like.',
     confirm: 'Get started',
     confirming: 'Setting up…',
     errorGeneric: 'Setup error. Please try again.',
@@ -3886,6 +3910,30 @@ const en: typeof it = {
     ticketSuccessMsg: 'Ticket created! Go to the dashboard to view it.',
     ticketErrorGeneric: 'Error creating ticket. Please try again.',
     types: {
+      commercialisti: {
+        label: 'Accountant',
+        description: 'Client requests, deadlines, and practice work.',
+      },
+      avvocati: {
+        label: 'Lawyer',
+        description: 'Tasks, priorities, and requests for a legal practice.',
+      },
+      'consulenti-del-lavoro': {
+        label: 'Employment consultant',
+        description: 'Recurring tasks, documents, and client requests.',
+      },
+      notai: {
+        label: 'Notary',
+        description: 'Matters, deadlines, and document coordination.',
+      },
+      commercio: {
+        label: 'Commerce',
+        description: 'Customer requests and day-to-day team operations.',
+      },
+      agenzie: {
+        label: 'Agency',
+        description: 'Projects, assignments, and client deliverables.',
+      },
       it_support: {
         label: 'IT Support',
         description: 'Help desk, hardware & software support, networking, and device management.',
