@@ -91,7 +91,7 @@ import ReferralProgramAnnouncementDialog from './ReferralProgramAnnouncementDial
 import OneDriveLogo from './OneDriveLogo';
 
 const drawerWidth = 264;
-const sidebarTransitionMs = 150;
+const sidebarTransitionMs = 120;
 
 function applyDesktopSidebarState(open: boolean) {
   const root = document.documentElement;
@@ -204,6 +204,7 @@ export default function Layout({ children }: LayoutProps) {
   const [initialSidebarOpen] = useState(() => {
     try { return localStorage.getItem('sidebar_open') !== 'false'; } catch { return true; }
   });
+  const sidebarOpenRef = useRef(initialSidebarOpen);
   useLayoutEffect(() => {
     applyDesktopSidebarState(initialSidebarOpen);
   }, [initialSidebarOpen]);
@@ -463,7 +464,8 @@ export default function Layout({ children }: LayoutProps) {
   };
 
   const toggleSidebar = () => {
-    const next = document.documentElement.dataset.sidebarOpen !== 'true';
+    const next = !sidebarOpenRef.current;
+    sidebarOpenRef.current = next;
     applyDesktopSidebarState(next);
     try { localStorage.setItem('sidebar_open', String(next)); } catch { /* ignore */ }
   };
