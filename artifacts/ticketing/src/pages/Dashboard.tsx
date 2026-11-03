@@ -71,6 +71,11 @@ import {
   readDashboardWidgetInstancePreference,
   writeDashboardWidgetInstancePreference,
 } from '../lib/dashboardPreferenceStorage';
+import {
+  getCollaboratorIdFromWidgetInstanceId,
+  getDashboardCollaboratorWidgetIds,
+  getMissingCollaboratorWidgetIds,
+} from '../lib/collaboratorDashboardWidgets';
 
 const ReactGridLayout = WidthProvider(GridLayout);
 
@@ -1321,6 +1326,7 @@ function FeedPersonWidget() {
   const { user } = useAuth();
   const entityTerm = useEntityTerm();
   const widgetInstanceId = React.useContext(WidgetInstanceIdContext) || 'feed-person';
+  const autoCollaboratorId = getCollaboratorIdFromWidgetInstanceId(widgetInstanceId);
   const [configOpen, setConfigOpen] = useState(false);
   const personWidgetStorageKey = useDashboardStorageKey(PERSON_WIDGET_KEY);
   const [selectedId, setSelectedId] = useState<number | null>(() => {
@@ -1330,7 +1336,7 @@ function FeedPersonWidget() {
       widgetInstanceId,
       'feed-person',
     );
-    return v ? parseInt(v, 10) : null;
+    return autoCollaboratorId ?? (v ? parseInt(v, 10) : null);
   });
   const [tempId, setTempId] = useState<number | ''>(selectedId ?? '');
 
@@ -1380,20 +1386,24 @@ function FeedPersonWidget() {
                 <Chip label={displayTickets.length} size="small" color="primary" sx={{ height: 18, fontSize: '0.65rem' }} />
               )}
             </Box>
-            <Tooltip title={t.dashboard.configureWidget}>
-              <IconButton size="small" onClick={() => { setTempId(selectedId ?? ''); setConfigOpen(true); }}>
-                <SettingsIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
+            {!autoCollaboratorId && (
+              <Tooltip title={t.dashboard.configureWidget}>
+                <IconButton size="small" onClick={() => { setTempId(selectedId ?? ''); setConfigOpen(true); }}>
+                  <SettingsIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
           </Box>
           <Divider sx={{ flexShrink: 0 }} />
           <Box sx={{ flex: 1, overflowY: 'auto' }}>
             {!selectedId ? (
               <Box px={2} py={3} textAlign="center">
                 <Typography variant="body2" color="text.secondary">{t.dashboard.noAgentSelected}</Typography>
-                <Button size="small" startIcon={<AddIcon />} sx={{ mt: 1 }} onClick={() => setConfigOpen(true)}>
-                  {t.dashboard.selectAgent}
-                </Button>
+                {!autoCollaboratorId && (
+                  <Button size="small" startIcon={<AddIcon />} sx={{ mt: 1 }} onClick={() => setConfigOpen(true)}>
+                    {t.dashboard.selectAgent}
+                  </Button>
+                )}
               </Box>
             ) : displayTickets.length === 0 ? (
               <Box px={2} py={3}><Typography variant="body2" color="text.secondary" textAlign="center">{t.dashboard.noOpenTickets(entityTerm.singular)}</Typography></Box>
@@ -2348,6 +2358,33 @@ function Dashboard() {
   const isSuperAdmin = !!(user as unknown as Record<string, unknown>)?.isSuperAdmin;
   const isAdmin = user?.role === 'admin' || isSuperAdmin;
   const organizationId = (user as any)?.organizationId as number | null | undefined;
+  const collaboratorUsersQuery = useQuery<{ id: number; role?: string | null; isActive?: boolean | null }[]>({
+    queryKey: ['dashboard-collaborator-users', user?.id, organizationId],
+    queryFn: async () => {
+      const response = await fetch('/api/users', { credentials: 'include', cache: 'no-store' });
+      if (!response.ok) throw new Error('Could not load dashboard collaborators');
+      const data = await response.json();
+      return Array.isArray(data) ? data : (Array.isArray(data?.users) ? data.users : []);
+    },
+    enabled: isAdmin && organizationId != null,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
+  });
+  const collaboratorWidgetIds = useMemo(
+    () => getDashboardCollaboratorWidgetIds(collaboratorUsersQuery.data, user?.id),
+    [collaboratorUsersQuery.data, user?.id],
+  );
+
+  useEffect(() => {
+    if (!isAdmin || organizationId == null) return;
+    const onWorkspaceMembersChanged = (event: Event) => {
+      const detail = (event as CustomEvent<{ workspaceId?: number }>).detail;
+      if (detail?.workspaceId === organizationId) void collaboratorUsersQuery.refetch();
+    };
+    window.addEventListener('workspace-members-changed', onWorkspaceMembersChanged);
+    return () => window.removeEventListener('workspace-members-changed', onWorkspaceMembersChanged);
+  }, [isAdmin, organizationId, collaboratorUsersQuery.refetch]);
 
   const clientsEnabled = (user as any)?.clientsEnabled !== false;
   const { data: organizationSettings } = useQuery<{ timeTrackingModuleEnabled?: boolean }>({
@@ -2454,6 +2491,7 @@ function Dashboard() {
   const superadminDefaultVisibleIds = (): string[] =>
     isSuperAdmin ? [...DEFAULT_VISIBLE_IDS, 'acquisition'] : DEFAULT_VISIBLE_IDS;
 
+  const [dashboardLayoutHydrated, setDashboardLayoutHydrated] = useState(false);
   const [layout, setLayout] = useState<LayoutItem[]>(() => {
     try {
       const saved = localStorage.getItem(dashboardLayoutStorageKey);
@@ -2481,7 +2519,8 @@ function Dashboard() {
           localStorage.setItem(dashboardVisibleStorageKey, JSON.stringify(data.visibleIds));
         } catch {}
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setDashboardLayoutHydrated(true));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -2504,16 +2543,81 @@ function Dashboard() {
   }, []);
 
   useEffect(() => {
+    if (!dashboardLayoutHydrated) return;
     try { localStorage.setItem(dashboardLayoutStorageKey, JSON.stringify(layout)); } catch {}
     saveToServer(layout, visibleIds);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layout]);
+  }, [layout, dashboardLayoutHydrated]);
 
   useEffect(() => {
+    if (!dashboardLayoutHydrated) return;
     try { localStorage.setItem(dashboardVisibleStorageKey, JSON.stringify(visibleIds)); } catch {}
     saveToServer(layout, visibleIds);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visibleIds]);
+  }, [visibleIds, dashboardLayoutHydrated]);
+
+  useEffect(() => {
+    if (!dashboardLayoutHydrated || !isAdmin || !collaboratorUsersQuery.isSuccess) return;
+
+    const visibleSet = new Set(visibleIds);
+    const dismissedIds = layout
+      .map((item) => item.i)
+      .filter((id) => getCollaboratorIdFromWidgetInstanceId(id) != null && !visibleSet.has(id));
+
+    const missingIds = getMissingCollaboratorWidgetIds(
+      collaboratorWidgetIds,
+      visibleIds,
+      dismissedIds,
+    );
+    if (missingIds.length === 0) return;
+
+    const personWidget = WIDGET_REGISTRY.find((widget) => widget.id === 'feed-person');
+    if (!personWidget) return;
+
+    for (const instanceId of missingIds) {
+      const collaboratorId = getCollaboratorIdFromWidgetInstanceId(instanceId);
+      if (collaboratorId == null) continue;
+      try {
+        const basePreferenceKey = dashboardPreferenceStorageKey(PERSON_WIDGET_KEY, user?.id);
+        localStorage.setItem(
+          dashboardWidgetInstancePreferenceKey(basePreferenceKey, instanceId),
+          String(collaboratorId),
+        );
+      } catch {}
+    }
+
+    setVisibleIds((current) => {
+      const currentIds = new Set(current);
+      const additions = missingIds.filter((id) => !currentIds.has(id));
+      return additions.length ? [...current, ...additions] : current;
+    });
+    setLayout((current) => {
+      const currentIds = new Set(current.map((item) => item.i));
+      const additions = missingIds.filter((id) => !currentIds.has(id));
+      if (additions.length === 0) return current;
+
+      let nextY = current.reduce(
+        (bottom, item) => Number.isFinite(item.y) ? Math.max(bottom, item.y + item.h) : bottom,
+        0,
+      );
+      return [
+        ...current,
+        ...additions.map((id) => {
+          const item: LayoutItem = { i: id, ...personWidget.defaultLayout, x: 0, y: nextY };
+          nextY += personWidget.defaultLayout.h;
+          return item;
+        }),
+      ];
+    });
+  }, [
+    dashboardLayoutHydrated,
+    isAdmin,
+    collaboratorUsersQuery.isSuccess,
+    collaboratorWidgetIds,
+    visibleIds,
+    layout,
+    user?.id,
+  ]);
 
   useEffect(() => {
     if (!clientsEnabled) {
@@ -2567,10 +2671,15 @@ function Dashboard() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSuperAdmin]);
 
+  const visibleDashboardIds = collaboratorUsersQuery.isSuccess && isAdmin
+    ? visibleIds.filter((id) => {
+        return getCollaboratorIdFromWidgetInstanceId(id) == null || collaboratorWidgetIds.includes(id);
+      })
+    : visibleIds;
   const hiddenWidgets = effectiveRegistry.filter((w) => !visibleIds.includes(w.id));
 
   const activeWidgetIds = new Set(effectiveRegistry.map((widget) => widget.id));
-  const activeLayout: LayoutItem[] = layout.filter((l) => visibleIds.includes(l.i) && activeWidgetIds.has(getBaseId(l.i)));
+  const activeLayout: LayoutItem[] = layout.filter((l) => visibleDashboardIds.includes(l.i) && activeWidgetIds.has(getBaseId(l.i)));
   const greetingKey = getGreetingKey(now.getHours());
   const greeting = (t.dashboard as Record<string, unknown>)[greetingKey] as string;
   const firstName = user?.name?.trim().split(/\s+/)[0] || '';
@@ -2991,7 +3100,7 @@ function Dashboard() {
           onLayoutChange={handleLayoutChange}
           style={{ minHeight: 200 }}
         >
-          {visibleIds.map((id) => {
+          {visibleDashboardIds.map((id) => {
             const meta = effectiveRegistry.find((w) => w.id === getBaseId(id));
             if (!meta) return null;
             const Cmp = meta.component;
@@ -3017,8 +3126,8 @@ function Dashboard() {
 
       {/* Mobile stacked layout — stat cards 2×2, other widgets full width */}
       {isMobile && (() => {
-        const statIds   = visibleIds.filter((id) => getBaseId(id).startsWith('stat-'));
-        const otherIds  = visibleIds.filter((id) => !getBaseId(id).startsWith('stat-'));
+        const statIds   = visibleDashboardIds.filter((id) => getBaseId(id).startsWith('stat-'));
+        const otherIds  = visibleDashboardIds.filter((id) => !getBaseId(id).startsWith('stat-'));
         const renderWidget = (id: string, height: number) => {
           const meta = effectiveRegistry.find((w) => w.id === getBaseId(id));
           if (!meta) return null;
