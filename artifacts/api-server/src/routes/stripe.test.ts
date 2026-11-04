@@ -12,6 +12,10 @@ const mocks = vi.hoisted(() => ({
   createCheckoutSession: vi.fn(),
   createCustomerPortalSession: vi.fn(),
   getReferralApplicationStatus: vi.fn(),
+  getReferralPlan: vi.fn(),
+  getReferralOverview: vi.fn(),
+  getOrCreateReferralCode: vi.fn(),
+  isTransientStripeAvailabilityError: vi.fn(),
 }));
 
 vi.mock('../stripeClient', () => ({
@@ -39,10 +43,11 @@ vi.mock('../stripeService', () => ({
 }));
 
 vi.mock('../referralService', () => ({
-  getReferralOverview: vi.fn(),
-  getReferralPlan: vi.fn(),
-  getOrCreateReferralCode: vi.fn(),
+  getReferralOverview: mocks.getReferralOverview,
+  getReferralPlan: mocks.getReferralPlan,
+  getOrCreateReferralCode: mocks.getOrCreateReferralCode,
   getReferralApplicationStatus: mocks.getReferralApplicationStatus,
+  isTransientStripeAvailabilityError: mocks.isTransientStripeAvailabilityError,
 }));
 
 vi.mock('../middlewares/auth', () => {
@@ -174,6 +179,31 @@ describe('Stripe billing routes', () => {
     expect(responseText).not.toContain('referrer.private@example.test');
     expect(responseText).not.toContain('Private Referrer');
     expect(mocks.getReferralApplicationStatus).toHaveBeenCalledWith(20);
+  });
+
+  it('keeps the referral overview available when Stripe is temporarily unavailable', async () => {
+    const stripeError = new Error('Stripe connection timed out');
+    mocks.getReferralPlan.mockRejectedValue(stripeError);
+    mocks.isTransientStripeAvailabilityError.mockReturnValue(true);
+    mocks.getReferralOverview.mockResolvedValue({ referrals: [] });
+
+    const response = await get('referrals');
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    expect(await response.json()).toEqual({ eligible: false, referrals: [] });
+    expect(mocks.getReferralOverview).toHaveBeenCalledWith(20, null);
+    expect(mocks.getOrCreateReferralCode).not.toHaveBeenCalled();
+  });
+
+  it('keeps unexpected referral errors visible as server failures', async () => {
+    mocks.getReferralPlan.mockRejectedValue(new Error('database query failed'));
+    mocks.isTransientStripeAvailabilityError.mockReturnValue(false);
+
+    const response = await get('referrals');
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toMatchObject({ error: 'database query failed' });
   });
 
   it('rejects an add-on price as a new subscription plan', async () => {

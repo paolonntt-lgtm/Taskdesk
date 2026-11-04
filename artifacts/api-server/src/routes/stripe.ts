@@ -16,6 +16,7 @@ import {
   getReferralPlan,
   getOrCreateReferralCode,
   getReferralApplicationStatus,
+  isTransientStripeAvailabilityError,
 } from '../referralService';
 import { isTaskDeskPlanProduct } from '../lib/stripeProductRules';
 
@@ -46,7 +47,14 @@ router.get('/stripe/referrals/status', requireAuth, requireBillingAdmin, async (
 router.get('/stripe/referrals', requireAuth, requireBillingAdmin, async (req: any, res): Promise<void> => {
   try {
     const organizationId = req.currentUser.organizationId;
-    const plan = await getReferralPlan(organizationId, true);
+    let plan: Awaited<ReturnType<typeof getReferralPlan>>;
+    try {
+      plan = await getReferralPlan(organizationId, true);
+    } catch (err) {
+      if (!isTransientStripeAvailabilityError(err)) throw err;
+      req.log?.warn({ err, organizationId }, 'Stripe temporarily unavailable while loading referral overview');
+      plan = null;
+    }
     const overview = await getReferralOverview(organizationId, plan);
     res.setHeader('Cache-Control', 'no-store');
     if (!plan) {
@@ -61,6 +69,10 @@ router.get('/stripe/referrals', requireAuth, requireBillingAdmin, async (req: an
       referrals: overview.referrals,
     });
   } catch (err: any) {
+    req.log?.error(
+      { err, organizationId: req.currentUser.organizationId },
+      'Failed to load referral overview',
+    );
     sendStripeError(res, err);
   }
 });
