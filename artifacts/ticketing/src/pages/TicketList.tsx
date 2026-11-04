@@ -36,7 +36,7 @@ function getInitials(name: string): string {
 }
 
 const VALID_PRIORITIES = ['low', 'medium', 'high', 'urgent'];
-const TICKET_RENDER_BATCH_SIZE = 25;
+const TICKET_RENDER_BATCH_SIZE = 10;
 
 const PRIORITY_ORDER: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
 const STATUS_ORDER: Record<string, number> = { open: 0, waiting: 1, resolved: 2, closed: 3 };
