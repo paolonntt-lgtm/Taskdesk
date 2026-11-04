@@ -22,7 +22,7 @@ vi.mock('@tanstack/react-query', () => ({
 }));
 
 vi.mock('../contexts/AuthContext', () => ({
-  useAuth: () => ({ user: null }),
+  useAuth: () => ({ user: { profession: 'consulenti-del-lavoro' } }),
 }));
 
 import ClientNotesBlock from './ClientNotesBlock';
@@ -169,5 +169,29 @@ describe('ClientNotesBlock monthly note editing', () => {
     expect(host.querySelector('[data-testid="client-note-42"]')).toBeNull();
     await click('client-note-month-2026-09');
     expect(host.querySelector('[data-testid="client-note-42"]')).not.toBeNull();
+  });
+
+  it('hides CU and 770 category cards when their note count reaches zero', async () => {
+    noteStore.notes = [{
+      id: 45,
+      clientId: 7,
+      authorId: 11,
+      authorName: 'Ada Lovelace',
+      body: 'Nota annuale',
+      monthOverride: null,
+      categories: ['CU26', '77026'],
+      createdAt: '2026-08-12T10:00:00.000Z',
+      checklist: null,
+    }];
+    await renderNotes();
+
+    expect(host.querySelector('[data-testid="client-note-category-CU26"]')).not.toBeNull();
+    expect(host.querySelector('[data-testid="client-note-category-77026"]')).not.toBeNull();
+
+    noteStore.notes = [];
+    await renderNotes();
+
+    expect(host.querySelector('[data-testid="client-note-category-CU26"]')).toBeNull();
+    expect(host.querySelector('[data-testid="client-note-category-77026"]')).toBeNull();
   });
 });

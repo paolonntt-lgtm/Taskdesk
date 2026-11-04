@@ -151,12 +151,6 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
       }
     }
 
-    if (canCategorize) {
-      const currentYear = String(new Date().getFullYear()).slice(-2);
-      categoryGroups.set(`770${currentYear}`, categoryGroups.get(`770${currentYear}`) ?? []);
-      categoryGroups.set(`CU${currentYear}`, categoryGroups.get(`CU${currentYear}`) ?? []);
-    }
-
     const groups = [
       ...[...monthGroups.entries()]
         .map(([key, grouped]) => ({ key, type: 'month' as const, notes: grouped })),
@@ -179,7 +173,7 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
     };
 
     return groups.sort((a, b) => timelineOrder(a) - timelineOrder(b));
-  }, [notes, canCategorize]);
+  }, [notes]);
 
   const availableGroups = useMemo(
     () => groupedNotes.map(group => ({
