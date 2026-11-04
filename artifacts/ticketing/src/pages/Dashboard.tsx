@@ -63,6 +63,7 @@ import { formatRecentActivitySummary } from './recentActivityLabels';
 import { useAuth } from '../contexts/AuthContext';
 import { useTicketStatuses } from '../hooks/useTicketStatuses';
 import { useEntityTerm } from '../hooks/useEntityTerm';
+import { useClientNoteDeclaratives } from '../hooks/useClientNoteDeclaratives';
 import {
   dashboardPreferenceStorageKey,
   dashboardWidgetInstancePreferenceKey,
@@ -1317,6 +1318,136 @@ function ClientNotesWidget() {
   );
 }
 
+function ClientNoteDeclarativesWidget() {
+  const { t, lang } = useLanguage();
+  const { user } = useAuth();
+  const isLaborConsultant = user?.profession === 'consulenti-del-lavoro';
+  const { declaratives = [], isLoading: declarationsLoading } = useClientNoteDeclaratives();
+  const [settings, setSettings] = useWidgetSettings<DeclarativesWidgetSettings>(
+    'client-note-declaratives',
+    DECLARATIVES_WIDGET_DEFAULTS,
+  );
+  const { data: allNotes = [], isLoading: notesLoading } = useListAllClientNotes();
+  const currentYear = new Intl.DateTimeFormat('en', { timeZone: 'Europe/Rome', year: '2-digit' }).format(new Date());
+
+  const options = React.useMemo(() => {
+    const values: { key: string; label: string }[] = [];
+    for (const declaration of declaratives) {
+      const builtIn = isLaborConsultant && /^#(CU|770)$/i.exec(declaration.alias)?.[1]?.toUpperCase();
+      const years = new Set<string>();
+      for (const note of allNotes) {
+        for (const category of note.categories ?? []) {
+          const custom = new RegExp(`^declarative:${declaration.id}:(\\d{2})$`, 'i').exec(category);
+          const legacy = category.toLowerCase() === `declarative:${declaration.id}`.toLowerCase();
+          const fixed = builtIn ? new RegExp(`^${builtIn}(\\d{2})$`, 'i').exec(category) : null;
+          if (custom) years.add(custom[1]);
+          if (legacy) years.add(currentYear);
+          if (fixed) years.add(fixed[1]);
+        }
+      }
+      if (years.size === 0) years.add(currentYear);
+      for (const year of [...years].sort()) {
+        const key = builtIn ? `${builtIn}${year}` : `declarative:${declaration.id}:${year}`;
+        values.push({
+          key,
+          label: `${declaration.name} ${2000 + Number(year)}`,
+        });
+      }
+    }
+    return values;
+  }, [declaratives, allNotes, currentYear, isLaborConsultant]);
+  const selectedKey = options.some((option) => option.key === settings.selectedCategory)
+    ? settings.selectedCategory
+    : options[0]?.key ?? '';
+
+  const rows = React.useMemo(() => {
+    if (!selectedKey) return [];
+    const selected = /^declarative:([0-9a-f-]{36}):(\d{2})$/i.exec(selectedKey);
+    const map = new Map<number, { name: string; count: number }>();
+    for (const note of allNotes) {
+      if (!note.clientId) continue;
+      const categories: string[] = note.categories ?? [];
+      const matches = categories.some((category) =>
+        category === selectedKey
+        || (!!selected && category.toLowerCase() === `declarative:${selected[1]}:${selected[2]}`.toLowerCase())
+        || (!!selected && category.toLowerCase() === `declarative:${selected[1]}`.toLowerCase() && selected[2] === currentYear),
+      );
+      if (!matches) continue;
+      const row = map.get(note.clientId) ?? {
+        name: note.clientName ?? String(note.clientId),
+        count: 0,
+      };
+      if (isClientNoteOpen(note)) row.count += 1;
+      map.set(note.clientId, row);
+    }
+    const sorted = [...map.entries()]
+      .map(([id, value]) => ({ id, ...value }))
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+    const maxItems = Number.parseInt(settings.maxItems, 10);
+    return maxItems > 0 ? sorted.slice(0, maxItems) : sorted;
+  }, [allNotes, selectedKey, currentYear, settings.maxItems]);
+
+  const isLoading = declarationsLoading || notesLoading;
+  const count = rows.reduce((sum, row) => sum + row.count, 0);
+  return (
+    <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <CardContent sx={{ p: 0, flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', '&:last-child': { pb: 0 } }}>
+        <Box display="flex" alignItems="center" gap={1} px={2} pt={2} pb={1} flexShrink={0}>
+          <ClientNotesIcon fontSize="small" color="action" />
+          <Typography variant="h6" fontWeight="bold" fontSize={{ xs: '0.9rem', sm: '1.05rem' }} noWrap>
+            {React.useContext(WidgetCustomNameContext) || t.dashboard.widgetClientDeclaratives}
+          </Typography>
+          {options.length > 0 && (
+            <Select
+              size="small"
+              value={selectedKey}
+              onChange={(event) => setSettings({ ...settings, selectedCategory: event.target.value })}
+              sx={{ ml: 'auto', maxWidth: 190, fontSize: '0.72rem', '& .MuiSelect-select': { py: 0.25, px: 1 } }}
+            >
+              {options.map((option) => <MenuItem key={option.key} value={option.key}>{option.label}</MenuItem>)}
+            </Select>
+          )}
+          {!isLoading && <Chip label={count} size="small" sx={{ height: 18, fontSize: '0.65rem', bgcolor: count === 0 ? '#c8e6c9' : '#ffcdd2', color: count === 0 ? '#2e7d32' : '#c62828', fontWeight: 700, ml: options.length ? 0 : 'auto' }} />}
+        </Box>
+        <Divider sx={{ flexShrink: 0 }} />
+        <Box sx={{ flex: 1, overflowY: 'auto' }}>
+          {isLoading ? (
+            <Box display="flex" justifyContent="center" py={3}><CircularProgress size={24} /></Box>
+          ) : rows.length === 0 ? (
+            <Box px={2} py={3}><Typography variant="body2" color="text.secondary" textAlign="center">{t.dashboard.widgetClientDeclarativesEmpty}</Typography></Box>
+          ) : rows.map((row, index) => (
+            <Box
+              key={row.id}
+              component={Link}
+              href={`/clients/${row.id}`}
+              display="flex"
+              alignItems="center"
+              gap={1}
+              px={2}
+              py={1}
+              sx={{
+                textDecoration: 'none',
+                color: 'inherit',
+                bgcolor: settings.colorByStatus ? (row.count >= 5 ? 'warning.light' : row.count >= 2 ? 'info.light' : 'success.light') : undefined,
+                opacity: settings.colorByStatus ? 0.92 : 1,
+                '&:hover': { bgcolor: 'action.hover' },
+                borderBottom: index < rows.length - 1 ? '1px solid' : 'none',
+                borderColor: 'divider',
+              }}
+            >
+              <Avatar sx={{ width: 22, height: 22, fontSize: '0.6rem', bgcolor: 'primary.main', flexShrink: 0 }}>
+                {row.name.charAt(0).toUpperCase()}
+              </Avatar>
+              <Typography variant="body2" noWrap fontSize="0.8rem" sx={{ flex: 1 }}>{row.name}</Typography>
+              <Chip label={row.count} size="small" sx={{ minWidth: 32, height: 20, fontSize: '0.7rem', fontWeight: 700, bgcolor: row.count === 0 ? '#c8e6c9' : '#ffcdd2', color: row.count === 0 ? '#2e7d32' : '#c62828' }} />
+            </Box>
+          ))}
+        </Box>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── TICKETS BY PERSON (configurable) ──────────────────────────────────────
 
 const PERSON_WIDGET_KEY = 'td_widget_person_id';
@@ -1936,6 +2067,14 @@ const CLIENT_NOTES_SETTINGS_SCHEMA: WidgetSettingField[] = [
   },
 ];
 
+type DeclarativesWidgetSettings = ClientNotesSettings & { selectedCategory: string };
+const DECLARATIVES_WIDGET_DEFAULTS: DeclarativesWidgetSettings = {
+  maxItems: '10',
+  colorByStatus: false,
+  selectedCategory: '',
+};
+const DECLARATIVES_WIDGET_SETTINGS_SCHEMA = CLIENT_NOTES_SETTINGS_SCHEMA;
+
 const CHART_SETTINGS_SCHEMA: WidgetSettingField[] = [
   {
     key: 'days', labelKey: 'wsTimeWindow', type: 'select',
@@ -2022,6 +2161,7 @@ const WIDGET_REGISTRY: WidgetMeta[] = [
   { id: 'feed-person',    labelKey: 'widgetFeedPerson',     defaultLayout: { x: 0, y: 16, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedPersonWidget,    settingsSchema: FEED_SETTINGS_SCHEMA },
   { id: 'feed-group',     labelKey: 'widgetFeedGroup',      defaultLayout: { x: 4, y: 16, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedGroupWidget,     settingsSchema: FEED_SETTINGS_SCHEMA },
   { id: 'client-notes',   labelKey: 'widgetClientNotes',   defaultLayout: { x: 8, y: 16, w: 4, h: 7, minW: 2, minH: 3 }, component: ClientNotesWidget,   settingsSchema: CLIENT_NOTES_SETTINGS_SCHEMA, requireClients: true },
+  { id: 'client-note-declaratives', labelKey: 'widgetClientDeclaratives', defaultLayout: { x: 0, y: 74, w: 4, h: 7, minW: 2, minH: 3 }, component: ClientNoteDeclarativesWidget, settingsSchema: DECLARATIVES_WIDGET_SETTINGS_SCHEMA, requireClients: true },
   { id: 'chart-trend',    labelKey: 'widgetChartTrend',    defaultLayout: { x: 0, y: 23, w: 8, h: 6, minW: 4, minH: 4 }, component: ChartTrendWidget,    settingsSchema: CHART_SETTINGS_SCHEMA },
   { id: 'chart-status',   labelKey: 'widgetChartStatus',   defaultLayout: { x: 8, y: 23, w: 4, h: 6, minW: 3, minH: 4 }, component: ChartStatusWidget,   settingsSchema: CHART_SETTINGS_SCHEMA },
   { id: 'chart-category', labelKey: 'widgetChartCategory', defaultLayout: { x: 0, y: 29, w: 6, h: 6, minW: 3, minH: 4 }, component: ChartCategoryWidget, settingsSchema: CHART_SETTINGS_SCHEMA },
@@ -2284,7 +2424,7 @@ function AddWidgetDialog({
             const groups: { label: string; ids: string[] }[] = [
               { label: t.dashboard.wgStat   ?? 'Statistiche', ids: ['stat-open', 'stat-resolved', 'stat-urgent', 'stat-overdue'] },
               { label: t.dashboard.wgFeed   ?? 'Liste',       ids: ['feed-my', 'feed-due', 'feed-recent', 'feed-assigned', 'feed-open', 'feed-overdue', 'feed-person', 'feed-group', 'feed-category', 'feed-status', 'feed-all-assigned'] },
-              { label: t.dashboard.wgOther  ?? 'Altro',       ids: ['workload', 'client-notes', 'acquisition', 'billing-unbilled'] },
+              { label: t.dashboard.wgOther  ?? 'Altro',       ids: ['workload', 'client-notes', 'client-note-declaratives', 'acquisition', 'billing-unbilled'] },
               { label: t.dashboard.wgChart  ?? 'Grafici',     ids: ['chart-trend', 'chart-status', 'chart-category', 'chart-priority', 'chart-location', 'chart-assignee'] },
             ];
             return groups.map((group) => {
