@@ -45,6 +45,13 @@ router.post("/backup/restore", requireAuth, requireAdmin, async (req, res): Prom
   const orgId: number | undefined = currentUser.organizationId;
   if (!orgId) { res.status(403).json({ error: "No organization" }); return; }
 
+  const [organization] = await db
+    .select({ profession: organizationsTable.profession })
+    .from(organizationsTable)
+    .where(eq(organizationsTable.id, orgId))
+    .limit(1);
+  const canRestoreNoteCategories = organization?.profession === "consulenti-del-lavoro";
+
   const backup = req.body;
   const data = backup?.data ?? backup; // supporta sia il formato { data: {...} } che il flat
 
@@ -212,7 +219,9 @@ router.post("/backup/restore", requireAuth, requireAdmin, async (req, res): Prom
         body: cn.body ?? "",
         checklist: cn.checklist ?? null,
         monthOverride: cn.monthOverride ?? null,
-        category: cn.category ?? null,
+        categories: canRestoreNoteCategories && Array.isArray(cn.categories)
+          ? cn.categories.filter((category: unknown) => category === "770" || category === "CU")
+          : [],
         createdAt: cn.createdAt ? new Date(cn.createdAt) : new Date(),
       });
       clientNotesRestored++;

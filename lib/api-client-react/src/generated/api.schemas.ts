@@ -1278,10 +1278,10 @@ export type ClientNoteChecklistItem = {
   checked: boolean;
 };
 
-export type ClientNoteCategory = typeof ClientNoteCategory[keyof typeof ClientNoteCategory] | null;
+export type ClientNoteCategoriesItem = typeof ClientNoteCategoriesItem[keyof typeof ClientNoteCategoriesItem];
 
 
-export const ClientNoteCategory = {
+export const ClientNoteCategoriesItem = {
   NUMBER_770: '770',
   CU: 'CU',
 } as const;
@@ -1296,15 +1296,15 @@ export interface ClientNote {
   checklist?: ClientNoteChecklistItem[] | null;
   /** YYYY-MM override for which month this note appears under */
   monthOverride?: string | null;
-  category?: ClientNoteCategory;
+  categories?: ClientNoteCategoriesItem[] | null;
   createdAt: string;
   updatedAt: string;
 }
 
-export type ClientNoteInputCategory = typeof ClientNoteInputCategory[keyof typeof ClientNoteInputCategory] | null;
+export type ClientNoteInputCategoriesItem = typeof ClientNoteInputCategoriesItem[keyof typeof ClientNoteInputCategoriesItem];
 
 
-export const ClientNoteInputCategory = {
+export const ClientNoteInputCategoriesItem = {
   NUMBER_770: '770',
   CU: 'CU',
 } as const;
@@ -1319,14 +1319,14 @@ export interface ClientNoteInput {
   body: string;
   /** YYYY-MM month override parsed from hashtag */
   monthOverride?: string | null;
-  category?: ClientNoteInputCategory;
+  categories?: ClientNoteInputCategoriesItem[] | null;
   checklist?: ClientNoteInputChecklistItem[] | null;
 }
 
-export type ClientNoteUpdateCategory = typeof ClientNoteUpdateCategory[keyof typeof ClientNoteUpdateCategory] | null;
+export type ClientNoteUpdateCategoriesItem = typeof ClientNoteUpdateCategoriesItem[keyof typeof ClientNoteUpdateCategoriesItem];
 
 
-export const ClientNoteUpdateCategory = {
+export const ClientNoteUpdateCategoriesItem = {
   NUMBER_770: '770',
   CU: 'CU',
 } as const;
@@ -1341,7 +1341,7 @@ export interface ClientNoteUpdate {
   body?: string;
   /** YYYY-MM month override parsed from hashtag */
   monthOverride?: string | null;
-  category?: ClientNoteUpdateCategory;
+  categories?: ClientNoteUpdateCategoriesItem[] | null;
   checklist?: ClientNoteUpdateChecklistItem[] | null;
 }
 
@@ -1351,10 +1351,10 @@ export type ClientNoteWithClientChecklistItem = {
   checked: boolean;
 };
 
-export type ClientNoteWithClientCategory = typeof ClientNoteWithClientCategory[keyof typeof ClientNoteWithClientCategory] | null;
+export type ClientNoteWithClientCategoriesItem = typeof ClientNoteWithClientCategoriesItem[keyof typeof ClientNoteWithClientCategoriesItem];
 
 
-export const ClientNoteWithClientCategory = {
+export const ClientNoteWithClientCategoriesItem = {
   NUMBER_770: '770',
   CU: 'CU',
 } as const;
@@ -1371,7 +1371,7 @@ export interface ClientNoteWithClient {
   checklist?: ClientNoteWithClientChecklistItem[] | null;
   /** YYYY-MM override for which month this note appears under */
   monthOverride?: string | null;
-  category?: ClientNoteWithClientCategory;
+  categories?: ClientNoteWithClientCategoriesItem[] | null;
   createdAt: string;
   updatedAt: string;
 }

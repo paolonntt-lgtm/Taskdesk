@@ -94,15 +94,14 @@ export type ClientNoteCategory = "770" | "CU";
 
 export interface ClientNoteTags {
   monthOverride: string | null;
-  category: ClientNoteCategory | null;
+  categories: ClientNoteCategory[];
   strippedBody: string;
 }
 
-export function parseClientNoteTags(text: string): ClientNoteTags | HashtagParseError | { multipleCategories: true } | null {
+export function parseClientNoteTags(text: string): ClientNoteTags | HashtagParseError | null {
   const categoryRegex = /(^|\s)#(770|CU)(?![\w])/gi;
   const categoryMatches = [...text.matchAll(categoryRegex)];
-  const uniqueCategories = [...new Set(categoryMatches.map((match) => match[2].toUpperCase()))];
-  if (uniqueCategories.length > 1) return { multipleCategories: true };
+  const categories = [...new Set(categoryMatches.map((match) => match[2].toUpperCase()))] as ClientNoteCategory[];
 
   let strippedBody = text;
   for (const match of categoryMatches) {
@@ -118,15 +117,15 @@ export function parseClientNoteTags(text: string): ClientNoteTags | HashtagParse
   if (monthResult && "monthOverride" in monthResult) {
     return {
       monthOverride: monthResult.monthOverride,
-      category: (uniqueCategories[0] as ClientNoteCategory | undefined) ?? null,
+      categories,
       strippedBody: monthResult.strippedBody,
     };
   }
 
-  if (uniqueCategories.length === 0) return null;
+  if (categories.length === 0) return null;
   return {
     monthOverride: null,
-    category: uniqueCategories[0] as ClientNoteCategory,
+    categories,
     strippedBody,
   };
 }

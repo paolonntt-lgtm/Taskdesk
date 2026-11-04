@@ -5823,10 +5823,12 @@ components:
           type: string
           nullable: true
           description: "YYYY-MM override for which month this note appears under"
-        category:
-          type: string
+        categories:
+          type: array
           nullable: true
-          enum: ["770", "CU"]
+          items:
+            type: string
+            enum: ["770", "CU"]
         createdAt:
           type: string
           format: date-time
@@ -5851,10 +5853,12 @@ components:
           type: string
           nullable: true
           description: "YYYY-MM month override parsed from hashtag"
-        category:
-          type: string
+        categories:
+          type: array
           nullable: true
-          enum: ["770", "CU"]
+          items:
+            type: string
+            enum: ["770", "CU"]
         checklist:
           type: array
           nullable: true
@@ -5883,10 +5887,12 @@ components:
           type: string
           nullable: true
           description: "YYYY-MM month override parsed from hashtag"
-        category:
-          type: string
+        categories:
+          type: array
           nullable: true
-          enum: ["770", "CU"]
+          items:
+            type: string
+            enum: ["770", "CU"]
         checklist:
           type: array
           nullable: true
@@ -5945,10 +5951,12 @@ components:
           type: string
           nullable: true
           description: "YYYY-MM override for which month this note appears under"
-        category:
-          type: string
+        categories:
+          type: array
           nullable: true
-          enum: ["770", "CU"]
+          items:
+            type: string
+            enum: ["770", "CU"]
         createdAt:
           type: string
           format: date-time

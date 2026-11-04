@@ -6,10 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type ClientNoteWithClientCategory = typeof ClientNoteWithClientCategory[keyof typeof ClientNoteWithClientCategory] | null;
+export type ClientNoteInputCategoriesItem = typeof ClientNoteInputCategoriesItem[keyof typeof ClientNoteInputCategoriesItem];
 
 
-export const ClientNoteWithClientCategory = {
+export const ClientNoteInputCategoriesItem = {
   NUMBER_770: '770',
   CU: 'CU',
 } as const;

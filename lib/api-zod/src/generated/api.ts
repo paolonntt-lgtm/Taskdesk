@@ -4350,7 +4350,7 @@ export const ListClientNotesResponseItem = zod.object({
   "checked": zod.boolean()
 })).nullish(),
   "monthOverride": zod.string().nullish().describe('YYYY-MM override for which month this note appears under'),
-  "category": zod.enum(['770', 'CU']).nullish(),
+  "categories": zod.array(zod.enum(['770', 'CU'])).nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -4367,7 +4367,7 @@ export const CreateClientNoteParams = zod.object({
 export const CreateClientNoteBody = zod.object({
   "body": zod.string(),
   "monthOverride": zod.string().nullish().describe('YYYY-MM month override parsed from hashtag'),
-  "category": zod.enum(['770', 'CU']).nullish(),
+  "categories": zod.array(zod.enum(['770', 'CU'])).nullish(),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
   "text": zod.string(),
@@ -4388,7 +4388,7 @@ export const CreateClientNoteResponse = zod.object({
   "checked": zod.boolean()
 })).nullish(),
   "monthOverride": zod.string().nullish().describe('YYYY-MM override for which month this note appears under'),
-  "category": zod.enum(['770', 'CU']).nullish(),
+  "categories": zod.array(zod.enum(['770', 'CU'])).nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -4405,7 +4405,7 @@ export const UpdateClientNoteParams = zod.object({
 export const UpdateClientNoteBody = zod.object({
   "body": zod.string().optional(),
   "monthOverride": zod.string().nullish().describe('YYYY-MM month override parsed from hashtag'),
-  "category": zod.enum(['770', 'CU']).nullish(),
+  "categories": zod.array(zod.enum(['770', 'CU'])).nullish(),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
   "text": zod.string(),
@@ -4426,7 +4426,7 @@ export const UpdateClientNoteResponse = zod.object({
   "checked": zod.boolean()
 })).nullish(),
   "monthOverride": zod.string().nullish().describe('YYYY-MM override for which month this note appears under'),
-  "category": zod.enum(['770', 'CU']).nullish(),
+  "categories": zod.array(zod.enum(['770', 'CU'])).nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -4469,7 +4469,7 @@ export const ListAllClientNotesResponseItem = zod.object({
   "checked": zod.boolean()
 })).nullish(),
   "monthOverride": zod.string().nullish().describe('YYYY-MM override for which month this note appears under'),
-  "category": zod.enum(['770', 'CU']).nullish(),
+  "categories": zod.array(zod.enum(['770', 'CU'])).nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })

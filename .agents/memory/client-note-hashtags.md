@@ -3,7 +3,7 @@ name: Client note hashtags
 description: Category and month syntax for client notes.
 ---
 
-Client-note categories are limited to `770` and `CU`, entered as `#770` and `#CU`, and are only for labor-consultant organizations. Keep the existing month hashtag syntax separate and unchanged.
+Client-note categories are limited to `770` and `CU`, entered as `#770` and `#CU`; a note may have either or both. They are only for labor-consultant organizations. Keep the existing month hashtag syntax separate and unchanged.
 
 Only organizations whose labor-consultant profile is recorded during onboarding are enabled; existing organizations are not inferred or backfilled.
 

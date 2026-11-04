@@ -180,8 +180,6 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
     const result = canCategorize ? parseClientNoteTags(value) : parseHashtag(value);
     if (result && 'badMonth' in result) {
       setHashtagError(tc.invalidMonth(result.badMonth));
-    } else if (result && 'multipleCategories' in result) {
-      setHashtagError(tc.multipleCategories);
     } else {
       setHashtagError(null);
     }
@@ -194,12 +192,12 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
     const result = canCategorize ? parseClientNoteTags(body) : parseHashtag(body);
     let finalBody = body.trim();
     let monthOverride: string | null = null;
-    let category: '770' | 'CU' | null = null;
+    let categories: ('770' | 'CU')[] = [];
 
     if (result && 'strippedBody' in result) {
       finalBody = result.strippedBody;
       monthOverride = result.monthOverride;
-      if ('category' in result) category = result.category;
+      if ('categories' in result) categories = result.categories;
     }
 
     const checklist = bodyToChecklist(finalBody);
@@ -212,7 +210,7 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
           body: '',
           checklist: checklist.length > 0 ? checklist : null,
           monthOverride,
-          category,
+          categories,
         } as any,
       });
       setBody('');
@@ -467,9 +465,9 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
                         timeStyle: 'short',
                       })}
                     </Typography>
-                    {note.category && (
-                      <Chip label={`#${note.category}`} size="small" color="secondary" sx={{ height: 18, fontSize: '0.65rem' }} />
-                    )}
+                    {note.categories?.map((category: string) => (
+                      <Chip key={category} label={`#${category}`} size="small" color="secondary" sx={{ height: 18, fontSize: '0.65rem' }} />
+                    ))}
                   </Box>
                   {(canEdit(note) || canDelete(note)) && (
                     <Box display="flex" alignItems="center" gap={0.5} flexShrink={0} ml={1}>

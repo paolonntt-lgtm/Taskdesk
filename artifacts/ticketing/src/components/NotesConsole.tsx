@@ -76,8 +76,6 @@ export default function NotesConsole() {
     const hashResult = canCategorize ? parseClientNoteTags(val) : parseHashtag(val);
     if (hashResult && 'badMonth' in hashResult) {
       setHashtagError(tc.invalidMonth(hashResult.badMonth));
-    } else if (hashResult && 'multipleCategories' in hashResult) {
-      setHashtagError(tc.multipleCategories);
     } else {
       setHashtagError(null);
     }
@@ -151,18 +149,14 @@ export default function NotesConsole() {
     // Extract monthOverride from hashtag shortcut
     const hashResult = canCategorize ? parseClientNoteTags(noteBody) : parseHashtag(noteBody);
     let monthOverride: string | null = null;
-    let category: '770' | 'CU' | null = null;
+    let categories: ('770' | 'CU')[] = [];
     if (hashResult && 'badMonth' in hashResult) {
       setHashtagError(tc.invalidMonth(hashResult.badMonth));
       return;
     }
-    if (hashResult && 'multipleCategories' in hashResult) {
-      setHashtagError(tc.multipleCategories);
-      return;
-    }
     if (hashResult && 'strippedBody' in hashResult) {
       monthOverride = hashResult.monthOverride;
-      if ('category' in hashResult) category = hashResult.category;
+      if ('categories' in hashResult) categories = hashResult.categories;
       noteBody = hashResult.strippedBody;
     }
     // Default to current month when no hashtag was provided
@@ -184,7 +178,7 @@ export default function NotesConsole() {
           body: '',
           checklist: checklist.length > 0 ? checklist : null,
           monthOverride,
-          category,
+          categories,
         } as any,
       });
       setBody('');
@@ -375,9 +369,9 @@ export default function NotesConsole() {
                                   onClick={() => note.clientId && setLocation(`/clients/${note.clientId}`)}
                                 />
                               )}
-                              {note.category && (
-                                <Chip label={`#${note.category}`} size="small" color="secondary" sx={{ fontSize: '0.65rem', height: 18 }} />
-                              )}
+                              {note.categories?.map((category: string) => (
+                                <Chip key={category} label={`#${category}`} size="small" color="secondary" sx={{ fontSize: '0.65rem', height: 18 }} />
+                              ))}
                               <Typography variant="caption" color="text.disabled" noWrap>
                                 {new Date(note.createdAt).toLocaleString(lang === 'en' ? 'en-US' : 'it-IT', {
                                   dateStyle: 'short', timeStyle: 'short',
