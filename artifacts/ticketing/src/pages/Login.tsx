@@ -7,7 +7,7 @@ import type { Lang } from '../i18n/translations';
 import { trackEvent } from '../lib/analytics';
 import { hasConfirmedTrialRegistration, parseProfessionalTrialAttribution } from '../lib/professionalTrialAttribution';
 import { getInitialLoginMode } from '../lib/loginMode';
-import { isOnboardingProfileId, type OnboardingProfileId } from '../lib/onboardingDashboardPresets';
+import { isOnboardingProfileId, ONBOARDING_PROFILE_IDS, type OnboardingProfileId } from '../lib/onboardingDashboardPresets';
 
 function GoogleLogo() {
   return (
@@ -335,7 +335,7 @@ export default function Login() {
               <label style={s.label}>{t.login.profession}</label>
               <select required value={profession} onChange={e => setProfession(isOnboardingProfileId(e.target.value) ? e.target.value : '')} style={s.inputPlain}>
                 <option value="">{t.login.professionPlaceholder}</option>
-                {(['commercialisti', 'avvocati', 'consulenti-del-lavoro', 'notai', 'commercio', 'agenzie', 'it_support', 'other'] as const).map(value => (
+                {ONBOARDING_PROFILE_IDS.map(value => (
                   <option key={value} value={value}>{t.onboarding.types[value].label}</option>
                 ))}
               </select>

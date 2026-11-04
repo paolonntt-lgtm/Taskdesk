@@ -17,6 +17,7 @@ import {
   getOnboardingDashboardPreset,
   isOnboardingProfileId,
   isProfessionalDashboardPresetId,
+  ONBOARDING_PROFILE_IDS,
   type OnboardingProfileId,
 } from '../lib/onboardingDashboardPresets';
 
@@ -38,16 +39,20 @@ function applyDashboardPreset(profile: OnboardingProfileId, userId: number | str
   } catch { /* ignore quota errors */ }
 }
 
-const OPTIONS: BusinessTypeOption[] = [
-  { value: 'commercialisti', icon: <AccountBalance sx={{ fontSize: 42 }} />, color: '#1565c0' },
-  { value: 'avvocati', icon: <Gavel sx={{ fontSize: 42 }} />, color: '#2e7d32' },
-  { value: 'consulenti-del-lavoro', icon: <WorkOutline sx={{ fontSize: 42 }} />, color: '#6a1b9a' },
-  { value: 'notai', icon: <EditNote sx={{ fontSize: 42 }} />, color: '#ad5b12' },
-  { value: 'commercio', icon: <Storefront sx={{ fontSize: 42 }} />, color: '#00838f' },
-  { value: 'agenzie', icon: <Campaign sx={{ fontSize: 42 }} />, color: '#6a1b9a' },
-  { value: 'it_support', icon: <Computer sx={{ fontSize: 42 }} />, color: '#1565c0' },
-  { value: 'other', icon: <Category sx={{ fontSize: 42 }} />, color: '#e65100' },
-];
+const OPTION_PRESENTATION: Record<OnboardingProfileId, Omit<BusinessTypeOption, 'value'>> = {
+  commercialisti: { icon: <AccountBalance sx={{ fontSize: 42 }} />, color: '#1565c0' },
+  avvocati: { icon: <Gavel sx={{ fontSize: 42 }} />, color: '#2e7d32' },
+  'consulenti-del-lavoro': { icon: <WorkOutline sx={{ fontSize: 42 }} />, color: '#6a1b9a' },
+  notai: { icon: <EditNote sx={{ fontSize: 42 }} />, color: '#ad5b12' },
+  commercio: { icon: <Storefront sx={{ fontSize: 42 }} />, color: '#00838f' },
+  agenzie: { icon: <Campaign sx={{ fontSize: 42 }} />, color: '#6a1b9a' },
+  it_support: { icon: <Computer sx={{ fontSize: 42 }} />, color: '#1565c0' },
+  other: { icon: <Category sx={{ fontSize: 42 }} />, color: '#e65100' },
+};
+const OPTIONS: BusinessTypeOption[] = ONBOARDING_PROFILE_IDS.map((value) => ({
+  value,
+  ...OPTION_PRESENTATION[value],
+}));
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 

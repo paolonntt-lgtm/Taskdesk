@@ -26,14 +26,24 @@ export const PROFESSIONAL_DASHBOARD_PRESETS = {
 } as const;
 
 export type ProfessionalDashboardPresetId = keyof typeof PROFESSIONAL_DASHBOARD_PRESETS;
-export type OnboardingProfileId = ProfessionalDashboardPresetId | "it_support" | "other";
+export const ONBOARDING_PROFILE_IDS = [
+  "commercialisti",
+  "avvocati",
+  "consulenti-del-lavoro",
+  "notai",
+  "commercio",
+  "agenzie",
+  "it_support",
+  "other",
+] as const;
+export type OnboardingProfileId = typeof ONBOARDING_PROFILE_IDS[number];
 
 export function isProfessionalDashboardPresetId(value: unknown): value is ProfessionalDashboardPresetId {
   return typeof value === "string" && Object.prototype.hasOwnProperty.call(PROFESSIONAL_DASHBOARD_PRESETS, value);
 }
 
 export function isOnboardingProfileId(value: unknown): value is OnboardingProfileId {
-  return isProfessionalDashboardPresetId(value) || value === "it_support" || value === "other";
+  return typeof value === "string" && (ONBOARDING_PROFILE_IDS as readonly string[]).includes(value);
 }
 
 export function getOnboardingBusinessType(profile: OnboardingProfileId): string {
