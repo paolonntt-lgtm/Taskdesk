@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getDefaultNoteMonthOverride, hasClientNoteCategoryTag, parseClientNoteTags, parseHashtag } from "./clientNoteHashtag";
+import { getDefaultNoteMonthOverride, hasClientNoteCategoryTag, hasUnavailableBuiltInClientNoteTag, parseClientNoteTags, parseHashtag } from "./clientNoteHashtag";
 
 describe("client note hashtag parsing", () => {
   it("recognizes reserved category tags so unsupported profiles can be told clearly", () => {
@@ -76,5 +76,23 @@ describe("client note hashtag parsing", () => {
       monthOverride: "2026-08",
       strippedBody: "Nota",
     });
+  });
+
+  it("maps configured aliases to organization declarative categories", () => {
+    const declaratives = [{ id: "cb73ea3c-e70f-4de0-97c6-5946f6bdfe5f", name: "Ritenute", alias: "#RIT" }];
+    expect(parseClientNoteTags("Verificare pagamento #rit.", declaratives, false)).toEqual({
+      monthOverride: null,
+      categories: [`declarative:${declaratives[0].id}`],
+      strippedBody: "Verificare pagamento.",
+    });
+  });
+
+  it("allows custom aliases on other professions but rejects unconfigured built-ins", () => {
+    const declaratives = [{ id: "cb73ea3c-e70f-4de0-97c6-5946f6bdfe5f", name: "CU", alias: "#CU" }];
+    expect(hasUnavailableBuiltInClientNoteTag("Nota #CU", false, declaratives)).toBe(false);
+    expect(hasUnavailableBuiltInClientNoteTag("Nota #77026", false, declaratives)).toBe(true);
+    expect(parseClientNoteTags("Nota #CU", declaratives, false)?.categories).toEqual([
+      `declarative:${declaratives[0].id}`,
+    ]);
   });
 });

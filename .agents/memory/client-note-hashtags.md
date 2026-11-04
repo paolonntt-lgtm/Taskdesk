@@ -3,12 +3,12 @@ name: Client note hashtags
 description: Category and month syntax for client notes.
 ---
 
-Client-note category codes are `770` and `CU`, assigned per year. Bare `#770` and `#CU` use the current Europe/Rome year; `#77027` and `#CU27` select that year, and four-digit forms such as `#CU2027` normalize to the same category as `#CU27`. A note may have either or both categories for one or more years. Keep month hashtags separate and unchanged.
+Built-in client-note category codes are `770` and `CU`, assigned per year. Bare `#770` and `#CU` use the current Europe/Rome year; `#77027` and `#CU27` select that year, and four-digit forms such as `#CU2027` normalize to the same category as `#CU27`. Keep month hashtags separate and unchanged.
 
-Show annual categories as selectable cards alongside month cards in client notes; these are filters for the fixed yearly codes, not user-created category definitions.
+Organizations with clients enabled can configure additional declaratives with a display name and hashtag alias. Keep these organization-scoped and add them alongside the built-in yearly categories. Custom aliases may overlap a built-in bare alias (for example `#CU`); then resolve to both categories for labor consultants, and to the configured custom category only for other professions. Keep category identifiers stable so existing notes remain associated.
 
-Only organizations whose labor-consultant profession is recorded during registration/onboarding or explicitly selected later by an organization admin are enabled. Existing organizations are not inferred or automatically backfilled.
+Only the built-in yearly categories are restricted to organizations whose labor-consultant profession is recorded during registration/onboarding or explicitly selected later by an organization admin. Existing organizations are not inferred or automatically backfilled. Custom declaratives are available to any organization with client management enabled.
 
-**Why:** The user specified annual 770/CU categories, restricted them to labor consultants, asked for selectable cards beside months rather than configurable category creation, and chose to avoid inferring professions for existing organizations while allowing admins to correct their organization profile.
+**Why:** The user later requested organization-specific declaratives with editable names and hashtag aliases, in addition to the existing annual 770/CU categories. Built-in category restrictions remain unchanged.
 
-**How to apply:** Persist normalized two-digit year category codes as note metadata, enforce the profession restriction on the server, clearly reject these tags for other profiles, let only admins update the organization profession in settings, keep category-only notes free of a month override, and continue parsing explicit month hashtags independently.
+**How to apply:** Persist built-in normalized two-digit year codes and stable declarative IDs as note metadata; validate custom IDs against that organization's saved settings; allow only admins to edit declaratives; keep category-only notes free of a month override; and continue parsing explicit month hashtags independently.

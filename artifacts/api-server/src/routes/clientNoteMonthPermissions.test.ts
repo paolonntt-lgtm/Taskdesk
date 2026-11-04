@@ -9,6 +9,7 @@ import {
   organizationsTable,
   pool,
   sessionsTable,
+  settingsTable,
   usersTable,
 } from "@workspace/db";
 import { eq } from "drizzle-orm";
@@ -56,7 +57,7 @@ describe("client note month permissions", () => {
   beforeAll(async () => {
     const [organization] = await db
       .insert(organizationsTable)
-      .values({ name: `Client note month permissions ${runId}` })
+      .values({ name: `Client note month permissions ${runId}`, clientsEnabled: true })
       .returning({ id: organizationsTable.id });
     organizationId = organization.id;
 
@@ -154,6 +155,9 @@ describe("client note month permissions", () => {
       });
     }
     if (noteId) await db.delete(clientNotesTable).where(eq(clientNotesTable.id, noteId));
+    if (organizationId) {
+      await db.delete(settingsTable).where(eq(settingsTable.key, `org_${organizationId}_client_note_declaratives`));
+    }
     if (groupId) {
       await db.delete(groupMembersTable).where(eq(groupMembersTable.groupId, groupId));
       await db.delete(groupsTable).where(eq(groupsTable.id, groupId));
@@ -311,5 +315,36 @@ describe("client note month permissions", () => {
       categories: [],
       checklist,
     });
+  });
+
+  it("lets an organization configure and use client-note declaratives without deleting tags in use", async () => {
+    const declarative = {
+      id: crypto.randomUUID(),
+      name: "Ritenute",
+      alias: "#RIT",
+    };
+    const save = await request("/api/client-note-declaratives", adminSessionId, {
+      method: "PUT",
+      body: JSON.stringify({ declaratives: [declarative] }),
+    });
+    expect(save.status).toBe(200);
+    expect(save.body.declaratives).toEqual([declarative]);
+
+    const readByCollaborator = await request("/api/client-note-declaratives", authorSessionId);
+    expect(readByCollaborator.status).toBe(200);
+    expect(readByCollaborator.body.declaratives).toEqual([declarative]);
+
+    const create = await request(`/api/clients/${clientId}/notes`, authorSessionId, {
+      method: "POST",
+      body: JSON.stringify({ body: "Nota dichiarativo", categories: [`declarative:${declarative.id}`] }),
+    });
+    expect(create.status).toBe(201);
+    expect(create.body.categories).toEqual([`declarative:${declarative.id}`]);
+
+    const removeInUse = await request("/api/client-note-declaratives", adminSessionId, {
+      method: "PUT",
+      body: JSON.stringify({ declaratives: [] }),
+    });
+    expect(removeInUse.status).toBe(409);
   });
 });

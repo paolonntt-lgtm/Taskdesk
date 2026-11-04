@@ -17,7 +17,8 @@ import {
   resolveClientBySlug,
 } from '@workspace/api-client-react';
 import { useLocation } from 'wouter';
-import { getDefaultNoteMonthOverride, hasClientNoteCategoryTag, parseClientNoteTags, parseHashtag } from '../lib/clientNoteHashtag';
+import { getDefaultNoteMonthOverride, hasUnavailableBuiltInClientNoteTag, parseClientNoteTags } from '../lib/clientNoteHashtag';
+import { useClientNoteDeclaratives } from '../hooks/useClientNoteDeclaratives';
 
 function genId(): string {
   return Math.random().toString(36).slice(2, 10);
@@ -35,6 +36,7 @@ export default function NotesConsole() {
   const { t, lang } = useLanguage();
   const { user } = useAuth();
   const canCategorize = user?.profession === 'consulenti-del-lavoro';
+  const { declaratives, isLoading: declarativesLoading } = useClientNoteDeclaratives();
   const tc = (t as any).clientNotes;
   const [, setLocation] = useLocation();
 
@@ -73,10 +75,10 @@ export default function NotesConsole() {
     const val = e.target.value;
     setBody(val);
 
-    if (!canCategorize && hasClientNoteCategoryTag(val)) {
+    if (hasUnavailableBuiltInClientNoteTag(val, canCategorize, declaratives)) {
       setHashtagError(tc.categoryProfessionRequired);
     } else {
-      const hashResult = canCategorize ? parseClientNoteTags(val) : parseHashtag(val);
+      const hashResult = parseClientNoteTags(val, declaratives, canCategorize);
       if (hashResult && 'badMonth' in hashResult) {
         setHashtagError(tc.invalidMonth(hashResult.badMonth));
       } else {
@@ -116,9 +118,10 @@ export default function NotesConsole() {
   };
 
   const handleSubmit = async () => {
+    if (declarativesLoading) return;
     const trimmedBody = body.trim();
     if (!trimmedBody) { showToast('error', tc.errorRequired); return; }
-    if (!canCategorize && hasClientNoteCategoryTag(trimmedBody)) {
+    if (hasUnavailableBuiltInClientNoteTag(trimmedBody, canCategorize, declaratives)) {
       setHashtagError(tc.categoryProfessionRequired);
       showToast('error', tc.categoryProfessionRequired);
       return;
@@ -156,7 +159,7 @@ export default function NotesConsole() {
     if (!noteBody) { showToast('error', tc.errorRequired); return; }
 
     // Extract monthOverride from hashtag shortcut
-    const hashResult = canCategorize ? parseClientNoteTags(noteBody) : parseHashtag(noteBody);
+    const hashResult = parseClientNoteTags(noteBody, declaratives, canCategorize);
     let monthOverride: string | null = null;
     let categories: string[] = [];
     if (hashResult && 'badMonth' in hashResult) {
@@ -318,7 +321,7 @@ export default function NotesConsole() {
                   <IconButton
                     size="small" color="primary"
                     onClick={handleSubmit}
-                    disabled={saving || !body.trim() || !!hashtagError}
+                    disabled={saving || declarativesLoading || !body.trim() || !!hashtagError}
                   >
                     {saving ? <CircularProgress size={16} /> : <Send fontSize="small" />}
                   </IconButton>
@@ -374,7 +377,17 @@ export default function NotesConsole() {
                                 />
                               )}
                               {note.categories?.map((category: string) => (
-                                <Chip key={category} label={`#${category}`} size="small" color="secondary" sx={{ fontSize: '0.65rem', height: 18 }} />
+                                <Chip
+                                  key={category}
+                                  label={category.startsWith('declarative:')
+                                    ? declaratives.find((item) => `declarative:${item.id}` === category)?.alias
+                                      ?? declaratives.find((item) => `declarative:${item.id}` === category)?.name
+                                      ?? category
+                                    : `#${category}`}
+                                  size="small"
+                                  color="secondary"
+                                  sx={{ fontSize: '0.65rem', height: 18 }}
+                                />
                               ))}
                               <Typography variant="caption" color="text.disabled" noWrap>
                                 {new Date(note.createdAt).toLocaleString(lang === 'en' ? 'en-US' : 'it-IT', {

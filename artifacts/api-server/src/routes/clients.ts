@@ -10,6 +10,7 @@ import {
   organizationsTable,
   emailClientSenderRulesTable,
   emailClientDomainRulesTable,
+  settingsTable,
 } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { hasGroupPermission, VIEW_WORKED_HOURS_PERMISSION } from "../lib/groupPermissions";
@@ -213,6 +214,121 @@ const ClientNoteBody = z.object({
     )
     .optional()
     .nullable(),
+});
+
+const ClientNoteDeclarativeSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().trim().min(1).max(80),
+  alias: z.string().trim().regex(/^#[\p{L}\p{N}_-]{1,32}$/u),
+});
+const ClientNoteDeclarativesBody = z.object({
+  declaratives: z.array(ClientNoteDeclarativeSchema).max(100),
+}).superRefine(({ declaratives }, context) => {
+  const ids = new Set<string>();
+  const aliases = new Set<string>();
+  for (const [index, declarative] of declaratives.entries()) {
+    const alias = declarative.alias.toLocaleLowerCase();
+    if (ids.has(declarative.id) || aliases.has(alias)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["declaratives", index],
+        message: "Declarative IDs and aliases must be unique",
+      });
+    }
+    ids.add(declarative.id);
+    aliases.add(alias);
+  }
+});
+
+function clientNoteDeclarativesKey(organizationId: number): string {
+  return `org_${organizationId}_client_note_declaratives`;
+}
+
+async function getClientNoteDeclaratives(organizationId: number) {
+  const [row] = await db.select({ value: settingsTable.value })
+    .from(settingsTable)
+    .where(eq(settingsTable.key, clientNoteDeclarativesKey(organizationId)))
+    .limit(1);
+  if (!row) return [];
+  const parsed = ClientNoteDeclarativesBody.safeParse({ declaratives: JSON.parse(row.value) });
+  if (!parsed.success) throw new Error("Stored client note declaratives are invalid");
+  return parsed.data.declaratives;
+}
+
+async function validateClientNoteCategories(organizationId: number, categories: string[]) {
+  if (categories.length === 0) {
+    const [organization] = await db.select({ profession: organizationsTable.profession })
+      .from(organizationsTable)
+      .where(eq(organizationsTable.id, organizationId))
+      .limit(1);
+    if (organization?.profession !== "consulenti-del-lavoro"
+      && (await getClientNoteDeclaratives(organizationId)).length === 0) {
+      return { status: 403, error: "Client note categories are only available to labor consultants" };
+    }
+  }
+  const builtInCategories = categories.filter((category) => /^(?:CU|770)\d{2}$/.test(category));
+  const declarativeIds = categories
+    .map((category) => /^declarative:(.+)$/.exec(category)?.[1])
+    .filter((id): id is string => !!id);
+  if (categories.length !== builtInCategories.length + declarativeIds.length) {
+    return { status: 400, error: "Invalid client note category" };
+  }
+  if (builtInCategories.length > 0) {
+    const [organization] = await db.select({ profession: organizationsTable.profession })
+      .from(organizationsTable)
+      .where(eq(organizationsTable.id, organizationId))
+      .limit(1);
+    if (organization?.profession !== "consulenti-del-lavoro") {
+      return { status: 403, error: "Built-in client note categories are only available to labor consultants" };
+    }
+  }
+  if (declarativeIds.length > 0) {
+    const declaratives = await getClientNoteDeclaratives(organizationId);
+    const configuredIds = new Set(declaratives.map((item) => item.id));
+    if (declarativeIds.some((id) => !configuredIds.has(id))) {
+      return { status: 400, error: "Client note category is not configured" };
+    }
+  }
+  return null;
+}
+
+router.get("/client-note-declaratives", requireClientFeature, async (req, res): Promise<void> => {
+  const organizationId = (req as any).currentUser.organizationId as number;
+  res.setHeader("Cache-Control", "no-store");
+  res.json({ declaratives: await getClientNoteDeclaratives(organizationId) });
+});
+
+router.put("/client-note-declaratives", requireClientFeature, requireAdmin, async (req, res): Promise<void> => {
+  const parsed = ClientNoteDeclarativesBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid client note declaratives" });
+    return;
+  }
+  const organizationId = (req as any).currentUser.organizationId as number;
+  const current = await getClientNoteDeclaratives(organizationId);
+  const nextIds = new Set(parsed.data.declaratives.map((item) => item.id));
+  const removedIds = new Set(current.filter((item) => !nextIds.has(item.id)).map((item) => `declarative:${item.id}`));
+  if (removedIds.size > 0) {
+    const storedNotes = await db.select({ categories: clientNotesTable.categories })
+      .from(clientNotesTable)
+      .where(eq(clientNotesTable.organizationId, organizationId));
+    const inUse = storedNotes.some((note) => (note.categories ?? []).some((category) => removedIds.has(category)));
+    if (inUse) {
+      res.status(409).json({ error: "Remove this declarative from existing client notes before deleting it" });
+      return;
+    }
+  }
+  const value = JSON.stringify(parsed.data.declaratives.map((item) => ({
+    ...item,
+    alias: item.alias.toLocaleUpperCase(),
+  })));
+  await db.insert(settingsTable)
+    .values({ key: clientNoteDeclarativesKey(organizationId), value })
+    .onConflictDoUpdate({
+      target: settingsTable.key,
+      set: { value },
+    });
+  res.json({ declaratives: JSON.parse(value) });
 });
 
 router.get("/client-notes", requireClientFeature, async (req, res): Promise<void> => {
@@ -1038,13 +1154,9 @@ router.post("/clients/:id/notes", requireClientFeature, async (req, res): Promis
   }
 
   if (parsed.data.categories?.length) {
-    const [organization] = await db
-      .select({ profession: organizationsTable.profession })
-      .from(organizationsTable)
-      .where(eq(organizationsTable.id, currentUser.organizationId))
-      .limit(1);
-    if (organization?.profession !== "consulenti-del-lavoro") {
-      res.status(403).json({ error: "Client note categories are only available to labor consultants" });
+    const categoryError = await validateClientNoteCategories(currentUser.organizationId, parsed.data.categories);
+    if (categoryError) {
+      res.status(categoryError.status).json({ error: categoryError.error });
       return;
     }
   }
@@ -1116,13 +1228,9 @@ router.patch("/clients/:id/notes/:noteId", requireClientFeature, async (req, res
     }
     if (parsed.data.categories !== undefined) {
       const categories = parsed.data.categories ?? [];
-      const [organization] = await db
-        .select({ profession: organizationsTable.profession })
-        .from(organizationsTable)
-        .where(eq(organizationsTable.id, currentUser.organizationId))
-        .limit(1);
-      if (organization?.profession !== "consulenti-del-lavoro") {
-        res.status(403).json({ error: "Client note categories are only available to labor consultants" });
+      const categoryError = await validateClientNoteCategories(currentUser.organizationId, categories);
+      if (categoryError) {
+        res.status(categoryError.status).json({ error: categoryError.error });
         return;
       }
       updateData.categories = categories;

@@ -19,6 +19,7 @@ vi.mock('@workspace/api-client-react', () => ({
 
 vi.mock('@tanstack/react-query', () => ({
   useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+  useQuery: () => ({ data: [], isLoading: false, isError: false }),
 }));
 
 vi.mock('../contexts/AuthContext', () => ({

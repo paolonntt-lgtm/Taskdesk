@@ -92,6 +92,12 @@ export interface HashtagParseError {
 
 export type ClientNoteCategory = string;
 
+export interface ClientNoteDeclarative {
+  id: string;
+  name: string;
+  alias: string;
+}
+
 export interface ClientNoteTags {
   monthOverride: string | null;
   categories: ClientNoteCategory[];
@@ -113,18 +119,61 @@ export function hasClientNoteCategoryTag(text: string): boolean {
   return /(^|\s)#(?:770|CU)(?:\d{2}|\d{4})?(?![\w])/i.test(text);
 }
 
-export function parseClientNoteTags(text: string): ClientNoteTags | HashtagParseError | null {
-  const categoryRegex = /(^|\s)#(770|CU)(\d{2}|\d{4})?(?![\w])/gi;
-  const categoryMatches = [...text.matchAll(categoryRegex)];
+export function hasUnavailableBuiltInClientNoteTag(
+  text: string,
+  canUseBuiltIns: boolean,
+  declaratives: ClientNoteDeclarative[],
+): boolean {
+  if (canUseBuiltIns) return false;
+  return [...text.matchAll(/(^|\s)#(770|CU)(\d{2}|\d{4})?(?![\w])/gi)].some((match) => {
+    if (match[3]) return true;
+    const alias = `#${match[2]}`.toLocaleLowerCase();
+    return !declaratives.some((item) => item.alias.toLocaleLowerCase() === alias);
+  });
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+export function parseClientNoteTags(
+  text: string,
+  declaratives: ClientNoteDeclarative[] = [],
+  includeBuiltIns = true,
+): ClientNoteTags | HashtagParseError | null {
   const currentYear = String(new Date().getFullYear()).slice(-2);
-  const categories = [...new Set(categoryMatches.map((match) => {
-    const year = match[3] ? match[3].slice(-2) : currentYear;
-    return `${match[2].toUpperCase()}${year}`;
-  }))];
+  const matches: Array<{ index: number; length: number; text: string; category: string }> = [];
+  if (includeBuiltIns) {
+    for (const match of text.matchAll(/(^|\s)#(770|CU)(\d{2}|\d{4})?(?![\w])/gi)) {
+      const year = match[3] ? match[3].slice(-2) : currentYear;
+      matches.push({
+        index: match.index ?? 0,
+        length: match[0].length,
+        text: match[0],
+        category: `${match[2].toUpperCase()}${year}`,
+      });
+    }
+  }
+  for (const declarative of declaratives) {
+    const alias = declarative.alias.trim().replace(/^#/, '');
+    if (!alias) continue;
+    const regex = new RegExp(`(^|\\s)#${escapeRegExp(alias)}(?![\\p{L}\\p{N}_])`, 'giu');
+    for (const match of text.matchAll(regex)) {
+      matches.push({
+        index: match.index ?? 0,
+        length: match[0].length,
+        text: match[0],
+        category: `declarative:${declarative.id}`,
+      });
+    }
+  }
+  const categories = [...new Set(matches.map((match) => match.category))];
 
   let strippedBody = text;
-  for (const match of categoryMatches) {
-    strippedBody = strippedBody.replace(match[0], match[1] || "");
+  const removals = [...new Map(matches.map((match) => [`${match.index}:${match.length}`, match])).values()]
+    .sort((a, b) => b.index - a.index);
+  for (const match of removals) {
+    strippedBody = strippedBody.slice(0, match.index) + strippedBody.slice(match.index + match.length);
   }
   strippedBody = strippedBody
     .replace(/\s{2,}/g, " ")

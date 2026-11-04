@@ -17,7 +17,8 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
-import { hasClientNoteCategoryTag, parseClientNoteTags, parseHashtag } from '../lib/clientNoteHashtag';
+import { hasUnavailableBuiltInClientNoteTag, parseClientNoteTags } from '../lib/clientNoteHashtag';
+import { useClientNoteDeclaratives } from '../hooks/useClientNoteDeclaratives';
 
 interface ChecklistItem {
   id: string;
@@ -94,7 +95,11 @@ function authorInitials(name: string | null | undefined): string {
   return name.slice(0, 2).toUpperCase();
 }
 
-function getClientNoteCategoryOptions(note: any): string[] {
+function getClientNoteCategoryOptions(
+  note: any,
+  declaratives: Array<{ id: string; name: string; alias: string }>,
+  canUseBuiltIns: boolean,
+) {
   const years = new Set<string>();
   const categories: string[] = Array.isArray(note.categories) ? note.categories : [];
   for (const category of categories) {
@@ -102,20 +107,25 @@ function getClientNoteCategoryOptions(note: any): string[] {
     if (match) years.add(match[1].slice(-2));
   }
 
-  if (years.size === 0) {
+  if (years.size === 0 && canUseBuiltIns) {
     const month = note.monthOverride ?? monthKeyFromDate(note.createdAt);
     years.add(month.slice(2, 4));
   }
 
-  return [...years]
-    .sort()
-    .flatMap((year) => [`770${year}`, `CU${year}`]);
+  return [
+    ...(canUseBuiltIns ? [...years].sort().flatMap((year) => [
+      { value: `770${year}`, label: `770${year}` },
+      { value: `CU${year}`, label: `CU${year}` },
+    ]) : []),
+    ...declaratives.map((item) => ({ value: `declarative:${item.id}`, label: `${item.name} (${item.alias})` })),
+  ];
 }
 
 export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, canEditClientNotes, canDeleteClientNotes }: ClientNotesBlockProps) {
   const { t, lang } = useLanguage();
   const { user } = useAuth();
   const canCategorize = user?.profession === 'consulenti-del-lavoro';
+  const { declaratives, isLoading: declarativesLoading } = useClientNoteDeclaratives();
   const tc = (t as any).clientNotes;
   const qc = useQueryClient();
 
@@ -180,11 +190,16 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
       ...group,
       label: group.type === 'month'
         ? formatMonthShort(group.key, lang)
-        : group.key.slice('category:'.length).replace(/^(770)(\d{2})$/, '$1-$2'),
+        : (() => {
+            const category = group.key.slice('category:'.length);
+            const custom = /^declarative:(.+)$/.exec(category);
+            if (custom) return declaratives.find((item) => item.id === custom[1])?.name ?? category;
+            return category.replace(/^(770)(\d{2})$/, '$1-$2');
+          })(),
       count: group.notes.length,
       openCount: group.notes.reduce((sum, note) => sum + countNoteOpenItems(note), 0),
     })),
-    [groupedNotes, lang],
+    [groupedNotes, lang, declaratives],
   );
 
   const defaultGroupKey = useMemo(() => {
@@ -230,11 +245,11 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
 
   const handleBodyChange = (value: string) => {
     setBody(value);
-    if (!canCategorize && hasClientNoteCategoryTag(value)) {
+    if (hasUnavailableBuiltInClientNoteTag(value, canCategorize, declaratives)) {
       setHashtagError(tc.categoryProfessionRequired);
       return;
     }
-    const result = canCategorize ? parseClientNoteTags(value) : parseHashtag(value);
+    const result = parseClientNoteTags(value, declaratives, canCategorize);
     if (result && 'badMonth' in result) {
       setHashtagError(tc.invalidMonth(result.badMonth));
     } else {
@@ -243,15 +258,16 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
   };
 
   const handleSave = async () => {
+    if (declarativesLoading) return;
     if (!body.trim()) { showToast('error', tc.errorRequired); return; }
-    if (!canCategorize && hasClientNoteCategoryTag(body)) {
+    if (hasUnavailableBuiltInClientNoteTag(body, canCategorize, declaratives)) {
       setHashtagError(tc.categoryProfessionRequired);
       showToast('error', tc.categoryProfessionRequired);
       return;
     }
     if (hashtagError) return;
 
-    const result = canCategorize ? parseClientNoteTags(body) : parseHashtag(body);
+    const result = parseClientNoteTags(body, declaratives, canCategorize);
     let finalBody = body.trim();
     let monthOverride: string | null = null;
     let categories: string[] = [];
@@ -347,7 +363,7 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
     }
     const originalCategories: string[] = Array.isArray(note.categories) ? note.categories : [];
     const normalizeCategories = (categories: string[]) => [...categories].sort();
-    if (canCategorize
+    if ((canCategorize || declaratives.length > 0)
       && JSON.stringify(normalizeCategories(editCategories)) !== JSON.stringify(normalizeCategories(originalCategories))) {
       updateData.categories = editCategories;
     }
@@ -653,30 +669,30 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
                         InputLabelProps={{ shrink: true }}
                         sx={{ mb: 1 }}
                       />
-                      {canCategorize && (
+                      {(canCategorize || declaratives.length > 0) && (
                         <Box sx={{ mb: 1 }} data-testid={`client-note-edit-categories-${note.id}`}>
                           <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                             {tc.editNoteCategories}
                           </Typography>
                           <Box display="flex" alignItems="center" flexWrap="wrap" columnGap={1}>
-                            {getClientNoteCategoryOptions(note).map((category) => (
+                            {getClientNoteCategoryOptions(note, declaratives, canCategorize).map((category) => (
                               <FormControlLabel
-                                key={category}
-                                data-testid={`client-note-edit-category-${category.toLowerCase()}-${note.id}`}
+                                key={category.value}
+                                data-testid={`client-note-edit-category-${category.value.toLowerCase()}-${note.id}`}
                                 control={
                                   <Checkbox
                                     size="small"
-                                    checked={editCategories.includes(category)}
+                                    checked={editCategories.includes(category.value)}
                                     onChange={(event) => {
                                       setEditCategories((current) =>
                                         event.target.checked
-                                          ? [...current, category]
-                                          : current.filter((value) => value !== category),
+                                          ? [...current, category.value]
+                                          : current.filter((value) => value !== category.value),
                                       );
                                     }}
                                   />
                                 }
-                                label={category}
+                                label={category.label}
                                 sx={{ ml: 0, mr: 1 }}
                               />
                             ))}
@@ -816,7 +832,7 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
               variant="contained"
               size="small"
               onClick={handleSave}
-              disabled={saving || !body.trim() || !!hashtagError}
+              disabled={saving || declarativesLoading || !body.trim() || !!hashtagError}
             >
               {saving ? tc.savingNote : tc.saveNote}
             </Button>

@@ -15,6 +15,7 @@ import { useTicketStatuses, type TicketStatus } from '../hooks/useTicketStatuses
 import { useQueryClient } from '@tanstack/react-query';
 import ConsoleHistoryTab from './ConsoleHistoryTab';
 import OneDriveConnectionSettings from '../components/OneDriveConnectionSettings';
+import ClientNoteDeclarativesSettings from '../components/ClientNoteDeclarativesSettings';
 import OneDriveLogo from '../components/OneDriveLogo';
 import WorkspaceManagement from './WorkspaceManagement';
 import {
@@ -816,13 +817,14 @@ export default function Settings() {
   const activeSection = !isAdmin && !['profile', 'notifications', 'onedrive'].includes(urlSection)
     ? 'profile'
     : urlSection === 'email' ? 'tickets'
-      : urlSection === 'console' && !orgClientsEnabled ? 'general' : urlSection;
+      : ['console', 'client-notes'].includes(urlSection) && !orgClientsEnabled ? 'general' : urlSection;
   const setSection = (s: string) => navigate(`/settings?section=${s}`);
 
   useEffect(() => {
     if (isAdmin && urlSection === 'announcements') navigate('/announcements');
     else if (isAdmin && urlSection === 'email') navigate('/settings?section=tickets');
     else if (isAdmin && urlSection === 'console' && !orgClientsEnabled) navigate('/settings?section=general');
+    else if (isAdmin && urlSection === 'client-notes' && !orgClientsEnabled) navigate('/settings?section=general');
   }, [isAdmin, urlSection, orgClientsEnabled, navigate]);
 
   const [name, setName] = useState(user?.name ?? '');
@@ -1206,6 +1208,9 @@ export default function Settings() {
     { id: 'billing', label: t.settings.navBilling, icon: <Receipt fontSize="small" /> },
     ...(orgClientsEnabled
       ? [{ id: 'console', label: (t.settings as any).navConsole, icon: <History fontSize="small" /> }]
+      : []),
+    ...(orgClientsEnabled
+      ? [{ id: 'client-notes', label: (t.settings as any).navClientNotes, icon: <Article fontSize="small" /> }]
       : []),
     { id: 'backup', label: (t.settings as any).navBackup, icon: <CloudDownload fontSize="small" /> },
   ];
@@ -1669,6 +1674,12 @@ export default function Settings() {
 
           {/* ── CONSOLE LOG (admin) ── */}
           {isAdmin && orgClientsEnabled && activeSection === 'console' && <ConsoleHistoryTab />}
+          {isAdmin && orgClientsEnabled && activeSection === 'client-notes' && (
+            <Section title={(t.settings as any).navClientNotes} icon={<Article color="primary" />}>
+              <Typography variant="h6" fontWeight={700} mb={1}>{(t.settings as any).clientNoteDeclaratives.title}</Typography>
+              <ClientNoteDeclarativesSettings />
+            </Section>
+          )}
 
           {/* ── BACKUP (admin) ── */}
           {isAdmin && activeSection === 'backup' && <BackupSection />}

@@ -66,7 +66,7 @@
 - [Inbound email client titles](inbound-email-client-titles.md) — Prefix associated email-ticket titles, preserve the subject, and hide the client field after matching.
 - [Inbound email notifications](inbound-email-notification-routing.md) — When an email ticket has an assigned operator, send its notification only to that operator.
 - [Client email matching](client-email-association-priority.md) — Automatically match only email/PEC contacts saved in the same organization's client profile.
-- [Client note hashtags](client-note-hashtags.md) — Reserve #YYYY-MM-style hashtags for month assignment; client note categories are limited to #770 and #CU.
+- [Client note hashtags](client-note-hashtags.md) — Keep built-in CU/770 annual tags and support organization-specific client-note declaratives alongside them.
 - [Microsoft SPA token redemption](microsoft-spa-token-origin.md) — Entra SPA token endpoint requests from the backend need a matching Origin header for code exchange and refresh.
 - [API workflow port conflicts](api-workflow-port-conflict.md) — A failed managed API restart may leave an older dev server listening on port 8080.
 - [Shared workspace billing](shared-workspace-billing.md) — Membership and workspace roles stay separate from the account’s home billing owner and seat count.
