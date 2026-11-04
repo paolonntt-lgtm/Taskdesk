@@ -135,6 +135,7 @@ export default function SuperAdmin() {
   const [hiddenCount, setHiddenCount] = useState(0);
   const [updatingOrganizationId, setUpdatingOrganizationId] = useState<number | null>(null);
   const [visibilityError, setVisibilityError] = useState<string | null>(null);
+  const [expandedOrganizationIds, setExpandedOrganizationIds] = useState<Set<number>>(() => new Set());
 
   const [bugReports, setBugReports] = useState<BugReport[]>([]);
   const [bugLoading, setBugLoading] = useState(false);
@@ -428,18 +429,68 @@ export default function SuperAdmin() {
               <Box key={group.key} display="flex" flexDirection="column" gap={1}>
                 {group.organizations.length > 1 && (
                   <Box display="flex" alignItems="center" gap={1} px={0.5}>
-                    <AdminPanelSettings color="primary" fontSize="small" />
+                    <Tooltip title={group.admins.map((admin) => `${admin.name} (${admin.email})`).join(', ')}>
+                      <AdminPanelSettings color="primary" fontSize="small" />
+                    </Tooltip>
                     <Typography variant="subtitle2" color="text.secondary">
-                      {sa.organizationsManagedBy}{' '}
-                      {group.admins.map((admin) => `${admin.name} (${admin.email})`).join(', ')}
+                      {sa.relatedSpaces}
                     </Typography>
                     <Chip size="small" label={group.organizations.length} />
                   </Box>
                 )}
-                <Box display="flex" flexDirection="column" gap={2}>
+                <Box
+                  display="flex"
+                  flexDirection="column"
+                  gap={1.25}
+                  sx={{
+                    position: 'relative',
+                    pl: group.organizations.length > 1 ? { xs: 3, sm: 4 } : 0,
+                    ...(group.organizations.length > 1 && {
+                      '&::before': {
+                        content: '""',
+                        position: 'absolute',
+                        left: { xs: 8, sm: 11 },
+                        top: 22,
+                        bottom: 22,
+                        width: 2,
+                        bgcolor: 'primary.light',
+                        borderRadius: 2,
+                      },
+                    }),
+                  }}
+                >
                   {group.organizations.map((org) => (
+                    <Box
+                      key={org.id}
+                      sx={{
+                        position: 'relative',
+                        ...(group.organizations.length > 1 && {
+                          '&::before': {
+                            content: '""',
+                            position: 'absolute',
+                            left: { xs: -16, sm: -21 },
+                            top: 22,
+                            width: { xs: 16, sm: 21 },
+                            height: 2,
+                            bgcolor: 'primary.light',
+                          },
+                          '&::after': {
+                            content: '""',
+                            position: 'absolute',
+                            left: { xs: -22, sm: -27 },
+                            top: 16,
+                            width: 12,
+                            height: 12,
+                            borderRadius: '50%',
+                            bgcolor: 'primary.main',
+                            border: '2px solid',
+                            borderColor: 'background.paper',
+                            zIndex: 1,
+                          },
+                        }),
+                      }}
+                    >
               <Card
-                key={org.id}
                 data-testid={`organization-card-${org.id}`}
                 variant="outlined"
                 sx={{
@@ -479,22 +530,7 @@ export default function SuperAdmin() {
                         />
                       </Tooltip>
                     )}
-                    <Box display="flex" alignItems="center" gap={0.75} flexWrap="wrap" width="100%">
-                      <Typography variant="caption" color="text.secondary" mr={0.25}>
-                        {sa.createdTicketsLabel}
-                      </Typography>
-                      <Chip size="small" variant="outlined" label={`${sa.createdToday}: ${org.ticketCreationStats.today}`} />
-                      <Chip size="small" variant="outlined" label={`${sa.createdYesterday}: ${org.ticketCreationStats.yesterday}`} />
-                      <Chip size="small" variant="outlined" label={`${sa.createdLast7Days}: ${org.ticketCreationStats.last7Days}`} />
-                      <Chip size="small" variant="outlined" label={`${sa.createdLast30Days}: ${org.ticketCreationStats.last30Days}`} />
-                    </Box>
                     {org.hiddenFromSuperadmin && <Chip label={sa.hiddenOrganization} size="small" variant="outlined" />}
-                    <Chip
-                      label={`#${org.id}`}
-                      size="small"
-                      sx={{ fontWeight: 600, fontSize: 11, color: 'text.secondary' }}
-                      variant="outlined"
-                    />
                     <Tooltip title={org.hiddenFromSuperadmin ? sa.showOrganization : sa.hideOrganization}>
                       <span>
                         <IconButton
@@ -510,7 +546,32 @@ export default function SuperAdmin() {
                     </Tooltip>
                   </Box>
 
-                  {org.users.length > 0 && <Divider sx={{ mb: 1.5 }} />}
+                  <Button
+                    size="small"
+                    startIcon={expandedOrganizationIds.has(org.id) ? <ExpandLess /> : <ExpandMore />}
+                    onClick={() => setExpandedOrganizationIds((current) => {
+                      const next = new Set(current);
+                      if (next.has(org.id)) next.delete(org.id);
+                      else next.add(org.id);
+                      return next;
+                    })}
+                    sx={{ mt: 0.5, ml: -0.75, minHeight: 32 }}
+                  >
+                    {expandedOrganizationIds.has(org.id) ? sa.hideOrganizationDetails : sa.showOrganizationDetails}
+                  </Button>
+
+                  <Collapse in={expandedOrganizationIds.has(org.id)} unmountOnExit>
+                    <Divider sx={{ my: 1.25 }} />
+                    <Box display="flex" flexWrap="wrap" gap={1} mb={org.users.length > 0 ? 1.5 : 0}>
+                      {[
+                        [sa.createdToday, org.ticketCreationStats.today],
+                        [sa.createdYesterday, org.ticketCreationStats.yesterday],
+                        [sa.createdLast7Days, org.ticketCreationStats.last7Days],
+                        [sa.createdLast30Days, org.ticketCreationStats.last30Days],
+                      ].map(([label, count]) => (
+                        <Chip key={label} size="small" variant="outlined" label={`${label}: ${count}`} />
+                      ))}
+                    </Box>
 
                   <Box display="flex" flexDirection="column" gap={1}>
                     {org.users.map((u) => (
@@ -592,8 +653,10 @@ export default function SuperAdmin() {
                       </Box>
                     )}
                   </Box>
+                  </Collapse>
                 </CardContent>
               </Card>
+                    </Box>
                   ))}
                 </Box>
               </Box>
