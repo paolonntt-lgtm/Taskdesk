@@ -139,20 +139,34 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
       categoryGroups.set(`CU${currentYear}`, categoryGroups.get(`CU${currentYear}`) ?? []);
     }
 
-    return [
+    const groups = [
       ...[...monthGroups.entries()]
-        .sort(([a], [b]) => a.localeCompare(b))
         .map(([key, grouped]) => ({ key, type: 'month' as const, notes: grouped })),
       ...[...categoryGroups.entries()]
-        .sort(([a], [b]) => a.localeCompare(b))
         .map(([category, grouped]) => ({ key: `category:${category}`, type: 'category' as const, notes: grouped })),
     ];
+
+    const timelineOrder = (group: typeof groups[number]): number => {
+      if (group.type === 'month') {
+        const [year, month] = group.key.split('-').map(Number);
+        return year * 1000 + month * 10;
+      }
+
+      const categoryMatch = /^category:(CU|770)(\d{2})$/.exec(group.key);
+      if (!categoryMatch) return Number.MAX_SAFE_INTEGER;
+
+      const year = 2000 + Number(categoryMatch[2]);
+      const categoryOrder = categoryMatch[1] === 'CU' ? 1 : 2;
+      return year * 1000 + 12 * 10 + categoryOrder;
+    };
+
+    return groups.sort((a, b) => timelineOrder(a) - timelineOrder(b));
   }, [notes, canCategorize]);
 
   const availableGroups = useMemo(
     () => groupedNotes.map(group => ({
       ...group,
-      label: group.type === 'month' ? formatMonthShort(group.key, lang) : `#${group.key.slice('category:'.length)}`,
+      label: group.type === 'month' ? formatMonthShort(group.key, lang) : group.key.slice('category:'.length),
       count: group.notes.length,
       openCount: group.notes.reduce((sum, note) => sum + countNoteOpenItems(note), 0),
     })),
@@ -399,18 +413,56 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
             '&::-webkit-scrollbar-track': { background: 'transparent' },
           }}
         >
-          {availableGroups.filter(group => group.type === 'month').map((m) => {
-            const isSelected = m.key === effectiveGroupKey;
-            const isCurrent = m.key === currentMonthKey;
+          {availableGroups.map((group) => {
+            if (group.type === 'month') {
+              const isSelected = group.key === effectiveGroupKey;
+              const isCurrent = group.key === currentMonthKey;
+              return (
+                <Badge
+                  key={group.key}
+                  badgeContent={group.openCount}
+                  invisible={group.openCount === 0}
+                  color="primary"
+                  anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+                  sx={{
+                    flexShrink: 0,
+                    '& .MuiBadge-badge': {
+                      fontSize: '0.55rem',
+                      height: 14,
+                      minWidth: 14,
+                      padding: '0 3px',
+                    },
+                  }}
+                >
+                  <Chip
+                    label={group.label}
+                    size="small"
+                    onClick={() => setSelectedGroupKey(group.key)}
+                    data-testid={`client-note-month-${group.key}`}
+                    variant={isSelected ? 'filled' : 'outlined'}
+                    color={isSelected ? 'primary' : 'default'}
+                    sx={{
+                      fontWeight: isCurrent ? 700 : 400,
+                      borderStyle: isCurrent && !isSelected ? 'dashed' : 'solid',
+                      cursor: 'pointer',
+                      ml: '6px',
+                      '& .MuiChip-label': { px: 0.5, whiteSpace: 'nowrap' },
+                    }}
+                  />
+                </Badge>
+              );
+            }
+
             return (
               <Badge
-                key={m.key}
-                badgeContent={m.openCount}
-                invisible={m.openCount === 0}
-                color="primary"
+                key={group.key}
+                badgeContent={group.count}
+                showZero
+                color="secondary"
                 anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
                 sx={{
                   flexShrink: 0,
+                  ml: 0.5,
                   '& .MuiBadge-badge': {
                     fontSize: '0.55rem',
                     height: 14,
@@ -419,69 +471,31 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
                   },
                 }}
               >
-                <Chip
-                  label={m.label}
+                <Button
+                  variant={group.key === effectiveGroupKey ? 'contained' : 'outlined'}
+                  color="secondary"
                   size="small"
-                  onClick={() => setSelectedGroupKey(m.key)}
-                  data-testid={`client-note-month-${m.key}`}
-                  variant={isSelected ? 'filled' : 'outlined'}
-                  color={isSelected ? 'primary' : 'default'}
+                  onClick={() => setSelectedGroupKey(group.key)}
+                  data-testid={`client-note-category-${group.key.slice('category:'.length)}`}
                   sx={{
-                    width: 92,
-                    minWidth: 92,
-                    height: 42,
-                    fontWeight: isCurrent ? 700 : 400,
-                    borderStyle: isCurrent && !isSelected ? 'dashed' : 'solid',
-                    cursor: 'pointer',
-                    ml: '6px',
-                    '& .MuiChip-label': { px: 0.5, whiteSpace: 'nowrap' },
+                    flexShrink: 0,
+                    width: 'auto',
+                    minWidth: 0,
+                    height: 24,
+                    minHeight: 24,
+                    px: 1.5,
+                    py: 0,
+                    borderRadius: 2,
+                    textTransform: 'none',
                   }}
-                />
+                >
+                  <Typography component="span" variant="caption" fontWeight={700}>
+                    {group.label}
+                  </Typography>
+                </Button>
               </Badge>
             );
           })}
-          {availableGroups.filter(group => group.type === 'category').map((category) => (
-            <Badge
-              key={category.key}
-              badgeContent={category.count}
-              showZero
-              color="secondary"
-              anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-              sx={{
-                flexShrink: 0,
-                ml: 0.5,
-                '& .MuiBadge-badge': {
-                  fontSize: '0.55rem',
-                  height: 14,
-                  minWidth: 14,
-                  padding: '0 3px',
-                },
-              }}
-            >
-              <Button
-                variant={category.key === effectiveGroupKey ? 'contained' : 'outlined'}
-                color="secondary"
-                size="small"
-                onClick={() => setSelectedGroupKey(category.key)}
-                data-testid={`client-note-category-${category.key.slice('category:'.length)}`}
-                sx={{
-                  flexShrink: 0,
-                  width: 92,
-                  minWidth: 92,
-                  height: 42,
-                  minHeight: 42,
-                  px: 0.5,
-                  py: 0.25,
-                  borderRadius: 2,
-                  textTransform: 'none',
-                }}
-              >
-                <Typography component="span" variant="caption" fontWeight={700}>
-                  {category.label}
-                </Typography>
-              </Button>
-            </Badge>
-          ))}
         </Box>
       )}
 
