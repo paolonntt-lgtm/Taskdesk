@@ -113,44 +113,68 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
 
   const groupedNotes = useMemo(() => {
     const typedNotes = notes as any[];
-    const groups: { key: string; notes: any[] }[] = [];
-    const keyMap = new Map<string, any[]>();
-    for (const note of typedNotes) {
-      const key = note.monthOverride ?? monthKeyFromDate(note.createdAt);
-      if (!keyMap.has(key)) {
-        keyMap.set(key, []);
-        groups.push({ key, notes: keyMap.get(key)! });
-      }
-      keyMap.get(key)!.push(note);
-    }
-    groups.sort((a, b) => a.key.localeCompare(b.key));
-    return groups;
-  }, [notes]);
+    const monthGroups = new Map<string, any[]>();
+    const categoryGroups = new Map<string, any[]>();
 
-  const availableMonths = useMemo(
-    () => groupedNotes.map(g => ({
-      key: g.key,
-      label: formatMonthShort(g.key, lang),
-      count: g.notes.length,
-      openCount: g.notes.reduce((sum, n) => sum + countNoteOpenItems(n), 0),
+    const addToGroup = (groupMap: Map<string, any[]>, key: string, note: any) => {
+      const group = groupMap.get(key) ?? [];
+      group.push(note);
+      groupMap.set(key, group);
+    };
+
+    for (const note of typedNotes) {
+      const categories: string[] = Array.isArray(note.categories) ? note.categories : [];
+      if (note.monthOverride || categories.length === 0) {
+        const monthKey = note.monthOverride ?? monthKeyFromDate(note.createdAt);
+        addToGroup(monthGroups, monthKey, note);
+      }
+      for (const category of categories) {
+        addToGroup(categoryGroups, category, note);
+      }
+    }
+
+    if (canCategorize) {
+      const currentYear = String(new Date().getFullYear()).slice(-2);
+      categoryGroups.set(`770${currentYear}`, categoryGroups.get(`770${currentYear}`) ?? []);
+      categoryGroups.set(`CU${currentYear}`, categoryGroups.get(`CU${currentYear}`) ?? []);
+    }
+
+    return [
+      ...[...monthGroups.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, grouped]) => ({ key, type: 'month' as const, notes: grouped })),
+      ...[...categoryGroups.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([category, grouped]) => ({ key: `category:${category}`, type: 'category' as const, notes: grouped })),
+    ];
+  }, [notes, canCategorize]);
+
+  const availableGroups = useMemo(
+    () => groupedNotes.map(group => ({
+      ...group,
+      label: group.type === 'month' ? formatMonthShort(group.key, lang) : `#${group.key.slice('category:'.length)}`,
+      count: group.notes.length,
+      openCount: group.notes.reduce((sum, note) => sum + countNoteOpenItems(note), 0),
     })),
     [groupedNotes, lang],
   );
 
-  const defaultMonth = useMemo(
-    () => availableMonths[availableMonths.length - 1]?.key ?? currentMonthKey,
-    [availableMonths, currentMonthKey],
-  );
+  const defaultGroupKey = useMemo(() => {
+    const monthGroups = availableGroups.filter(group => group.type === 'month');
+    return monthGroups[monthGroups.length - 1]?.key
+      ?? availableGroups.find(group => group.type === 'category')?.key
+      ?? currentMonthKey;
+  }, [availableGroups, currentMonthKey]);
 
-  const [selectedMonth, setSelectedMonth] = useState<string>(() => defaultMonth);
+  const [selectedGroupKey, setSelectedGroupKey] = useState<string>(() => currentMonthKey);
 
-  const effectiveMonth = availableMonths.some(m => m.key === selectedMonth)
-    ? selectedMonth
-    : (availableMonths[availableMonths.length - 1]?.key ?? '');
+  const effectiveGroupKey = availableGroups.some(group => group.key === selectedGroupKey)
+    ? selectedGroupKey
+    : defaultGroupKey;
 
   const visibleNotes = useMemo(
-    () => groupedNotes.find(g => g.key === effectiveMonth)?.notes ?? [],
-    [groupedNotes, effectiveMonth],
+    () => groupedNotes.find(group => group.key === effectiveGroupKey)?.notes ?? [],
+    [groupedNotes, effectiveGroupKey],
   );
 
   const [body, setBody] = useState('');
@@ -224,6 +248,9 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
       });
       setBody('');
       setHashtagError(null);
+      if (categories.length > 0 && !monthOverride) {
+        setSelectedGroupKey(`category:${categories[0]}`);
+      }
       qc.invalidateQueries({ queryKey: getListClientNotesQueryKey(clientId) });
       showToast('success', tc.saveNote);
     } catch {
@@ -265,7 +292,7 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
   const openEditNote = (note: any) => {
     setEditingNoteId(note.id);
     setEditBody(noteToEditableText(note));
-    setEditMonth(note.monthOverride ?? monthKeyFromDate(note.createdAt));
+    setEditMonth(note.monthOverride ?? (note.categories?.length ? '' : monthKeyFromDate(note.createdAt)));
   };
 
   const handleEditCancel = () => {
@@ -276,9 +303,12 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
 
   const handleEditSave = async (note: any) => {
     if (!editBody.trim()) { showToast('error', tc.errorRequired); return; }
-    if (!editMonth) { showToast('error', tc.editMonthRequired); return; }
+    const categoryOnlyNote = !note.monthOverride && note.categories?.length > 0;
+    if (!editMonth && !categoryOnlyNote) { showToast('error', tc.editMonthRequired); return; }
     const contentChanged = editBody.trim() !== noteToEditableText(note).trim();
-    const updateData: Record<string, unknown> = { monthOverride: editMonth };
+    const updateData: Record<string, unknown> = {
+      monthOverride: editMonth || (categoryOnlyNote ? null : undefined),
+    };
     if (contentChanged) {
       const checklist = bodyToChecklist(editBody);
       updateData.body = '';
@@ -352,7 +382,7 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
   return (
     <Box>
       {/* ── Month chip navigation ─────────────────────────────────── */}
-      {availableMonths.length > 0 && (
+      {availableGroups.length > 0 && (
         <Box
           sx={{
             display: 'flex',
@@ -369,8 +399,8 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
             '&::-webkit-scrollbar-track': { background: 'transparent' },
           }}
         >
-          {availableMonths.map((m) => {
-            const isSelected = m.key === effectiveMonth;
+          {availableGroups.filter(group => group.type === 'month').map((m) => {
+            const isSelected = m.key === effectiveGroupKey;
             const isCurrent = m.key === currentMonthKey;
             return (
               <Badge
@@ -392,7 +422,7 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
                 <Chip
                   label={m.label}
                   size="small"
-                  onClick={() => setSelectedMonth(m.key)}
+                  onClick={() => setSelectedGroupKey(m.key)}
                   data-testid={`client-note-month-${m.key}`}
                   variant={isSelected ? 'filled' : 'outlined'}
                   color={isSelected ? 'primary' : 'default'}
@@ -406,6 +436,36 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
               </Badge>
             );
           })}
+          {availableGroups.filter(group => group.type === 'category').map((category) => (
+            <Button
+              key={category.key}
+              variant={category.key === effectiveGroupKey ? 'contained' : 'outlined'}
+              color="secondary"
+              size="small"
+              onClick={() => setSelectedGroupKey(category.key)}
+              data-testid={`client-note-category-${category.key.slice('category:'.length)}`}
+              sx={{
+                flexShrink: 0,
+                minWidth: 92,
+                minHeight: 34,
+                ml: 0.5,
+                px: 1.25,
+                py: 0.35,
+                borderRadius: 2,
+                display: 'flex',
+                flexDirection: 'column',
+                lineHeight: 1.1,
+                textTransform: 'none',
+              }}
+            >
+              <Typography component="span" variant="caption" fontWeight={700}>
+                {category.label}
+              </Typography>
+              <Typography component="span" variant="caption" sx={{ opacity: 0.75, fontSize: '0.62rem' }}>
+                {category.count}
+              </Typography>
+            </Button>
+          ))}
         </Box>
       )}
 
@@ -418,7 +478,11 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
       ) : visibleNotes.length === 0 ? (
         <Box py={4} textAlign="center">
           <NoteAdd sx={{ fontSize: 36, color: 'text.disabled', mb: 1 }} />
-          <Typography variant="body2" color="text.secondary">{tc.noNotesForMonth}</Typography>
+          <Typography variant="body2" color="text.secondary">
+            {availableGroups.find(group => group.key === effectiveGroupKey)?.type === 'category'
+              ? tc.noNotesForCategory
+              : tc.noNotesForMonth}
+          </Typography>
         </Box>
       ) : (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 2 }}>
@@ -557,7 +621,7 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
                           size="small"
                           onClick={() => handleEditSave(note)}
                           data-testid={`client-note-save-${note.id}`}
-                          disabled={editSaving || !editBody.trim() || !editMonth}
+                          disabled={editSaving || !editBody.trim() || (!editMonth && !note.categories?.length)}
                         >
                           {editSaving ? tc.editNoteSaving : tc.editNoteSave}
                         </Button>
