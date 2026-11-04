@@ -20,6 +20,15 @@ vi.mock('../hooks/useEntityTerm', () => ({
   }),
 }));
 
+vi.mock('../contexts/AuthContext', () => ({
+  useAuth: () => ({ user: null }),
+}));
+
+vi.mock('@workspace/api-client-react', () => ({
+  useCreateClientNote: () => ({ mutateAsync: vi.fn() }),
+  resolveClientBySlug: vi.fn(),
+}));
+
 vi.mock('../lib/analytics', () => ({
   trackEvent: vi.fn(),
 }));

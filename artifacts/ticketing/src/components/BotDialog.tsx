@@ -8,12 +8,16 @@ import {
   KeyboardArrowDown, KeyboardArrowUp, DeleteOutline, Fullscreen, FullscreenExit,
 } from '@mui/icons-material';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
 import { useEntityTerm } from '../hooks/useEntityTerm';
 import { useTheme } from '@mui/material/styles';
 import { trackEvent } from '../lib/analytics';
 import { MarkdownContent } from './MarkdownContent';
 import { AlbertAvatarIcon } from './AlbertAvatarIcon';
 import { shouldShowYesNoReplies } from './botFollowUp';
+import { parseAlbertClientNoteCommand } from '../lib/albertClientNoteCommand';
+import { getDefaultNoteMonthOverride, hasUnavailableBuiltInClientNoteTag, parseClientNoteTags } from '../lib/clientNoteHashtag';
+import { resolveClientBySlug, useCreateClientNote } from '@workspace/api-client-react';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -304,8 +308,10 @@ function saveSession(messages: Message[], pendingAction: BotAction | null) {
 
 export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, onBotMessage, onCreateTicket, onViewTicket }: BotDialogProps) {
   const { t, lang } = useLanguage();
+  const { user } = useAuth();
   const entityTerm = useEntityTerm();
   const theme = useTheme();
+  const createClientNote = useCreateClientNote();
   const botName = 'Albert';
 
   const botWelcome = t.bot.welcome;
@@ -581,9 +587,88 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
     setTimeout(() => inputRef.current?.focus(), 100);
   };
 
+  const submitAlbertClientNote = async (
+    originalMessage: string,
+    clientSlug: string,
+    sourceText: string,
+  ) => {
+    setInput('');
+    setLoading(true);
+    setPendingAction(null);
+    setMessages((prev) => [...prev, { role: 'user', content: originalMessage }, { role: 'assistant', content: '' }]);
+    const finish = (content: string) => {
+      setMessages((prev) => {
+        const next = [...prev];
+        next[next.length - 1] = { role: 'assistant', content };
+        return next;
+      });
+      if (minimizedRef.current) onBotMessage?.();
+    };
+    try {
+      const client = await resolveClientBySlug(clientSlug) as any;
+      const clientId = Number(client?.id);
+      if (!Number.isInteger(clientId) || clientId <= 0) throw new Error('Client not found');
+
+      const declarationsResponse = await fetch('/api/client-note-declaratives', { credentials: 'include' });
+      if (!declarationsResponse.ok) throw new Error('Client notes unavailable');
+      const declarationsData = await declarationsResponse.json();
+      const declaratives = Array.isArray(declarationsData.declaratives) ? declarationsData.declaratives : [];
+      const canCategorize = user?.profession === 'consulenti-del-lavoro';
+      if (hasUnavailableBuiltInClientNoteTag(sourceText, canCategorize, declaratives)) {
+        finish(lang === 'it'
+          ? 'Le categorie CU e 770 sono disponibili solo per i consulenti del lavoro.'
+          : 'The CU and 770 categories are only available to labor consultants.');
+        return;
+      }
+
+      let noteBody = sourceText;
+      let monthOverride: string | null = null;
+      let categories: string[] = [];
+      const parsed = parseClientNoteTags(noteBody, declaratives, canCategorize);
+      if (parsed && 'badMonth' in parsed) {
+        finish(lang === 'it' ? `Non riconosco il mese «${parsed.badMonth}».` : `I don't recognize the month “${parsed.badMonth}”.`);
+        return;
+      }
+      if (parsed && 'strippedBody' in parsed) {
+        noteBody = parsed.strippedBody;
+        monthOverride = parsed.monthOverride;
+        if ('categories' in parsed) categories = parsed.categories;
+      }
+      monthOverride = getDefaultNoteMonthOverride(monthOverride, categories);
+      if (!noteBody.trim()) {
+        finish(lang === 'it'
+          ? 'Aggiungi il testo della nota dopo il comando. Esempio: `@cliente aggiungi nota: Richiamare il cliente #marzo`.'
+          : 'Include the note text after the command. Example: `@client add note: Call the client #march`.');
+        return;
+      }
+
+      const checklist = noteBody.split('\n').map((line) => line.trim()).filter(Boolean)
+        .map((line) => ({ id: Math.random().toString(36).slice(2, 10), text: line, checked: false }));
+      await createClientNote.mutateAsync({
+        id: clientId,
+        data: { body: '', checklist: checklist.length ? checklist : null, monthOverride, categories } as any,
+      });
+      finish(lang === 'it'
+        ? `Nota aggiunta alla scheda di **${client.name ?? clientSlug}**.`
+        : `Note added to **${client.name ?? clientSlug}**.`);
+    } catch {
+      finish(lang === 'it'
+        ? 'Non sono riuscito ad aggiungere la nota. Verifica il cliente e riprova.'
+        : 'I could not add the note. Check the client and try again.');
+    } finally {
+      setLoading(false);
+      setTimeout(() => inputRef.current?.focus(), 50);
+    }
+  };
+
   const sendWithText = async (text: string) => {
     if (!text || loading) return;
     setShowTeamReports(false);
+    const noteCommand = !reportWizardActiveRef.current ? parseAlbertClientNoteCommand(text) : null;
+    if (noteCommand) {
+      await submitAlbertClientNote(text, noteCommand.clientSlug, noteCommand.noteText);
+      return;
+    }
     const history = messages.map((m) => ({
       role: m.role,
       content: m.role === 'assistant' ? stripActionJson(m.content) : m.content,

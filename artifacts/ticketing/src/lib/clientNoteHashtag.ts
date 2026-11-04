@@ -79,7 +79,7 @@ export function fuzzyMatchMonth(raw: string): number | null {
   return bestDist <= threshold ? best : null;
 }
 
-export const HASHTAG_REGEX = /#([a-zA-Z\u00C0-\u024F]+)(\d{2,4})/i;
+export const HASHTAG_REGEX = /#([a-zA-Z\u00C0-\u024F]+)(\d{2,4})?/i;
 
 export interface HashtagParseResult {
   monthOverride: string;
@@ -209,21 +209,26 @@ export function parseClientNoteTags(
 }
 
 export function parseHashtag(text: string): HashtagParseResult | HashtagParseError | null {
-  const match = HASHTAG_REGEX.exec(text);
-  if (!match) return null;
-
-  const monthRaw = match[1];
-  const yearRaw = match[2];
-
-  const monthNum = fuzzyMatchMonth(monthRaw);
-  if (!monthNum) {
-    return { badMonth: monthRaw };
+  const matches = text.matchAll(new RegExp(HASHTAG_REGEX.source, 'gi'));
+  for (const match of matches) {
+    const monthRaw = match[1];
+    const yearRaw = match[2] ?? '';
+    const monthNum = fuzzyMatchMonth(monthRaw);
+    if (!monthNum) {
+      if (yearRaw) return { badMonth: monthRaw };
+      continue;
+    }
+    const year = yearRaw
+      ? (yearRaw.length === 2 ? `20${yearRaw}` : yearRaw)
+      : new Intl.DateTimeFormat('en', { timeZone: 'Europe/Rome', year: 'numeric' }).format(new Date());
+    const monthStr = String(monthNum).padStart(2, '0');
+    const monthOverride = `${year}-${monthStr}`;
+    const strippedBody = text
+      .replace(match[0], '')
+      .replace(/^\s*[:,-]\s*/, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+    return { monthOverride, strippedBody };
   }
-
-  const year = yearRaw.length === 2 ? `20${yearRaw}` : yearRaw;
-  const monthStr = String(monthNum).padStart(2, '0');
-  const monthOverride = `${year}-${monthStr}`;
-
-  const strippedBody = text.replace(match[0], '').replace(/\s{2,}/g, ' ').trim();
-  return { monthOverride, strippedBody };
+  return null;
 }

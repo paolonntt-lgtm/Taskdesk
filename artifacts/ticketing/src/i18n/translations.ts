@@ -941,7 +941,7 @@ const it = {
   bot: {
     subtitle: 'Assistente ispirato a Einstein',
     welcome: 'Ciao! Sono Albert, l’assistente di TaskDesk. Con la curiosità di Einstein, posso aiutarti a trovare ticket e commenti o a descrivere un problema.',
-    placeholder: 'Chiedimi dei ticket e dei commenti...',
+    placeholder: 'Chiedimi dei ticket o scrivi @cliente aggiungi nota: testo #mese...',
     errorBot: 'Errore del bot. Riprova tra qualche secondo.',
     errorNetwork: 'Errore di rete. Riprova.',
     createPrompt: 'Vuoi creare un ticket per questo problema?',
@@ -3189,7 +3189,7 @@ const en: typeof it = {
   bot: {
     subtitle: 'Einstein-inspired assistant',
     welcome: 'Hi! I’m Albert, TaskDesk’s assistant—curious and methodical in the spirit of Einstein. Ask me about tickets and comments, or describe an issue.',
-    placeholder: 'Ask me about tickets and comments...',
+    placeholder: 'Ask about tickets or write @client add note: text #month...',
     errorBot: 'Bot error. Please try again in a few seconds.',
     errorNetwork: 'Network error. Please try again.',
     createPrompt: 'Would you like to create a ticket for this issue?',

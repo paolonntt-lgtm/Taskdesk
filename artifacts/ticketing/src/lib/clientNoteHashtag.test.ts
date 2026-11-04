@@ -78,6 +78,18 @@ describe("client note hashtag parsing", () => {
     });
   });
 
+  it("uses the current year when a month hashtag has no year", () => {
+    const year = new Intl.DateTimeFormat('en', { timeZone: 'Europe/Rome', year: 'numeric' }).format(new Date());
+    expect(parseHashtag("Richiamare il cliente #marzo")).toEqual({
+      monthOverride: `${year}-03`,
+      strippedBody: "Richiamare il cliente",
+    });
+  });
+
+  it("does not treat unrelated bare hashtags as months", () => {
+    expect(parseHashtag("Confermare #documenti")).toBeNull();
+  });
+
   it("maps configured aliases to organization declarative categories", () => {
     const declaratives = [{ id: "cb73ea3c-e70f-4de0-97c6-5946f6bdfe5f", name: "Ritenute", alias: "#RIT" }];
     expect(parseClientNoteTags("Verificare pagamento #rit.", declaratives, false)).toEqual({
