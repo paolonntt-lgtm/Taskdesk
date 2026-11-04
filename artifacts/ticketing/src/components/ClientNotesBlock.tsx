@@ -184,7 +184,9 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
   const availableGroups = useMemo(
     () => groupedNotes.map(group => ({
       ...group,
-      label: group.type === 'month' ? formatMonthShort(group.key, lang) : group.key.slice('category:'.length),
+      label: group.type === 'month'
+        ? formatMonthShort(group.key, lang)
+        : group.key.slice('category:'.length).replace(/^(770)(\d{2})$/, '$1-$2'),
       count: group.notes.length,
       openCount: group.notes.reduce((sum, note) => sum + countNoteOpenItems(note), 0),
     })),
