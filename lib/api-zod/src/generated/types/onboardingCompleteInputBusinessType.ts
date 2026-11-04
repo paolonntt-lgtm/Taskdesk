@@ -6,10 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type CompleteOnboardingBodyBusinessType = typeof CompleteOnboardingBodyBusinessType[keyof typeof CompleteOnboardingBodyBusinessType];
+export type OnboardingCompleteInputBusinessType = typeof OnboardingCompleteInputBusinessType[keyof typeof OnboardingCompleteInputBusinessType];
 
 
-export const CompleteOnboardingBodyBusinessType = {
+export const OnboardingCompleteInputBusinessType = {
   it_support: 'it_support',
   professional_studio: 'professional_studio',
   agency: 'agency',

@@ -533,12 +533,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [businessType]
-              properties:
-                businessType:
-                  type: string
-                  enum: [it_support, professional_studio, agency, other]
+              $ref: "#/components/schemas/OnboardingCompleteInput"
       responses:
         "200":
           description: Onboarding completed
@@ -551,6 +546,9 @@ paths:
                     type: boolean
                   businessType:
                     type: string
+                  profession:
+                    type: string
+                    nullable: true
                   categories:
                     type: array
                     items:
@@ -4291,6 +4289,9 @@ components:
         businessType:
           type: string
           nullable: true
+        profession:
+          type: string
+          nullable: true
         trialEndsAt:
           type: string
           format: date-time
@@ -5773,6 +5774,19 @@ components:
         - skipped
         - errors
 
+    OnboardingCompleteInput:
+      type: object
+      properties:
+        businessType:
+          type: string
+          enum: [it_support, professional_studio, agency, other]
+        profession:
+          type: string
+          enum: [commercialisti, avvocati, consulenti-del-lavoro, notai, commercio, agenzie, it_support, other]
+      required:
+        - businessType
+        - profession
+
     ClientNote:
       type: object
       properties:
@@ -5809,6 +5823,10 @@ components:
           type: string
           nullable: true
           description: "YYYY-MM override for which month this note appears under"
+        category:
+          type: string
+          nullable: true
+          enum: ["770", "CU"]
         createdAt:
           type: string
           format: date-time
@@ -5833,6 +5851,10 @@ components:
           type: string
           nullable: true
           description: "YYYY-MM month override parsed from hashtag"
+        category:
+          type: string
+          nullable: true
+          enum: ["770", "CU"]
         checklist:
           type: array
           nullable: true
@@ -5861,6 +5883,10 @@ components:
           type: string
           nullable: true
           description: "YYYY-MM month override parsed from hashtag"
+        category:
+          type: string
+          nullable: true
+          enum: ["770", "CU"]
         checklist:
           type: array
           nullable: true
@@ -5919,6 +5945,10 @@ components:
           type: string
           nullable: true
           description: "YYYY-MM override for which month this note appears under"
+        category:
+          type: string
+          nullable: true
+          enum: ["770", "CU"]
         createdAt:
           type: string
           format: date-time

@@ -9,5 +9,6 @@
 export type CompleteOnboarding200 = {
   success?: boolean;
   businessType?: string;
+  profession?: string | null;
   categories?: string[];
 };

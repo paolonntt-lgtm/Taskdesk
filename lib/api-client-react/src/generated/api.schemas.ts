@@ -340,6 +340,7 @@ export interface User {
   createdAt: string;
   onboardingDone?: boolean | null;
   businessType?: string | null;
+  profession?: string | null;
   trialEndsAt?: string | null;
   stripeSubscriptionId?: string | null;
   trialStatus?: UserTrialStatus;
@@ -1242,11 +1243,48 @@ export interface ClientImportResult {
   errors: ClientImportResultErrorsItem[];
 }
 
+export type OnboardingCompleteInputBusinessType = typeof OnboardingCompleteInputBusinessType[keyof typeof OnboardingCompleteInputBusinessType];
+
+
+export const OnboardingCompleteInputBusinessType = {
+  it_support: 'it_support',
+  professional_studio: 'professional_studio',
+  agency: 'agency',
+  other: 'other',
+} as const;
+
+export type OnboardingCompleteInputProfession = typeof OnboardingCompleteInputProfession[keyof typeof OnboardingCompleteInputProfession];
+
+
+export const OnboardingCompleteInputProfession = {
+  commercialisti: 'commercialisti',
+  avvocati: 'avvocati',
+  'consulenti-del-lavoro': 'consulenti-del-lavoro',
+  notai: 'notai',
+  commercio: 'commercio',
+  agenzie: 'agenzie',
+  it_support: 'it_support',
+  other: 'other',
+} as const;
+
+export interface OnboardingCompleteInput {
+  businessType: OnboardingCompleteInputBusinessType;
+  profession: OnboardingCompleteInputProfession;
+}
+
 export type ClientNoteChecklistItem = {
   id: string;
   text: string;
   checked: boolean;
 };
+
+export type ClientNoteCategory = typeof ClientNoteCategory[keyof typeof ClientNoteCategory] | null;
+
+
+export const ClientNoteCategory = {
+  NUMBER_770: '770',
+  CU: 'CU',
+} as const;
 
 export interface ClientNote {
   id: number;
@@ -1258,9 +1296,18 @@ export interface ClientNote {
   checklist?: ClientNoteChecklistItem[] | null;
   /** YYYY-MM override for which month this note appears under */
   monthOverride?: string | null;
+  category?: ClientNoteCategory;
   createdAt: string;
   updatedAt: string;
 }
+
+export type ClientNoteInputCategory = typeof ClientNoteInputCategory[keyof typeof ClientNoteInputCategory] | null;
+
+
+export const ClientNoteInputCategory = {
+  NUMBER_770: '770',
+  CU: 'CU',
+} as const;
 
 export type ClientNoteInputChecklistItem = {
   id: string;
@@ -1272,8 +1319,17 @@ export interface ClientNoteInput {
   body: string;
   /** YYYY-MM month override parsed from hashtag */
   monthOverride?: string | null;
+  category?: ClientNoteInputCategory;
   checklist?: ClientNoteInputChecklistItem[] | null;
 }
+
+export type ClientNoteUpdateCategory = typeof ClientNoteUpdateCategory[keyof typeof ClientNoteUpdateCategory] | null;
+
+
+export const ClientNoteUpdateCategory = {
+  NUMBER_770: '770',
+  CU: 'CU',
+} as const;
 
 export type ClientNoteUpdateChecklistItem = {
   id: string;
@@ -1285,6 +1341,7 @@ export interface ClientNoteUpdate {
   body?: string;
   /** YYYY-MM month override parsed from hashtag */
   monthOverride?: string | null;
+  category?: ClientNoteUpdateCategory;
   checklist?: ClientNoteUpdateChecklistItem[] | null;
 }
 
@@ -1293,6 +1350,14 @@ export type ClientNoteWithClientChecklistItem = {
   text: string;
   checked: boolean;
 };
+
+export type ClientNoteWithClientCategory = typeof ClientNoteWithClientCategory[keyof typeof ClientNoteWithClientCategory] | null;
+
+
+export const ClientNoteWithClientCategory = {
+  NUMBER_770: '770',
+  CU: 'CU',
+} as const;
 
 export interface ClientNoteWithClient {
   id: number;
@@ -1306,6 +1371,7 @@ export interface ClientNoteWithClient {
   checklist?: ClientNoteWithClientChecklistItem[] | null;
   /** YYYY-MM override for which month this note appears under */
   monthOverride?: string | null;
+  category?: ClientNoteWithClientCategory;
   createdAt: string;
   updatedAt: string;
 }
@@ -1605,23 +1671,10 @@ export type ForgotPassword200 = {
   message: string;
 };
 
-export type CompleteOnboardingBodyBusinessType = typeof CompleteOnboardingBodyBusinessType[keyof typeof CompleteOnboardingBodyBusinessType];
-
-
-export const CompleteOnboardingBodyBusinessType = {
-  it_support: 'it_support',
-  professional_studio: 'professional_studio',
-  agency: 'agency',
-  other: 'other',
-} as const;
-
-export type CompleteOnboardingBody = {
-  businessType: CompleteOnboardingBodyBusinessType;
-};
-
 export type CompleteOnboarding200 = {
   success?: boolean;
   businessType?: string;
+  profession?: string | null;
   categories?: string[];
 };
 

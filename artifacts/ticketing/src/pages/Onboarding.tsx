@@ -51,7 +51,7 @@ const OPTIONS: BusinessTypeOption[] = [
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 interface Props {
-  onComplete: (businessType: string) => void;
+  onComplete: (businessType: string, profession: OnboardingProfileId) => void;
 }
 
 export default function Onboarding({ onComplete }: Props) {
@@ -104,7 +104,7 @@ export default function Onboarding({ onComplete }: Props) {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ businessType: getOnboardingBusinessType(selected!) }),
+        body: JSON.stringify({ businessType: getOnboardingBusinessType(selected!), profession: selected }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -118,7 +118,7 @@ export default function Onboarding({ onComplete }: Props) {
         ...(isProfessionalDashboardPresetId(selected) ? { profession: selected } : {}),
         first_ticket_created: firstTicketCreated,
       });
-      onComplete(getOnboardingBusinessType(selected!));
+       onComplete(getOnboardingBusinessType(selected!), selected!);
     } catch {
       setGlobalError(t.onboarding.errorNetwork);
     } finally {

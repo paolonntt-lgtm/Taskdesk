@@ -5,6 +5,7 @@
  * Internal Ticketing System API
  * OpenAPI spec version: 0.1.0
  */
+import type { ClientNoteCategory } from './clientNoteCategory';
 import type { ClientNoteChecklistItem } from './clientNoteChecklistItem';
 
 export interface ClientNote {
@@ -17,6 +18,7 @@ export interface ClientNote {
   checklist?: ClientNoteChecklistItem[] | null;
   /** YYYY-MM override for which month this note appears under */
   monthOverride?: string | null;
+  category?: ClientNoteCategory;
   createdAt: Date;
   updatedAt: Date;
 }

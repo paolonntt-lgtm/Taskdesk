@@ -195,6 +195,7 @@ const ClientsQuerySchema = z.object({
 const ClientNoteBody = z.object({
   body: z.string(),
   monthOverride: z.string().regex(/^\d{4}-\d{2}$/).optional().nullable(),
+  category: z.enum(["770", "CU"]).optional().nullable(),
   checklist: z
     .array(
       z.object({
@@ -249,6 +250,7 @@ router.get("/client-notes", requireClientFeature, async (req, res): Promise<void
       body: clientNotesTable.body,
       checklist: clientNotesTable.checklist,
       monthOverride: clientNotesTable.monthOverride,
+      category: clientNotesTable.category,
       createdAt: clientNotesTable.createdAt,
       updatedAt: clientNotesTable.updatedAt,
     })
@@ -994,6 +996,7 @@ router.get("/clients/:id/notes", requireClientFeature, async (req, res): Promise
       body: clientNotesTable.body,
       checklist: clientNotesTable.checklist,
       monthOverride: clientNotesTable.monthOverride,
+      category: clientNotesTable.category,
       createdAt: clientNotesTable.createdAt,
       updatedAt: clientNotesTable.updatedAt,
     })
@@ -1029,6 +1032,18 @@ router.post("/clients/:id/notes", requireClientFeature, async (req, res): Promis
     return;
   }
 
+  if (parsed.data.category) {
+    const [organization] = await db
+      .select({ profession: organizationsTable.profession })
+      .from(organizationsTable)
+      .where(eq(organizationsTable.id, currentUser.organizationId))
+      .limit(1);
+    if (organization?.profession !== "consulenti-del-lavoro") {
+      res.status(403).json({ error: "Client note categories are only available to labor consultants" });
+      return;
+    }
+  }
+
   const [note] = await db
     .insert(clientNotesTable)
     .values({
@@ -1038,6 +1053,7 @@ router.post("/clients/:id/notes", requireClientFeature, async (req, res): Promis
       body: parsed.data.body,
       checklist: parsed.data.checklist ?? null,
       monthOverride: parsed.data.monthOverride ?? null,
+      category: parsed.data.category ?? null,
     })
     .returning();
 
@@ -1066,7 +1082,7 @@ router.patch("/clients/:id/notes/:noteId", requireClientFeature, async (req, res
 
   const updateData: Record<string, any> = {};
   // Admins or users with edit_client_notes permission can edit any note; others can only edit their own
-  if (parsed.data.body !== undefined || parsed.data.monthOverride !== undefined) {
+  if (parsed.data.body !== undefined || parsed.data.monthOverride !== undefined || parsed.data.category !== undefined) {
     const isAdmin = currentUser.role === 'admin';
     if (!isAdmin) {
       const canEditOthers = await hasGroupPermission(currentUser.id, currentUser.organizationId ?? null, "edit_client_notes", false, req);
@@ -1092,6 +1108,20 @@ router.patch("/clients/:id/notes/:noteId", requireClientFeature, async (req, res
     if (parsed.data.body !== undefined) updateData.body = parsed.data.body;
     if (parsed.data.monthOverride !== undefined) {
       updateData.monthOverride = parsed.data.monthOverride;
+    }
+    if (parsed.data.category !== undefined) {
+      if (parsed.data.category) {
+        const [organization] = await db
+          .select({ profession: organizationsTable.profession })
+          .from(organizationsTable)
+          .where(eq(organizationsTable.id, currentUser.organizationId))
+          .limit(1);
+        if (organization?.profession !== "consulenti-del-lavoro") {
+          res.status(403).json({ error: "Client note categories are only available to labor consultants" });
+          return;
+        }
+      }
+      updateData.category = parsed.data.category;
     }
   }
   if (parsed.data.checklist !== undefined) {

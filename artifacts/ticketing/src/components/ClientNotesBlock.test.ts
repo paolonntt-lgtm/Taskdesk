@@ -21,6 +21,10 @@ vi.mock('@tanstack/react-query', () => ({
   useQueryClient: () => ({ invalidateQueries: vi.fn() }),
 }));
 
+vi.mock('../contexts/AuthContext', () => ({
+  useAuth: () => ({ user: null }),
+}));
+
 import ClientNotesBlock from './ClientNotesBlock';
 
 const originalNote = {

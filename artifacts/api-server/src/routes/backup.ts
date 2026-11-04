@@ -212,6 +212,7 @@ router.post("/backup/restore", requireAuth, requireAdmin, async (req, res): Prom
         body: cn.body ?? "",
         checklist: cn.checklist ?? null,
         monthOverride: cn.monthOverride ?? null,
+        category: cn.category ?? null,
         createdAt: cn.createdAt ? new Date(cn.createdAt) : new Date(),
       });
       clientNotesRestored++;

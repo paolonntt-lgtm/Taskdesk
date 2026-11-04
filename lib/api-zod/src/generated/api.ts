@@ -157,6 +157,7 @@ export const ListGroupsResponseItem = zod.object({
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
+  "profession": zod.string().nullish(),
   "trialEndsAt": zod.coerce.date().nullish(),
   "stripeSubscriptionId": zod.string().nullish(),
   "trialStatus": zod.object({
@@ -210,6 +211,7 @@ export const CreateGroupResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
+  "profession": zod.string().nullish(),
   "trialEndsAt": zod.coerce.date().nullish(),
   "stripeSubscriptionId": zod.string().nullish(),
   "trialStatus": zod.object({
@@ -283,6 +285,7 @@ export const UpdateGroupResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
+  "profession": zod.string().nullish(),
   "trialEndsAt": zod.coerce.date().nullish(),
   "stripeSubscriptionId": zod.string().nullish(),
   "trialStatus": zod.object({
@@ -384,6 +387,7 @@ export const LoginResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
+  "profession": zod.string().nullish(),
   "trialEndsAt": zod.coerce.date().nullish(),
   "stripeSubscriptionId": zod.string().nullish(),
   "trialStatus": zod.object({
@@ -429,12 +433,14 @@ export const LogoutResponse = zod.object({
  * @summary Complete onboarding by selecting business type (admin only)
  */
 export const CompleteOnboardingBody = zod.object({
-  "businessType": zod.enum(['it_support', 'professional_studio', 'agency', 'other'])
+  "businessType": zod.enum(['it_support', 'professional_studio', 'agency', 'other']),
+  "profession": zod.enum(['commercialisti', 'avvocati', 'consulenti-del-lavoro', 'notai', 'commercio', 'agenzie', 'it_support', 'other'])
 })
 
 export const CompleteOnboardingResponse = zod.object({
   "success": zod.boolean().optional(),
   "businessType": zod.string().optional(),
+  "profession": zod.string().nullish(),
   "categories": zod.array(zod.string()).optional()
 })
 
@@ -491,6 +497,7 @@ export const GetCurrentUserResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
+  "profession": zod.string().nullish(),
   "trialEndsAt": zod.coerce.date().nullish(),
   "stripeSubscriptionId": zod.string().nullish(),
   "trialStatus": zod.object({
@@ -536,6 +543,7 @@ export const ListUsersResponseItem = zod.object({
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
+  "profession": zod.string().nullish(),
   "trialEndsAt": zod.coerce.date().nullish(),
   "stripeSubscriptionId": zod.string().nullish(),
   "trialStatus": zod.object({
@@ -589,6 +597,7 @@ export const CreateUserResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
+  "profession": zod.string().nullish(),
   "trialEndsAt": zod.coerce.date().nullish(),
   "stripeSubscriptionId": zod.string().nullish(),
   "trialStatus": zod.object({
@@ -630,6 +639,7 @@ export const GetUserResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
+  "profession": zod.string().nullish(),
   "trialEndsAt": zod.coerce.date().nullish(),
   "stripeSubscriptionId": zod.string().nullish(),
   "trialStatus": zod.object({
@@ -689,6 +699,7 @@ export const UpdateUserResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
+  "profession": zod.string().nullish(),
   "trialEndsAt": zod.coerce.date().nullish(),
   "stripeSubscriptionId": zod.string().nullish(),
   "trialStatus": zod.object({
@@ -801,6 +812,7 @@ export const ListTicketsResponseItem = zod.object({
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
+  "profession": zod.string().nullish(),
   "trialEndsAt": zod.coerce.date().nullish(),
   "stripeSubscriptionId": zod.string().nullish(),
   "trialStatus": zod.object({
@@ -833,6 +845,7 @@ export const ListTicketsResponseItem = zod.object({
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
+  "profession": zod.string().nullish(),
   "trialEndsAt": zod.coerce.date().nullish(),
   "stripeSubscriptionId": zod.string().nullish(),
   "trialStatus": zod.object({
@@ -973,6 +986,7 @@ export const CreateTicketResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
+  "profession": zod.string().nullish(),
   "trialEndsAt": zod.coerce.date().nullish(),
   "stripeSubscriptionId": zod.string().nullish(),
   "trialStatus": zod.object({
@@ -1005,6 +1019,7 @@ export const CreateTicketResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
+  "profession": zod.string().nullish(),
   "trialEndsAt": zod.coerce.date().nullish(),
   "stripeSubscriptionId": zod.string().nullish(),
   "trialStatus": zod.object({
@@ -1117,6 +1132,7 @@ export const GetTicketResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
+  "profession": zod.string().nullish(),
   "trialEndsAt": zod.coerce.date().nullish(),
   "stripeSubscriptionId": zod.string().nullish(),
   "trialStatus": zod.object({
@@ -1149,6 +1165,7 @@ export const GetTicketResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
+  "profession": zod.string().nullish(),
   "trialEndsAt": zod.coerce.date().nullish(),
   "stripeSubscriptionId": zod.string().nullish(),
   "trialStatus": zod.object({
@@ -1284,6 +1301,7 @@ export const UpdateTicketResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
+  "profession": zod.string().nullish(),
   "trialEndsAt": zod.coerce.date().nullish(),
   "stripeSubscriptionId": zod.string().nullish(),
   "trialStatus": zod.object({
@@ -1316,6 +1334,7 @@ export const UpdateTicketResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
+  "profession": zod.string().nullish(),
   "trialEndsAt": zod.coerce.date().nullish(),
   "stripeSubscriptionId": zod.string().nullish(),
   "trialStatus": zod.object({
@@ -1487,6 +1506,7 @@ export const CloneTicketResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
+  "profession": zod.string().nullish(),
   "trialEndsAt": zod.coerce.date().nullish(),
   "stripeSubscriptionId": zod.string().nullish(),
   "trialStatus": zod.object({
@@ -1519,6 +1539,7 @@ export const CloneTicketResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
+  "profession": zod.string().nullish(),
   "trialEndsAt": zod.coerce.date().nullish(),
   "stripeSubscriptionId": zod.string().nullish(),
   "trialStatus": zod.object({
@@ -1646,6 +1667,7 @@ export const SetTicketRecurrenceResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
+  "profession": zod.string().nullish(),
   "trialEndsAt": zod.coerce.date().nullish(),
   "stripeSubscriptionId": zod.string().nullish(),
   "trialStatus": zod.object({
@@ -1678,6 +1700,7 @@ export const SetTicketRecurrenceResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
+  "profession": zod.string().nullish(),
   "trialEndsAt": zod.coerce.date().nullish(),
   "stripeSubscriptionId": zod.string().nullish(),
   "trialStatus": zod.object({
@@ -1790,6 +1813,7 @@ export const DeleteTicketRecurrenceResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
+  "profession": zod.string().nullish(),
   "trialEndsAt": zod.coerce.date().nullish(),
   "stripeSubscriptionId": zod.string().nullish(),
   "trialStatus": zod.object({
@@ -1822,6 +1846,7 @@ export const DeleteTicketRecurrenceResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
+  "profession": zod.string().nullish(),
   "trialEndsAt": zod.coerce.date().nullish(),
   "stripeSubscriptionId": zod.string().nullish(),
   "trialStatus": zod.object({
@@ -1898,6 +1923,7 @@ export const ListTicketCommentsResponseItem = zod.object({
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
+  "profession": zod.string().nullish(),
   "trialEndsAt": zod.coerce.date().nullish(),
   "stripeSubscriptionId": zod.string().nullish(),
   "trialStatus": zod.object({
@@ -1961,6 +1987,7 @@ export const AddTicketCommentResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
+  "profession": zod.string().nullish(),
   "trialEndsAt": zod.coerce.date().nullish(),
   "stripeSubscriptionId": zod.string().nullish(),
   "trialStatus": zod.object({
@@ -2023,6 +2050,7 @@ export const UpdateTicketCommentResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
+  "profession": zod.string().nullish(),
   "trialEndsAt": zod.coerce.date().nullish(),
   "stripeSubscriptionId": zod.string().nullish(),
   "trialStatus": zod.object({
@@ -2570,6 +2598,7 @@ export const ListTicketNotesResponseItem = zod.object({
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
+  "profession": zod.string().nullish(),
   "trialEndsAt": zod.coerce.date().nullish(),
   "stripeSubscriptionId": zod.string().nullish(),
   "trialStatus": zod.object({
@@ -2623,6 +2652,7 @@ export const AddTicketNoteResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
+  "profession": zod.string().nullish(),
   "trialEndsAt": zod.coerce.date().nullish(),
   "stripeSubscriptionId": zod.string().nullish(),
   "trialStatus": zod.object({
@@ -2863,6 +2893,7 @@ export const ListTicketActivityResponseItem = zod.object({
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
+  "profession": zod.string().nullish(),
   "trialEndsAt": zod.coerce.date().nullish(),
   "stripeSubscriptionId": zod.string().nullish(),
   "trialStatus": zod.object({
@@ -3383,6 +3414,7 @@ export const GetRecentTicketsResponseItem = zod.object({
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
+  "profession": zod.string().nullish(),
   "trialEndsAt": zod.coerce.date().nullish(),
   "stripeSubscriptionId": zod.string().nullish(),
   "trialStatus": zod.object({
@@ -3415,6 +3447,7 @@ export const GetRecentTicketsResponseItem = zod.object({
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
+  "profession": zod.string().nullish(),
   "trialEndsAt": zod.coerce.date().nullish(),
   "stripeSubscriptionId": zod.string().nullish(),
   "trialStatus": zod.object({
@@ -3530,6 +3563,7 @@ export const GetMyTicketsResponseItem = zod.object({
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
+  "profession": zod.string().nullish(),
   "trialEndsAt": zod.coerce.date().nullish(),
   "stripeSubscriptionId": zod.string().nullish(),
   "trialStatus": zod.object({
@@ -3562,6 +3596,7 @@ export const GetMyTicketsResponseItem = zod.object({
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
+  "profession": zod.string().nullish(),
   "trialEndsAt": zod.coerce.date().nullish(),
   "stripeSubscriptionId": zod.string().nullish(),
   "trialStatus": zod.object({
@@ -3671,6 +3706,7 @@ export const GetDueSoonTicketsResponseItem = zod.object({
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
+  "profession": zod.string().nullish(),
   "trialEndsAt": zod.coerce.date().nullish(),
   "stripeSubscriptionId": zod.string().nullish(),
   "trialStatus": zod.object({
@@ -3703,6 +3739,7 @@ export const GetDueSoonTicketsResponseItem = zod.object({
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
+  "profession": zod.string().nullish(),
   "trialEndsAt": zod.coerce.date().nullish(),
   "stripeSubscriptionId": zod.string().nullish(),
   "trialStatus": zod.object({
@@ -4313,6 +4350,7 @@ export const ListClientNotesResponseItem = zod.object({
   "checked": zod.boolean()
 })).nullish(),
   "monthOverride": zod.string().nullish().describe('YYYY-MM override for which month this note appears under'),
+  "category": zod.enum(['770', 'CU']).nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -4329,6 +4367,7 @@ export const CreateClientNoteParams = zod.object({
 export const CreateClientNoteBody = zod.object({
   "body": zod.string(),
   "monthOverride": zod.string().nullish().describe('YYYY-MM month override parsed from hashtag'),
+  "category": zod.enum(['770', 'CU']).nullish(),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
   "text": zod.string(),
@@ -4349,6 +4388,7 @@ export const CreateClientNoteResponse = zod.object({
   "checked": zod.boolean()
 })).nullish(),
   "monthOverride": zod.string().nullish().describe('YYYY-MM override for which month this note appears under'),
+  "category": zod.enum(['770', 'CU']).nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -4365,6 +4405,7 @@ export const UpdateClientNoteParams = zod.object({
 export const UpdateClientNoteBody = zod.object({
   "body": zod.string().optional(),
   "monthOverride": zod.string().nullish().describe('YYYY-MM month override parsed from hashtag'),
+  "category": zod.enum(['770', 'CU']).nullish(),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
   "text": zod.string(),
@@ -4385,6 +4426,7 @@ export const UpdateClientNoteResponse = zod.object({
   "checked": zod.boolean()
 })).nullish(),
   "monthOverride": zod.string().nullish().describe('YYYY-MM override for which month this note appears under'),
+  "category": zod.enum(['770', 'CU']).nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -4427,6 +4469,7 @@ export const ListAllClientNotesResponseItem = zod.object({
   "checked": zod.boolean()
 })).nullish(),
   "monthOverride": zod.string().nullish().describe('YYYY-MM override for which month this note appears under'),
+  "category": zod.enum(['770', 'CU']).nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })

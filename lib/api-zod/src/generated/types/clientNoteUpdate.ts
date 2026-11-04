@@ -5,11 +5,13 @@
  * Internal Ticketing System API
  * OpenAPI spec version: 0.1.0
  */
+import type { ClientNoteUpdateCategory } from './clientNoteUpdateCategory';
 import type { ClientNoteUpdateChecklistItem } from './clientNoteUpdateChecklistItem';
 
 export interface ClientNoteUpdate {
   body?: string;
   /** YYYY-MM month override parsed from hashtag */
   monthOverride?: string | null;
+  category?: ClientNoteUpdateCategory;
   checklist?: ClientNoteUpdateChecklistItem[] | null;
 }

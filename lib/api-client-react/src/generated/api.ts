@@ -42,7 +42,6 @@ import type {
   CommentWithAuthor,
   CompleteDriveOAuthParams,
   CompleteOnboarding200,
-  CompleteOnboardingBody,
   CreateAppointmentBody,
   CreateChecklistBody,
   CreateChecklistItemBody,
@@ -87,6 +86,7 @@ import type {
   LoginResponse,
   NoteWithAuthor,
   Notification,
+  OnboardingCompleteInput,
   OneDriveBrowseItem,
   OneDriveBrowseResponse,
   OneDriveFolderInput,
@@ -1610,7 +1610,7 @@ export const getCompleteOnboardingUrl = () => {
 /**
  * @summary Complete onboarding by selecting business type (admin only)
  */
-export const completeOnboarding = async (completeOnboardingBody: CompleteOnboardingBody, options?: Parameters<typeof customFetch>[1]): Promise<CompleteOnboarding200> => {
+export const completeOnboarding = async (onboardingCompleteInput: OnboardingCompleteInput, options?: Parameters<typeof customFetch>[1]): Promise<CompleteOnboarding200> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -1623,7 +1623,7 @@ return customFetch<CompleteOnboarding200>(getCompleteOnboardingUrl(),
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(completeOnboardingBody)
+    body: JSON.stringify(onboardingCompleteInput)
   }
 );}
 
@@ -1661,9 +1661,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type CompleteOnboardingMutationResult = NonNullable<Awaited<ReturnType<typeof completeOnboarding>>>
-    export type CompleteOnboardingMutationBody = BodyType<CompleteOnboardingBody>
+    export type CompleteOnboardingMutationBody = BodyType<OnboardingCompleteInput>
     export type CompleteOnboardingMutationError = ErrorType<ErrorResponse>
-    export type CompleteOnboardingMutationVariables = {data: BodyType<CompleteOnboardingBody>}
+    export type CompleteOnboardingMutationVariables = {data: BodyType<OnboardingCompleteInput>}
 
     /**
  * @summary Complete onboarding by selecting business type (admin only)

@@ -5,6 +5,8 @@ description: Category and month syntax for client notes.
 
 Client-note categories are limited to `770` and `CU`, entered as `#770` and `#CU`, and are only for labor-consultant organizations. Keep the existing month hashtag syntax separate and unchanged.
 
-**Why:** The user specified these two categories and chose not to allow arbitrary new category names.
+Only organizations whose labor-consultant profile is recorded during onboarding are enabled; existing organizations are not inferred or backfilled.
 
-**How to apply:** When implementing client-note category support, persist the category as note metadata, remove its hashtag from the note text, and continue parsing month hashtags independently.
+**Why:** The user specified these two categories, restricted them to labor consultants, and chose to enable only newly onboarded organizations.
+
+**How to apply:** Persist the exact onboarding profile and category as note metadata, enforce the profession restriction on the server, remove the category hashtag from note text, and continue parsing month hashtags independently.

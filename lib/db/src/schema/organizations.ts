@@ -14,6 +14,7 @@ export const organizationsTable = pgTable("organizations", {
   sdiCode: text("sdi_code"),
   pec: text("pec"),
   businessType: text("business_type"),
+  profession: text("profession"),
   clientsEnabled: boolean("clients_enabled").default(true).notNull(),
   hiddenFromSuperadmin: boolean("hidden_from_superadmin").default(false).notNull(),
   referralAttempted: boolean("referral_attempted").default(false).notNull(),

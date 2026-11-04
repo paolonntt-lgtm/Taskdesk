@@ -13,12 +13,22 @@ const CATEGORIES_BY_TYPE: Record<string, string[]> = {
 };
 
 const VALID_TYPES = Object.keys(CATEGORIES_BY_TYPE);
+const PROFILE_BUSINESS_TYPES: Record<string, string> = {
+  commercialisti: "professional_studio",
+  avvocati: "professional_studio",
+  "consulenti-del-lavoro": "professional_studio",
+  notai: "professional_studio",
+  commercio: "other",
+  agenzie: "agency",
+  it_support: "it_support",
+  other: "other",
+};
 
 router.post("/onboarding/complete", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
-  const { businessType } = req.body ?? {};
+  const { businessType, profession } = req.body ?? {};
 
-  if (!businessType || !VALID_TYPES.includes(businessType)) {
+  if (!businessType || !VALID_TYPES.includes(businessType) || !profession || PROFILE_BUSINESS_TYPES[profession] !== businessType) {
     res.status(400).json({ message: "Tipo di attività non valido" });
     return;
   }
@@ -41,10 +51,17 @@ router.post("/onboarding/complete", requireAuth, requireAdmin, async (req, res):
   const categories = CATEGORIES_BY_TYPE[businessType];
 
   const orgKey = `org_${currentUser.organizationId}_categories`;
+  const organizationUpdate: { businessType: string; onboardingDone: boolean; profession?: string } = {
+    businessType,
+    onboardingDone: true,
+  };
+  // The exact onboarding profile is only collected for organizations completing onboarding now.
+  if (!existingOrganization.onboardingDone) organizationUpdate.profession = profession;
+
   const operations = [
     db
       .update(organizationsTable)
-      .set({ businessType, onboardingDone: true })
+      .set(organizationUpdate)
       .where(eq(organizationsTable.id, currentUser.organizationId)),
     db
       .insert(settingsTable)
@@ -64,7 +81,7 @@ router.post("/onboarding/complete", requireAuth, requireAdmin, async (req, res):
 
   await Promise.all(operations);
 
-  res.json({ success: true, businessType, categories });
+  res.json({ success: true, businessType, profession: organizationUpdate.profession ?? null, categories });
 });
 
 export default router;

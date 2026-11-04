@@ -90,6 +90,47 @@ export interface HashtagParseError {
   badMonth: string;
 }
 
+export type ClientNoteCategory = "770" | "CU";
+
+export interface ClientNoteTags {
+  monthOverride: string | null;
+  category: ClientNoteCategory | null;
+  strippedBody: string;
+}
+
+export function parseClientNoteTags(text: string): ClientNoteTags | HashtagParseError | { multipleCategories: true } | null {
+  const categoryRegex = /(^|\s)#(770|CU)(?![\w])/gi;
+  const categoryMatches = [...text.matchAll(categoryRegex)];
+  const uniqueCategories = [...new Set(categoryMatches.map((match) => match[2].toUpperCase()))];
+  if (uniqueCategories.length > 1) return { multipleCategories: true };
+
+  let strippedBody = text;
+  for (const match of categoryMatches) {
+    strippedBody = strippedBody.replace(match[0], match[1] || "");
+  }
+  strippedBody = strippedBody
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s+([,.;:!?])/g, "$1")
+    .trim();
+
+  const monthResult = parseHashtag(strippedBody);
+  if (monthResult && "badMonth" in monthResult) return monthResult;
+  if (monthResult && "monthOverride" in monthResult) {
+    return {
+      monthOverride: monthResult.monthOverride,
+      category: (uniqueCategories[0] as ClientNoteCategory | undefined) ?? null,
+      strippedBody: monthResult.strippedBody,
+    };
+  }
+
+  if (uniqueCategories.length === 0) return null;
+  return {
+    monthOverride: null,
+    category: uniqueCategories[0] as ClientNoteCategory,
+    strippedBody,
+  };
+}
+
 export function parseHashtag(text: string): HashtagParseResult | HashtagParseError | null {
   const match = HASHTAG_REGEX.exec(text);
   if (!match) return null;

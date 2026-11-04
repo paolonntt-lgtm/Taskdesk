@@ -9,6 +9,7 @@ import {
   EditNote, Send, OpenInNew, ExpandLess, ExpandMore,
 } from '@mui/icons-material';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
 import {
   useListClients,
   useCreateClientNote,
@@ -16,7 +17,7 @@ import {
   resolveClientBySlug,
 } from '@workspace/api-client-react';
 import { useLocation } from 'wouter';
-import { parseHashtag } from '../lib/clientNoteHashtag';
+import { parseClientNoteTags, parseHashtag } from '../lib/clientNoteHashtag';
 
 function genId(): string {
   return Math.random().toString(36).slice(2, 10);
@@ -32,6 +33,8 @@ function bodyToChecklist(text: string) {
 
 export default function NotesConsole() {
   const { t, lang } = useLanguage();
+  const { user } = useAuth();
+  const canCategorize = user?.profession === 'consulenti-del-lavoro';
   const tc = (t as any).clientNotes;
   const [, setLocation] = useLocation();
 
@@ -70,9 +73,11 @@ export default function NotesConsole() {
     const val = e.target.value;
     setBody(val);
 
-    const hashResult = parseHashtag(val);
+    const hashResult = canCategorize ? parseClientNoteTags(val) : parseHashtag(val);
     if (hashResult && 'badMonth' in hashResult) {
       setHashtagError(tc.invalidMonth(hashResult.badMonth));
+    } else if (hashResult && 'multipleCategories' in hashResult) {
+      setHashtagError(tc.multipleCategories);
     } else {
       setHashtagError(null);
     }
@@ -144,10 +149,20 @@ export default function NotesConsole() {
     if (!noteBody) { showToast('error', tc.errorRequired); return; }
 
     // Extract monthOverride from hashtag shortcut
-    const hashResult = parseHashtag(noteBody);
+    const hashResult = canCategorize ? parseClientNoteTags(noteBody) : parseHashtag(noteBody);
     let monthOverride: string | null = null;
-    if (hashResult && 'monthOverride' in hashResult) {
+    let category: '770' | 'CU' | null = null;
+    if (hashResult && 'badMonth' in hashResult) {
+      setHashtagError(tc.invalidMonth(hashResult.badMonth));
+      return;
+    }
+    if (hashResult && 'multipleCategories' in hashResult) {
+      setHashtagError(tc.multipleCategories);
+      return;
+    }
+    if (hashResult && 'strippedBody' in hashResult) {
       monthOverride = hashResult.monthOverride;
+      if ('category' in hashResult) category = hashResult.category;
       noteBody = hashResult.strippedBody;
     }
     // Default to current month when no hashtag was provided
@@ -169,6 +184,7 @@ export default function NotesConsole() {
           body: '',
           checklist: checklist.length > 0 ? checklist : null,
           monthOverride,
+          category,
         } as any,
       });
       setBody('');
@@ -293,7 +309,7 @@ export default function NotesConsole() {
               </Typography>
             ) : (
               <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 0.5, fontSize: '0.7rem' }}>
-                {tc.monthHashtagHint}
+                    {canCategorize ? tc.categoryAndMonthHashtagHint : tc.monthHashtagHint}
               </Typography>
             )}
 
@@ -358,6 +374,9 @@ export default function NotesConsole() {
                                   sx={{ fontSize: '0.65rem', height: 18, cursor: 'pointer' }}
                                   onClick={() => note.clientId && setLocation(`/clients/${note.clientId}`)}
                                 />
+                              )}
+                              {note.category && (
+                                <Chip label={`#${note.category}`} size="small" color="secondary" sx={{ fontSize: '0.65rem', height: 18 }} />
                               )}
                               <Typography variant="caption" color="text.disabled" noWrap>
                                 {new Date(note.createdAt).toLocaleString(lang === 'en' ? 'en-US' : 'it-IT', {

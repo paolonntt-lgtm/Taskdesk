@@ -76,6 +76,7 @@ router.post("/auth/login", loginRateLimiter, requireSameOrigin, async (req, res)
       isSuperAdmin: usersTable.isSuperAdmin,
       onboardingDone: organizationsTable.onboardingDone,
       businessType: organizationsTable.businessType,
+      profession: organizationsTable.profession,
       clientsEnabled: organizationsTable.clientsEnabled,
       trialEndsAt: usersTable.trialEndsAt,
       stripeSubscriptionId: usersTable.stripeSubscriptionId,
@@ -283,6 +284,7 @@ router.get("/auth/me", async (req, res): Promise<void> => {
       isSuperAdmin: usersTable.isSuperAdmin,
       onboardingDone: organizationsTable.onboardingDone,
       businessType: organizationsTable.businessType,
+      profession: organizationsTable.profession,
       clientsEnabled: organizationsTable.clientsEnabled,
       trialEndsAt: usersTable.trialEndsAt,
       stripeSubscriptionId: usersTable.stripeSubscriptionId,
@@ -336,6 +338,7 @@ router.get("/auth/me", async (req, res): Promise<void> => {
   const [activeOrganization] = context.organizationId == null ? [null] : await db.select({
     onboardingDone: organizationsTable.onboardingDone,
     businessType: organizationsTable.businessType,
+    profession: organizationsTable.profession,
     clientsEnabled: organizationsTable.clientsEnabled,
     entitySingular: organizationsTable.entitySingular,
     entityPlural: organizationsTable.entityPlural,

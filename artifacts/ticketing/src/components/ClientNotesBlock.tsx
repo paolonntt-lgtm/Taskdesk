@@ -16,7 +16,8 @@ import {
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLanguage } from '../contexts/LanguageContext';
-import { parseHashtag } from '../lib/clientNoteHashtag';
+import { useAuth } from '../contexts/AuthContext';
+import { parseClientNoteTags, parseHashtag } from '../lib/clientNoteHashtag';
 
 interface ChecklistItem {
   id: string;
@@ -95,6 +96,8 @@ function authorInitials(name: string | null | undefined): string {
 
 export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, canEditClientNotes, canDeleteClientNotes }: ClientNotesBlockProps) {
   const { t, lang } = useLanguage();
+  const { user } = useAuth();
+  const canCategorize = user?.profession === 'consulenti-del-lavoro';
   const tc = (t as any).clientNotes;
   const qc = useQueryClient();
 
@@ -174,9 +177,11 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
 
   const handleBodyChange = (value: string) => {
     setBody(value);
-    const result = parseHashtag(value);
+    const result = canCategorize ? parseClientNoteTags(value) : parseHashtag(value);
     if (result && 'badMonth' in result) {
       setHashtagError(tc.invalidMonth(result.badMonth));
+    } else if (result && 'multipleCategories' in result) {
+      setHashtagError(tc.multipleCategories);
     } else {
       setHashtagError(null);
     }
@@ -186,13 +191,15 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
     if (!body.trim()) { showToast('error', tc.errorRequired); return; }
     if (hashtagError) return;
 
-    const result = parseHashtag(body);
+    const result = canCategorize ? parseClientNoteTags(body) : parseHashtag(body);
     let finalBody = body.trim();
     let monthOverride: string | null = null;
+    let category: '770' | 'CU' | null = null;
 
-    if (result && 'monthOverride' in result) {
+    if (result && 'strippedBody' in result) {
       finalBody = result.strippedBody;
       monthOverride = result.monthOverride;
+      if ('category' in result) category = result.category;
     }
 
     const checklist = bodyToChecklist(finalBody);
@@ -205,6 +212,7 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
           body: '',
           checklist: checklist.length > 0 ? checklist : null,
           monthOverride,
+          category,
         } as any,
       });
       setBody('');
@@ -459,6 +467,9 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
                         timeStyle: 'short',
                       })}
                     </Typography>
+                    {note.category && (
+                      <Chip label={`#${note.category}`} size="small" color="secondary" sx={{ height: 18, fontSize: '0.65rem' }} />
+                    )}
                   </Box>
                   {(canEdit(note) || canDelete(note)) && (
                     <Box display="flex" alignItems="center" gap={0.5} flexShrink={0} ml={1}>
@@ -639,6 +650,7 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
             placeholder={tc.addNotePlaceholder}
             value={body}
             onChange={(e) => handleBodyChange(e.target.value)}
+            helperText={canCategorize ? tc.categoryAndMonthHashtagHint : tc.monthHashtagHint}
             size="small"
             sx={{ mb: 1 }}
           />

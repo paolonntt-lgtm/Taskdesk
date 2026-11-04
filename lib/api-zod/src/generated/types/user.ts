@@ -29,6 +29,7 @@ export interface User {
   createdAt: Date;
   onboardingDone?: boolean | null;
   businessType?: string | null;
+  profession?: string | null;
   trialEndsAt?: Date | null;
   stripeSubscriptionId?: string | null;
   trialStatus?: UserTrialStatus;
