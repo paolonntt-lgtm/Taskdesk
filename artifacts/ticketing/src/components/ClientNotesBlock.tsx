@@ -17,7 +17,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
-import { parseClientNoteTags, parseHashtag } from '../lib/clientNoteHashtag';
+import { hasClientNoteCategoryTag, parseClientNoteTags, parseHashtag } from '../lib/clientNoteHashtag';
 
 interface ChecklistItem {
   id: string;
@@ -177,6 +177,10 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
 
   const handleBodyChange = (value: string) => {
     setBody(value);
+    if (!canCategorize && hasClientNoteCategoryTag(value)) {
+      setHashtagError(tc.categoryProfessionRequired);
+      return;
+    }
     const result = canCategorize ? parseClientNoteTags(value) : parseHashtag(value);
     if (result && 'badMonth' in result) {
       setHashtagError(tc.invalidMonth(result.badMonth));
@@ -187,6 +191,11 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
 
   const handleSave = async () => {
     if (!body.trim()) { showToast('error', tc.errorRequired); return; }
+    if (!canCategorize && hasClientNoteCategoryTag(body)) {
+      setHashtagError(tc.categoryProfessionRequired);
+      showToast('error', tc.categoryProfessionRequired);
+      return;
+    }
     if (hashtagError) return;
 
     const result = canCategorize ? parseClientNoteTags(body) : parseHashtag(body);

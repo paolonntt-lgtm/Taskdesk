@@ -98,6 +98,21 @@ export interface ClientNoteTags {
   strippedBody: string;
 }
 
+export function getDefaultNoteMonthOverride(
+  monthOverride: string | null,
+  categories: ClientNoteCategory[],
+  now = new Date(),
+): string | null {
+  if (monthOverride !== null || categories.length > 0) return monthOverride;
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  return `${year}-${month}`;
+}
+
+export function hasClientNoteCategoryTag(text: string): boolean {
+  return /(^|\s)#(?:770|CU)(?:\d{2}|\d{4})?(?![\w])/i.test(text);
+}
+
 export function parseClientNoteTags(text: string): ClientNoteTags | HashtagParseError | null {
   const categoryRegex = /(^|\s)#(770|CU)(\d{2}|\d{4})?(?![\w])/gi;
   const categoryMatches = [...text.matchAll(categoryRegex)];

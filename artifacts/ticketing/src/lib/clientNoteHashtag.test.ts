@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { parseClientNoteTags, parseHashtag } from "./clientNoteHashtag";
+import { getDefaultNoteMonthOverride, hasClientNoteCategoryTag, parseClientNoteTags, parseHashtag } from "./clientNoteHashtag";
 
 describe("client note hashtag parsing", () => {
+  it("recognizes reserved category tags so unsupported profiles can be told clearly", () => {
+    expect(hasClientNoteCategoryTag("Nota #cu")).toBe(true);
+    expect(hasClientNoteCategoryTag("Nota #77027")).toBe(true);
+    expect(hasClientNoteCategoryTag("Nota CU")).toBe(false);
+  });
+
   it("assigns a bare 770 category to the current year", () => {
     expect(parseClientNoteTags("Inviare F24 #770")).toEqual({
       monthOverride: null,
@@ -16,6 +22,18 @@ describe("client note hashtag parsing", () => {
       categories: [`CU${String(new Date().getFullYear()).slice(-2)}`],
       strippedBody: "Controllare la pratica, poi richiamare",
     });
+  });
+
+  it("does not assign a month to annual-category-only notes", () => {
+    expect(getDefaultNoteMonthOverride(null, ["CU26"], new Date(2026, 10, 4))).toBeNull();
+  });
+
+  it("keeps the current-month default for notes without categories", () => {
+    expect(getDefaultNoteMonthOverride(null, [], new Date(2026, 10, 4))).toBe("2026-11");
+  });
+
+  it("preserves an explicit month when a category is also present", () => {
+    expect(getDefaultNoteMonthOverride("2027-03", ["CU27"], new Date(2026, 10, 4))).toBe("2027-03");
   });
 
   it("keeps explicit annual categories separate and normalizes four-digit years", () => {

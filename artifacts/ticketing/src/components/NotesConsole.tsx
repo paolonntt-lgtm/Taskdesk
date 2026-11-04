@@ -17,7 +17,7 @@ import {
   resolveClientBySlug,
 } from '@workspace/api-client-react';
 import { useLocation } from 'wouter';
-import { parseClientNoteTags, parseHashtag } from '../lib/clientNoteHashtag';
+import { getDefaultNoteMonthOverride, hasClientNoteCategoryTag, parseClientNoteTags, parseHashtag } from '../lib/clientNoteHashtag';
 
 function genId(): string {
   return Math.random().toString(36).slice(2, 10);
@@ -73,11 +73,15 @@ export default function NotesConsole() {
     const val = e.target.value;
     setBody(val);
 
-    const hashResult = canCategorize ? parseClientNoteTags(val) : parseHashtag(val);
-    if (hashResult && 'badMonth' in hashResult) {
-      setHashtagError(tc.invalidMonth(hashResult.badMonth));
+    if (!canCategorize && hasClientNoteCategoryTag(val)) {
+      setHashtagError(tc.categoryProfessionRequired);
     } else {
-      setHashtagError(null);
+      const hashResult = canCategorize ? parseClientNoteTags(val) : parseHashtag(val);
+      if (hashResult && 'badMonth' in hashResult) {
+        setHashtagError(tc.invalidMonth(hashResult.badMonth));
+      } else {
+        setHashtagError(null);
+      }
     }
 
     const atIdx = val.lastIndexOf('@');
@@ -114,6 +118,11 @@ export default function NotesConsole() {
   const handleSubmit = async () => {
     const trimmedBody = body.trim();
     if (!trimmedBody) { showToast('error', tc.errorRequired); return; }
+    if (!canCategorize && hasClientNoteCategoryTag(trimmedBody)) {
+      setHashtagError(tc.categoryProfessionRequired);
+      showToast('error', tc.categoryProfessionRequired);
+      return;
+    }
     if (hashtagError) return;
 
     let clientId = selectedClientId;
@@ -159,13 +168,8 @@ export default function NotesConsole() {
       if ('categories' in hashResult) categories = hashResult.categories;
       noteBody = hashResult.strippedBody;
     }
-    // Default to current month when no hashtag was provided
-    if (!monthOverride) {
-      const now = new Date();
-      const y = now.getFullYear();
-      const mo = String(now.getMonth() + 1).padStart(2, '0');
-      monthOverride = `${y}-${mo}`;
-    }
+    // Category-only notes stay annual; ordinary notes still default to this month.
+    monthOverride = getDefaultNoteMonthOverride(monthOverride, categories);
 
     if (!noteBody) { showToast('error', tc.errorRequired); return; }
 
