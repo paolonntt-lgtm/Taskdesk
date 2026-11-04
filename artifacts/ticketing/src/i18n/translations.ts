@@ -1669,6 +1669,8 @@ const it = {
   onboarding: {
     title: 'Come userai TaskDesk?',
     subtitle: 'Scegli la tua professione per trovare una dashboard già organizzata per il tuo lavoro. Potrai modificarla in qualsiasi momento.',
+    dashboardPreviewTitle: 'Anteprima della dashboard',
+    dashboardPreviewSubtitle: 'Questi widget saranno disponibili dopo la configurazione. L’anteprima non salva le tue preferenze.',
     confirm: 'Inizia',
     confirming: 'Configurazione in corso…',
     errorGeneric: 'Errore durante la configurazione. Riprova.',
@@ -3897,6 +3899,8 @@ const en: typeof it = {
   onboarding: {
     title: 'How will you use TaskDesk?',
     subtitle: 'Choose your profession to start with a dashboard organised for your work. You can change it whenever you like.',
+    dashboardPreviewTitle: 'Dashboard preview',
+    dashboardPreviewSubtitle: 'These widgets will be available after setup. This preview does not save your preferences.',
     confirm: 'Get started',
     confirming: 'Setting up…',
     errorGeneric: 'Setup error. Please try again.',

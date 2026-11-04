@@ -56,6 +56,22 @@ const OPTIONS: BusinessTypeOption[] = ONBOARDING_PROFILE_IDS.map((value) => ({
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+const PREVIEW_WIDGET_LABEL_KEYS: Record<string, string> = {
+  'stat-open': 'widgetStatOpen',
+  'stat-resolved': 'widgetStatResolved',
+  'stat-urgent': 'widgetStatUrgent',
+  'stat-overdue': 'widgetStatOverdue',
+  'feed-my': 'widgetFeedMy',
+  'feed-due': 'widgetFeedDue',
+  'feed-recent': 'widgetFeedRecent',
+  'feed-assigned': 'widgetFeedAssigned',
+  'chart-trend': 'widgetChartTrend',
+  'chart-status': 'widgetChartStatus',
+  'chart-category': 'widgetChartCategory',
+  'chart-priority': 'widgetChartPriority',
+  'chart-assignee': 'widgetChartAssignee',
+};
+
 interface Props {
   onComplete: (businessType: string, profession: OnboardingProfileId) => void;
 }
@@ -399,6 +415,8 @@ function StepBusinessType({
         })}
       </Grid>
 
+      {selected && <DashboardPresetPreview profile={selected} t={t} />}
+
       <Box mt={4} display="flex" justifyContent="center">
         <Button
           variant="contained"
@@ -411,6 +429,123 @@ function StepBusinessType({
         </Button>
       </Box>
     </>
+  );
+}
+
+function DashboardPresetPreview({ profile, t }: { profile: OnboardingProfileId; t: any }) {
+  const widgetIds = getOnboardingDashboardPreset(profile);
+  const businessType = getOnboardingBusinessType(profile);
+  const dashboard = t.dashboard as Record<string, any>;
+  const entityTerm = (t.entityTerms as Record<string, any>)[businessType];
+  const profileLabel = (t.onboarding.types as Record<string, { label: string }>)[profile]?.label ?? profile;
+
+  const getWidgetLabel = (widgetId: string): string => {
+    const label = dashboard[PREVIEW_WIDGET_LABEL_KEYS[widgetId]] ?? widgetId;
+    if (widgetId === 'feed-my' && typeof label === 'function') {
+      return label(entityTerm?.plural ?? 'Tickets', entityTerm?.grammaticalGender);
+    }
+    return typeof label === 'function' ? label() : label;
+  };
+
+  return (
+    <Card
+      variant="outlined"
+      data-testid="dashboard-preset-preview"
+      sx={{
+        mt: 3,
+        borderRadius: '16px',
+        borderColor: 'divider',
+        background: 'linear-gradient(145deg, #ffffff 0%, #f8faff 100%)',
+        boxShadow: '0 8px 28px rgba(37, 69, 124, 0.08)',
+      }}
+    >
+      <CardContent sx={{ p: { xs: 2, sm: 2.5 }, '&:last-child': { pb: { xs: 2, sm: 2.5 } } }}>
+        <Box display="flex" justifyContent="space-between" alignItems="flex-start" gap={2} mb={2}>
+          <Box>
+            <Typography variant="h6" fontWeight={750} color="text.primary">
+              {t.onboarding.dashboardPreviewTitle}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" mt={0.5}>
+              {t.onboarding.dashboardPreviewSubtitle}
+            </Typography>
+          </Box>
+          <Chip
+            size="small"
+            icon={<Category />}
+            label={profileLabel}
+            color="primary"
+            variant="outlined"
+            sx={{ flexShrink: 0, maxWidth: '45%' }}
+          />
+        </Box>
+
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', sm: 'repeat(4, minmax(0, 1fr))' },
+            gap: 1,
+          }}
+        >
+          {widgetIds.map((widgetId) => {
+            const isStat = widgetId.startsWith('stat-');
+            const isChart = widgetId.startsWith('chart-');
+            return (
+              <Box
+                key={widgetId}
+                data-testid={`dashboard-preview-widget-${widgetId}`}
+                sx={{ gridColumn: isStat ? 'span 1' : 'span 2', minWidth: 0 }}
+              >
+                <Box
+                  sx={{
+                    height: '100%',
+                    minHeight: isStat ? 82 : 112,
+                    border: '1px solid',
+                    borderColor: 'rgba(37, 99, 235, 0.12)',
+                    borderRadius: '12px',
+                    bgcolor: '#fff',
+                    p: 1.25,
+                    overflow: 'hidden',
+                  }}
+                >
+                  <Typography variant="caption" fontWeight={700} color="text.secondary" noWrap>
+                    {getWidgetLabel(widgetId)}
+                  </Typography>
+                  {isStat ? (
+                    <Box display="flex" alignItems="center" justifyContent="space-between" mt={0.75}>
+                      <Typography variant="h5" fontWeight={800} color="primary.main">—</Typography>
+                      <Box sx={{ width: 30, height: 30, borderRadius: '10px', bgcolor: 'primary.50' }} />
+                    </Box>
+                  ) : isChart ? (
+                    <Box display="flex" alignItems="flex-end" gap={0.75} height={54} mt={1}>
+                      {[38, 58, 45, 78, 55, 68].map((height, index) => (
+                        <Box
+                          key={index}
+                          sx={{
+                            flex: 1,
+                            height: `${height}%`,
+                            borderRadius: '4px 4px 0 0',
+                            bgcolor: index === 3 ? 'primary.main' : 'rgba(37, 99, 235, 0.22)',
+                          }}
+                        />
+                      ))}
+                    </Box>
+                  ) : (
+                    <Box display="flex" flexDirection="column" gap={0.8} mt={1.25}>
+                      {[1, 0.72, 0.88].map((width, index) => (
+                        <Box
+                          key={index}
+                          sx={{ height: 6, width: `${width * 100}%`, borderRadius: 4, bgcolor: 'action.hover' }}
+                        />
+                      ))}
+                    </Box>
+                  )}
+                </Box>
+              </Box>
+            );
+          })}
+        </Box>
+      </CardContent>
+    </Card>
   );
 }
 
