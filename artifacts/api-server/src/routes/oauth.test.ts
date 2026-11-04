@@ -305,6 +305,27 @@ describe("Google OAuth callback", () => {
     });
   });
 
+  it("requires a profession before starting Google registration", async () => {
+    const response = await fetch(`${baseUrl}/api/auth/google?mode=register`);
+    expect(response.status).toBe(400);
+  });
+
+  it("does not create a Google account from login when no profession was selected", async () => {
+    mocks.db.select.mockImplementation(() => {
+      const query: Record<string, ReturnType<typeof vi.fn>> = {};
+      query.from = vi.fn(() => query);
+      query.where = vi.fn(async () => []);
+      return query;
+    });
+    const { state, nonceCookie } = await startOAuth();
+    mockGoogleSuccess();
+
+    const response = await callback(state, nonceCookie);
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe("/app/?mode=register&oauth_error=profession_required");
+    expect(mocks.db.insert).not.toHaveBeenCalled();
+  });
+
   it("does not apply or reveal a referral when an existing Google user signs in", async () => {
     const referralCode = "ReferralCode_123";
     const privateReferrerEmail = "referrer.private@example.test";
@@ -386,6 +407,8 @@ describe("Google OAuth callback", () => {
     expect(response.status).toBe(200);
     expect(insertedUser?.values.trialEndsAt).toBeInstanceOf(Date);
     expect(insertedOrganization?.values).toMatchObject({
+      profession,
+      businessType: profession === "commercio" ? "other" : profession === "agenzie" ? "agency" : "professional_studio",
       utmSource: "partner",
       utmMedium: "email",
       utmCampaign: "autumn",

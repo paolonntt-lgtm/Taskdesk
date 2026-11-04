@@ -15,6 +15,7 @@ import { dashboardPreferenceStorageKey } from '../lib/dashboardPreferenceStorage
 import {
   getOnboardingBusinessType,
   getOnboardingDashboardPreset,
+  isOnboardingProfileId,
   isProfessionalDashboardPresetId,
   type OnboardingProfileId,
 } from '../lib/onboardingDashboardPresets';
@@ -60,11 +61,13 @@ export default function Onboarding({ onComplete }: Props) {
 
   const [currentStep, setCurrentStep] = useState(1);
   const [selected, setSelected] = useState<OnboardingProfileId | null>(() => {
+    const savedProfession = (user as any)?.profession;
+    if (isOnboardingProfileId(savedProfession)) return savedProfession;
     try {
       const fromUrl = new URLSearchParams(window.location.search).get('trial_profession');
-      if (isProfessionalDashboardPresetId(fromUrl)) return fromUrl;
+      if (isOnboardingProfileId(fromUrl)) return fromUrl;
       const fromSession = sessionStorage.getItem(ONBOARDING_PROFESSION_KEY);
-      return isProfessionalDashboardPresetId(fromSession) ? fromSession : null;
+      return isOnboardingProfileId(fromSession) ? fromSession : null;
     } catch {
       return null;
     }

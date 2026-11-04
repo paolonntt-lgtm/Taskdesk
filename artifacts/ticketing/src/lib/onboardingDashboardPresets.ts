@@ -32,6 +32,10 @@ export function isProfessionalDashboardPresetId(value: unknown): value is Profes
   return typeof value === "string" && Object.prototype.hasOwnProperty.call(PROFESSIONAL_DASHBOARD_PRESETS, value);
 }
 
+export function isOnboardingProfileId(value: unknown): value is OnboardingProfileId {
+  return isProfessionalDashboardPresetId(value) || value === "it_support" || value === "other";
+}
+
 export function getOnboardingBusinessType(profile: OnboardingProfileId): string {
   if (isProfessionalDashboardPresetId(profile)) {
     return PROFESSIONAL_DASHBOARD_PRESETS[profile].businessType;

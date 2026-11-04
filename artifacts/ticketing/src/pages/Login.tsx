@@ -7,6 +7,7 @@ import type { Lang } from '../i18n/translations';
 import { trackEvent } from '../lib/analytics';
 import { hasConfirmedTrialRegistration, parseProfessionalTrialAttribution } from '../lib/professionalTrialAttribution';
 import { getInitialLoginMode } from '../lib/loginMode';
+import { isOnboardingProfileId, type OnboardingProfileId } from '../lib/onboardingDashboardPresets';
 
 function GoogleLogo() {
   return (
@@ -77,6 +78,16 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [organizationName, setOrganizationName] = useState('');
+  const [profession, setProfession] = useState<OnboardingProfileId | ''>(() => {
+    const attributed = parseProfessionalTrialAttribution(window.location.search)?.profession;
+    if (isOnboardingProfileId(attributed)) return attributed;
+    try {
+      const saved = sessionStorage.getItem('td_onboarding_profession');
+      return isOnboardingProfileId(saved) ? saved : '';
+    } catch {
+      return '';
+    }
+  });
   const [confirmPassword, setConfirmPassword] = useState('');
   const { login, error } = useAuth();
   const { t, lang, setLang } = useLanguage();
@@ -86,6 +97,8 @@ export default function Login() {
   const [oauthError, setOauthError] = useState<string | null>(null);
   const professionalAttribution = parseProfessionalTrialAttribution(window.location.search);
   const googleParams = new URLSearchParams();
+  googleParams.set('mode', 'register');
+  if (profession) googleParams.set('profession', profession);
   if (professionalAttribution) {
     googleParams.set('trial_profession', professionalAttribution.profession);
     googleParams.set('trial_language', professionalAttribution.language);
@@ -128,6 +141,7 @@ export default function Login() {
         userinfo: t.login.oauthUserinfoError,
         disabled: t.login.oauthDisabled,
         server_error: t.login.oauthServerError,
+        profession_required: t.login.professionRequired,
       };
       setOauthError(messages[err] ?? t.login.oauthGenericError);
       window.history.replaceState({}, '', window.location.pathname);
@@ -155,13 +169,14 @@ export default function Login() {
     if (password.length < 6) { setLocalError(t.login.passwordTooShort); return; }
     if (password !== confirmPassword) { setLocalError(t.login.passwordMismatch); return; }
     if (!organizationName.trim()) { setLocalError(t.login.orgNameRequired); return; }
+    if (!isOnboardingProfileId(profession)) { setLocalError(t.login.professionRequired); return; }
     setIsSubmitting(true);
     try {
       const res = await fetch('/api/auth/register', {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify((() => {
-           const base: Record<string, string> = { name, email, password, organizationName: organizationName.trim() };
+            const base: Record<string, string> = { name, email, password, organizationName: organizationName.trim(), profession };
            const referralCode = initialReferralCode || sessionStorage.getItem('td_referral_code');
            if (referralCode) base.referralCode = referralCode;
           try {
@@ -180,14 +195,16 @@ export default function Login() {
       if (!res.ok) { setLocalError(data.message || t.login.registerError); return; }
       sessionStorage.removeItem('td_referral_code');
       trackEvent('registration_succeeded', { method: 'password' });
+      if (hasConfirmedTrialRegistration(res.status, data?.user)) {
+        try {
+          sessionStorage.setItem('td_onboarding_profession', profession);
+        } catch {}
+      }
       if (professionalAttribution && hasConfirmedTrialRegistration(res.status, data?.user)) {
         trackEvent('professional_trial_started', {
           profession: professionalAttribution.profession,
           language: professionalAttribution.language,
         });
-        try {
-          sessionStorage.setItem('td_onboarding_profession', professionalAttribution.profession);
-        } catch {}
       }
       await login({ email, password });
     } catch { setLocalError(t.login.networkError); }
@@ -315,6 +332,15 @@ export default function Login() {
               <input type="text" required autoFocus value={organizationName} onChange={e => setOrganizationName(e.target.value)} placeholder={t.login.orgNameHelper} style={s.inputPlain} />
             </div>
             <div>
+              <label style={s.label}>{t.login.profession}</label>
+              <select required value={profession} onChange={e => setProfession(isOnboardingProfileId(e.target.value) ? e.target.value : '')} style={s.inputPlain}>
+                <option value="">{t.login.professionPlaceholder}</option>
+                {(['commercialisti', 'avvocati', 'consulenti-del-lavoro', 'notai', 'commercio', 'agenzie', 'it_support', 'other'] as const).map(value => (
+                  <option key={value} value={value}>{t.onboarding.types[value].label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
               <label style={s.label}>{t.login.name}</label>
               <input type="text" required autoComplete="name" value={name} onChange={e => setName(e.target.value)} style={s.inputPlain} />
             </div>
@@ -346,7 +372,7 @@ export default function Login() {
               <span style={{ fontSize: 12, color: '#9ca3af' }}>{t.login.or}</span>
               <div style={s.dividerLine} />
             </div>
-            <button type="button" onClick={() => { trackEvent('oauth_started', { mode: 'register', provider: 'google' }); window.location.href = googleRegistrationUrl; }} style={s.btnSecondary}>
+            <button type="button" disabled={!profession} onClick={() => { trackEvent('oauth_started', { mode: 'register', provider: 'google' }); window.location.href = googleRegistrationUrl; }} style={{ ...s.btnSecondary, opacity: profession ? 1 : 0.55, cursor: profession ? 'pointer' : 'not-allowed' }}>
               <GoogleLogo />
               {t.login.registerWithGoogle}
             </button>

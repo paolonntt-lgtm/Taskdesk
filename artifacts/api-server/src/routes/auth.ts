@@ -25,6 +25,7 @@ import { subscribeToPermissionChanges, type PermissionEvent } from "../lib/permi
 import { attachReferralAtSignup } from "../referralService";
 import { requireAuth } from "../middlewares/auth";
 import { resolveWorkspaceUser } from "../lib/workspaceContext";
+import { getOrganizationBusinessType, isOrganizationProfession } from "../lib/organizationProfession";
 
 const router: IRouter = Router();
 
@@ -132,9 +133,9 @@ router.post("/auth/login", loginRateLimiter, requireSameOrigin, async (req, res)
 });
 
 router.post("/auth/register", registerRateLimiter, requireSameOrigin, async (req, res): Promise<void> => {
-  const { name, email, password, organizationName } = req.body ?? {};
+  const { name, email, password, organizationName, profession } = req.body ?? {};
 
-  if (!name || !email || !password || !organizationName) {
+  if (!name || !email || !password || !organizationName || !isOrganizationProfession(profession)) {
     res.status(400).json({ message: "Tutti i campi sono obbligatori" });
     return;
   }
@@ -164,6 +165,8 @@ router.post("/auth/register", registerRateLimiter, requireSameOrigin, async (req
   const [org] = await db.insert(organizationsTable).values({
     name: organizationName.trim(),
     onboardingDone: false,
+    profession,
+    businessType: getOrganizationBusinessType(profession),
     utmSource,
     utmMedium,
     utmCampaign,

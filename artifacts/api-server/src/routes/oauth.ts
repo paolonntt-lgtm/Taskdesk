@@ -8,6 +8,11 @@ import { logger } from "../lib/logger";
 import { sendEmail, buildRegistrationNotificationEmail } from "../lib/email";
 import { FREE_TRIAL_DURATION_MS } from "../lib/trialStatus";
 import { attachReferralAtSignup } from "../referralService";
+import {
+  getOrganizationBusinessType,
+  isOrganizationProfession,
+  type OrganizationProfession,
+} from "../lib/organizationProfession";
 
 const router = Router();
 
@@ -31,6 +36,7 @@ type UTMAttribution = {
 type PendingOAuthState = {
   createdAt: number;
   professionalAttribution: ProfessionalTrialAttribution | null;
+  registrationProfession: OrganizationProfession | null;
   referralCode: string | null;
   referralAttempted: boolean;
   utmAttribution: UTMAttribution;
@@ -62,6 +68,12 @@ function parseProfessionalTrialAttribution(query: import("express").Request["que
   if (typeof profession !== "string" || !allowedProfessions.includes(profession)) return null;
   if (language !== "it" && language !== "en") return null;
   return { profession: profession as ProfessionalTrialAttribution["profession"], language };
+}
+
+function parseRegistrationProfession(query: import("express").Request["query"]): OrganizationProfession | null {
+  if (isOrganizationProfession(query.profession)) return query.profession;
+  const attribution = parseProfessionalTrialAttribution(query);
+  return attribution?.profession ?? null;
 }
 
 function parseUtmAttribution(query: import("express").Request["query"]): UTMAttribution {
@@ -131,10 +143,16 @@ router.get("/auth/google", (req, res) => {
   }
 
   pruneExpiredStates();
+  const registrationProfession = parseRegistrationProfession(req.query);
+  if (req.query.mode === "register" && !registrationProfession) {
+    res.status(400).send("Seleziona una professione prima di registrarti.");
+    return;
+  }
   const state = randomBytes(24).toString("hex");
   pendingOAuthStates.set(state, {
     createdAt: Date.now(),
     professionalAttribution: parseProfessionalTrialAttribution(req.query),
+    registrationProfession,
     referralCode: typeof req.query.ref === "string" && /^[A-Za-z0-9_-]{8,40}$/.test(req.query.ref)
       ? req.query.ref
       : null,
@@ -248,9 +266,16 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
     let newlyCreated = false;
 
     if (!user) {
+      if (!pendingState.registrationProfession) {
+        res.setHeader("Set-Cookie", clearNonceCookie());
+        res.redirect("/app/?mode=register&oauth_error=profession_required");
+        return;
+      }
       const [org] = await db.insert(organizationsTable).values({
         name,
         onboardingDone: false,
+        profession: pendingState.registrationProfession,
+        businessType: getOrganizationBusinessType(pendingState.registrationProfession),
         utmSource: pendingState.utmAttribution.utmSource,
         utmMedium: pendingState.utmAttribution.utmMedium,
         utmCampaign: pendingState.utmAttribution.utmCampaign,

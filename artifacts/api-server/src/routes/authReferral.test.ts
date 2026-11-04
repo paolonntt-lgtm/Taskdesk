@@ -146,6 +146,7 @@ describe("password signup referral attribution", () => {
           email: "New.Admin@Example.test",
           password: "password123",
           organizationName: " New Organization ",
+          profession: "consulenti-del-lavoro",
           referralCode: "ReferralCode_123",
           utmSource: "partner",
           utmMedium: "email",
@@ -162,6 +163,8 @@ describe("password signup referral attribution", () => {
       const orgInsert = mocks.inserted.find((entry) => entry.table === organizationsTable);
       expect(orgInsert?.values).toMatchObject({
         name: "New Organization",
+        profession: "consulenti-del-lavoro",
+        businessType: "professional_studio",
         utmSource: "partner",
         utmMedium: "email",
         utmCampaign: "autumn",
@@ -173,4 +176,20 @@ describe("password signup referral attribution", () => {
       );
     },
   );
+
+  it("rejects registration without a profession before creating an organization", async () => {
+    const response = await fetch(`${baseUrl}/api/auth/register`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        name: "New Admin",
+        email: "missing.profession@example.test",
+        password: "password123",
+        organizationName: "New Organization",
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(mocks.inserted).toHaveLength(0);
+  });
 });
