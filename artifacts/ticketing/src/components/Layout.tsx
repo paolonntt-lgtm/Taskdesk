@@ -43,13 +43,7 @@ import {
   NotificationsActiveOutlined,
   AccountCircle,
   Settings,
-  FiberNew,
-  SwapHoriz,
-  Comment,
-  AssignmentInd,
   AccessTime,
-  PriorityHigh,
-  Info,
   ChevronLeft,
   Brightness4,
   Brightness7,
@@ -89,6 +83,8 @@ import {
 import AnnouncementsPopup from './AnnouncementsPopup';
 import ReferralProgramAnnouncementDialog from './ReferralProgramAnnouncementDialog';
 import OneDriveLogo from './OneDriveLogo';
+
+import { NotificationTypeIcon } from './NotificationTypeIcon';
 
 const drawerWidth = 264;
 const sidebarTransitionMs = 120;
@@ -721,17 +717,6 @@ export default function Layout({ children }: LayoutProps) {
 
   const unreadCount = notifications.filter((n: any) => !n.isRead).length;
   const recentNotifications = (notifications as any[]).slice(0, 6);
-  const typeIconMap: Record<string, React.ReactNode> = {
-    ticket_created: <FiberNew fontSize="small" sx={{ color: 'primary.main' }} />,
-    ticket_status_changed: <SwapHoriz fontSize="small" sx={{ color: 'info.main' }} />,
-    ticket_commented: <Comment fontSize="small" sx={{ color: 'success.main' }} />,
-    ticket_assigned: <AssignmentInd fontSize="small" sx={{ color: 'secondary.main' }} />,
-    ticket_priority_changed: <PriorityHigh fontSize="small" sx={{ color: 'warning.main' }} />,
-    time_session_corrected: <AccessTime fontSize="small" sx={{ color: 'info.main' }} />,
-    daily_report_submitted: <Info fontSize="small" sx={{ color: 'primary.main' }} />,
-    system: <Info fontSize="small" sx={{ color: 'text.secondary' }} />,
-  };
-
   const menuItems = [
     { text: t.nav.dashboard,    icon: <Dashboard />,          iconColor: '#3478E5', path: '/',              adminOnly: false, group: lang === 'it' ? 'Operazioni' : 'Operations' },
     { text: entityTerm.navAll,  icon: <ConfirmationNumber />,  iconColor: '#7357D8', path: '/tickets',       adminOnly: false, group: lang === 'it' ? 'Operazioni' : 'Operations' },
@@ -1242,7 +1227,10 @@ export default function Layout({ children }: LayoutProps) {
                           bgcolor: notification.isRead ? 'action.hover' : (theme.palette.mode === 'dark' ? 'rgba(96,165,250,.15)' : '#e5efff'),
                         }}
                       >
-                        {typeIconMap[ntype] ?? typeIconMap.system}
+                        <NotificationTypeIcon
+                          type={notification.type}
+                          hasWorkspaceInviteToken={Boolean(notification.workspaceInviteToken)}
+                        />
                       </Box>
                       <Box sx={{ minWidth: 0, flex: 1 }}>
                         <Typography
@@ -1250,7 +1238,7 @@ export default function Layout({ children }: LayoutProps) {
                           color="text.secondary"
                           sx={{ display: 'block', fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.45, fontSize: '0.64rem', mb: 0.45 }}
                         >
-                          {(t.nav.notifTypes as any)[ntype] ?? ntype}
+                          {(t.nav.notifTypes as any)[notification.workspaceInviteToken ? 'workspace_invite' : ntype] ?? ntype}
                         </Typography>
                         {getNotificationWorkspaceName(notification) && (
                           <Chip

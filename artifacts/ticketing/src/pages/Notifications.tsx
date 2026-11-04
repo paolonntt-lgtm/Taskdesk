@@ -25,7 +25,6 @@ import {
   DoneAll,
   ErrorOutline,
   InboxOutlined,
-  MarkEmailReadOutlined,
   NotificationsActiveOutlined,
   Refresh,
 } from '@mui/icons-material';
@@ -39,6 +38,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
+import { NotificationTypeIcon } from '../components/NotificationTypeIcon';
 
 type Filter = 'all' | 'unread' | 'read';
 
@@ -48,6 +48,7 @@ interface NotificationItem {
   ticketNumber?: number | null;
   dailyReportId?: number | null;
   workspaceInviteToken?: string | null;
+  type?: string | null;
   notificationText: string;
   isRead: boolean;
   createdAt: string;
@@ -447,11 +448,13 @@ export default function NotificationsPage() {
                             display: 'grid',
                             placeItems: 'center',
                             flexShrink: 0,
-                            color: notification.isRead ? 'text.secondary' : 'primary.main',
                             bgcolor: notification.isRead ? 'action.hover' : (theme.palette.mode === 'dark' ? 'rgba(96,165,250,.15)' : '#e5efff'),
                           }}
                         >
-                          {notification.isRead ? <MarkEmailReadOutlined fontSize="small" /> : <NotificationsActiveOutlined fontSize="small" />}
+                          <NotificationTypeIcon
+                            type={notification.type}
+                            hasWorkspaceInviteToken={Boolean(notification.workspaceInviteToken)}
+                          />
                         </Box>
                         <Box sx={{ minWidth: 0, flex: 1 }}>
                           <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.45, flexWrap: 'wrap' }}>
