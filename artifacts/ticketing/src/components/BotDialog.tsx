@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  Box, Typography, TextField, IconButton, Button,
+  Box, Typography, TextField, IconButton, Button, Popper, List, ListItem, ListItemButton, ListItemText,
   Avatar, CircularProgress, Divider, Paper, Tooltip, Badge,
 } from '@mui/material';
 import {
@@ -323,6 +323,13 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
   // Restore from sessionStorage on first mount; fall back to empty
   const [messages, setMessages] = useState<Message[]>(() => loadSession()?.messages ?? []);
   const [input, setInput] = useState('');
+  const [clientMentionSearch, setClientMentionSearch] = useState('');
+  const [clientMentionOpen, setClientMentionOpen] = useState(false);
+  const [clientMentionStart, setClientMentionStart] = useState<number | null>(null);
+  const [mentionActiveIndex, setMentionActiveIndex] = useState(0);
+  const [mentionClients, setMentionClients] = useState<any[]>([]);
+  const [mentionLoading, setMentionLoading] = useState(false);
+  const [mentionError, setMentionError] = useState(false);
   const [loading, setLoading] = useState(false);
   const [pendingAction, setPendingAction] = useState<BotAction | null>(() => loadSession()?.pendingAction ?? null);
   const [minimized, setMinimized] = useState(false);
@@ -330,6 +337,7 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
   const minimizedRef = useRef(false); // kept in sync; safe to read inside async closures
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const inputShellRef = useRef<HTMLDivElement>(null);
   // welcome already shown if we restored a session
   const welcomeShownRef = useRef(messages.length > 0);
 
@@ -559,6 +567,37 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
   }, [open]);
 
   useEffect(() => {
+    if (!clientMentionOpen || !clientMentionSearch.trim()) {
+      setMentionClients([]);
+      setMentionLoading(false);
+      setMentionError(false);
+      return;
+    }
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      setMentionLoading(true);
+      setMentionError(false);
+      try {
+        const response = await fetch(`/api/clients?search=${encodeURIComponent(clientMentionSearch)}&limit=8`, { credentials: 'include' });
+        if (!response.ok) throw new Error('Unable to load clients');
+        const clients = await response.json();
+        if (!cancelled) setMentionClients(Array.isArray(clients) ? clients : []);
+      } catch {
+        if (!cancelled) {
+          setMentionClients([]);
+          setMentionError(true);
+        }
+      } finally {
+        if (!cancelled) setMentionLoading(false);
+      }
+    }, 160);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [clientMentionOpen, clientMentionSearch]);
+
+  useEffect(() => {
     if (!minimized) {
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
@@ -742,7 +781,57 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
     if (text) sendWithText(text);
   };
 
+  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const value = event.target.value;
+    const cursor = event.target.selectionStart ?? value.length;
+    setInput(value);
+    const match = /(?:^|\s)@([\w.-]*)$/.exec(value.slice(0, cursor));
+    if (!match) {
+      setClientMentionOpen(false);
+      setClientMentionStart(null);
+      return;
+    }
+    setClientMentionSearch(match[1]);
+    setClientMentionStart(cursor - match[1].length - 1);
+    setMentionActiveIndex(0);
+    setClientMentionOpen(true);
+  };
+
+  const selectClientMention = (client: any) => {
+    if (clientMentionStart == null) return;
+    const mention = `@${client.slug ?? client.name}`;
+    const end = clientMentionStart + clientMentionSearch.length + 1;
+    const nextInput = `${input.slice(0, clientMentionStart)}${mention} ${input.slice(end)}`;
+    const nextCursor = clientMentionStart + mention.length + 1;
+    setInput(nextInput);
+    setClientMentionOpen(false);
+    setClientMentionStart(null);
+    setTimeout(() => {
+      inputRef.current?.focus();
+      inputRef.current?.setSelectionRange(nextCursor, nextCursor);
+    }, 0);
+  };
+
   const handleKey = (e: React.KeyboardEvent) => {
+    if (clientMentionOpen && e.key === 'Escape') {
+      setClientMentionOpen(false);
+      return;
+    }
+    if (clientMentionOpen && mentionClients.length > 0 && e.key === 'ArrowDown') {
+      e.preventDefault();
+      setMentionActiveIndex((index) => (index + 1) % mentionClients.length);
+      return;
+    }
+    if (clientMentionOpen && mentionClients.length > 0 && e.key === 'ArrowUp') {
+      e.preventDefault();
+      setMentionActiveIndex((index) => (index - 1 + mentionClients.length) % mentionClients.length);
+      return;
+    }
+    if (clientMentionOpen && mentionClients.length > 0 && e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      selectClientMention(mentionClients[mentionActiveIndex] ?? mentionClients[0]);
+      return;
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
@@ -1291,19 +1380,61 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
 
             <Divider />
             <Box sx={{ px: 2, py: 1.5, display: 'flex', gap: 1, alignItems: 'flex-end' }}>
-              <TextField
-                inputRef={inputRef}
-                fullWidth
-                size="small"
-                multiline
-                maxRows={3}
-                placeholder={t.bot.placeholder}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKey}
-                disabled={loading}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3 } }}
-              />
+              <Box ref={inputShellRef} sx={{ flex: 1, minWidth: 0 }}>
+                <TextField
+                  inputRef={inputRef}
+                  fullWidth
+                  size="small"
+                  multiline
+                  maxRows={3}
+                  placeholder={t.bot.placeholder}
+                  value={input}
+                  onChange={handleInputChange}
+                  onKeyDown={handleKey}
+                  disabled={loading}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3 } }}
+                />
+                <Popper
+                  open={clientMentionOpen && (!!clientMentionSearch || mentionLoading || mentionError)}
+                  anchorEl={inputShellRef.current}
+                  placement="top-start"
+                  style={{ width: inputShellRef.current?.offsetWidth, zIndex: 1500 }}
+                >
+                  <Paper elevation={8} sx={{ mb: 0.75, borderRadius: 2, overflow: 'hidden', maxHeight: 240, overflowY: 'auto' }}>
+                    {mentionLoading ? (
+                      <Box display="flex" justifyContent="center" p={1.5}><CircularProgress size={18} /></Box>
+                    ) : mentionError ? (
+                      <Typography variant="caption" color="error" display="block" p={1.5}>
+                        {lang === 'it' ? 'Impossibile cercare i clienti.' : 'Could not search clients.'}
+                      </Typography>
+                    ) : mentionClients.length === 0 ? (
+                      <Typography variant="caption" color="text.secondary" display="block" p={1.5}>
+                        {lang === 'it' ? 'Nessun cliente trovato.' : 'No clients found.'}
+                      </Typography>
+                    ) : (
+                      <List dense disablePadding>
+                        {mentionClients.map((client, index) => (
+                          <ListItem key={client.id} disablePadding>
+                            <ListItemButton
+                              selected={index === mentionActiveIndex}
+                              onMouseDown={(event) => event.preventDefault()}
+                              onClick={() => selectClientMention(client)}
+                              sx={{ py: 0.75, px: 1.5 }}
+                            >
+                              <ListItemText
+                                primary={client.name}
+                                secondary={client.slug ? `@${client.slug}` : undefined}
+                                primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
+                                secondaryTypographyProps={{ variant: 'caption' }}
+                              />
+                            </ListItemButton>
+                          </ListItem>
+                        ))}
+                      </List>
+                    )}
+                  </Paper>
+                </Popper>
+              </Box>
               <IconButton
                 color="primary"
                 onClick={sendMessage}
