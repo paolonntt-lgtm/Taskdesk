@@ -1688,7 +1688,7 @@ export const getGetOrganizationSettingsUrl = () => {
 }
 
 /**
- * @summary Get current organization name and business type
+ * @summary Get current organization name, business type, and profession
  */
 export const getOrganizationSettings = async ( options?: Parameters<typeof customFetch>[1]): Promise<GetOrganizationSettings200> => {
 
@@ -1735,7 +1735,7 @@ export type GetOrganizationSettingsQueryError = ErrorType<unknown>
 
 
 /**
- * @summary Get current organization name and business type
+ * @summary Get current organization name, business type, and profession
  */
 
 export function useGetOrganizationSettings<TData = Awaited<ReturnType<typeof getOrganizationSettings>>, TError = ErrorType<unknown>>(
@@ -1765,7 +1765,7 @@ export const getUpdateOrganizationSettingsUrl = () => {
 }
 
 /**
- * @summary Update organization name and/or business type (admin only)
+ * @summary Update organization settings and profession (admin only)
  */
 export const updateOrganizationSettings = async (updateOrganizationSettingsBody: UpdateOrganizationSettingsBody, options?: Parameters<typeof customFetch>[1]): Promise<UpdateOrganizationSettings200> => {
 
@@ -1823,7 +1823,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateOrganizationSettingsMutationVariables = {data: BodyType<UpdateOrganizationSettingsBody>}
 
     /**
- * @summary Update organization name and/or business type (admin only)
+ * @summary Update organization settings and profession (admin only)
  */
 export const useUpdateOrganizationSettings = <TError = ErrorType<ErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateOrganizationSettings>>, TError,UpdateOrganizationSettingsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}

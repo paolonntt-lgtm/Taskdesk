@@ -17,6 +17,7 @@ import ConsoleHistoryTab from './ConsoleHistoryTab';
 import OneDriveConnectionSettings from '../components/OneDriveConnectionSettings';
 import OneDriveLogo from '../components/OneDriveLogo';
 import WorkspaceManagement from './WorkspaceManagement';
+import { ONBOARDING_PROFILE_IDS } from '../lib/onboardingDashboardPresets';
 import * as pdfjsLib from 'pdfjs-dist';
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
@@ -844,6 +845,7 @@ export default function Settings() {
 
   const [orgName, setOrgName] = useState('');
   const [orgBusinessType, setOrgBusinessType] = useState((user as any)?.businessType ?? '');
+  const [orgProfession, setOrgProfession] = useState((user as any)?.profession ?? '');
   const [orgWorkedTimeEnabled, setOrgWorkedTimeEnabled] = useState<boolean>((user as any)?.workedTimeEnabled !== false);
   const [orgTimeTrackingModuleEnabled, setOrgTimeTrackingModuleEnabled] = useState(false);
   const [orgEntitySingular, setOrgEntitySingular] = useState((user as any)?.entitySingular ?? '');
@@ -874,6 +876,7 @@ export default function Settings() {
       .then((r) => r.json()).then((d) => {
         setOrgName(d.name ?? '');
         if (d.businessType) setOrgBusinessType(d.businessType);
+        setOrgProfession(d.profession ?? '');
         setOrgClientsEnabled(d.clientsEnabled !== false);
         setOrgWorkedTimeEnabled(d.workedTimeEnabled !== false);
         setOrgTimeTrackingModuleEnabled(d.timeTrackingModuleEnabled === true);
@@ -942,6 +945,7 @@ export default function Settings() {
         body: JSON.stringify({
           name: orgName,
           businessType: orgBusinessType || undefined,
+          profession: orgProfession || null,
           clientsEnabled: orgClientsEnabled,
           workedTimeEnabled: orgWorkedTimeEnabled,
           timeTrackingModuleEnabled: orgTimeTrackingModuleEnabled,
@@ -954,12 +958,14 @@ export default function Settings() {
       queryClient.setQueryData(['organization-settings'], data);
       setOrgName(data.name);
       if (data.businessType !== undefined) setOrgBusinessType(data.businessType ?? '');
+       if (data.profession !== undefined) setOrgProfession(data.profession ?? '');
       if (data.clientsEnabled !== undefined) setOrgClientsEnabled(data.clientsEnabled !== false);
       if (data.workedTimeEnabled !== undefined) setOrgWorkedTimeEnabled(data.workedTimeEnabled !== false);
       if (data.timeTrackingModuleEnabled !== undefined) setOrgTimeTrackingModuleEnabled(data.timeTrackingModuleEnabled === true);
       updateUser({
         ...(user as any),
         businessType: data.businessType ?? null,
+         profession: data.profession !== undefined ? data.profession : (user as any)?.profession ?? null,
         clientsEnabled: data.clientsEnabled !== undefined ? data.clientsEnabled : (user as any)?.clientsEnabled,
         workedTimeEnabled: data.workedTimeEnabled !== undefined ? data.workedTimeEnabled : (user as any)?.workedTimeEnabled,
         timeTrackingModuleEnabled: data.timeTrackingModuleEnabled ?? (user as any)?.timeTrackingModuleEnabled,
@@ -1405,6 +1411,21 @@ export default function Settings() {
                   >
                     {orgSaving ? t.settings.saving : t.settings.save}
                   </Button>
+                </Box>
+                <Box sx={{ maxWidth: 340 }}>
+                  <TextField
+                    select size="small" fullWidth label={t.settings.orgProfessionLabel}
+                    value={orgProfession} onChange={(e) => setOrgProfession(e.target.value)}
+                    disabled={orgSaving} helperText={t.settings.orgProfessionHint}
+                    inputProps={{ 'data-testid': 'select-org-profession' }}
+                  >
+                    <MenuItem value="">{t.settings.orgProfessionNone}</MenuItem>
+                    {ONBOARDING_PROFILE_IDS.map((profession) => (
+                      <MenuItem key={profession} value={profession}>
+                        {(t.onboarding.types as Record<string, { label: string }>)[profession]?.label ?? profession}
+                      </MenuItem>
+                    ))}
+                  </TextField>
                 </Box>
                 <Box sx={{ maxWidth: 340 }}>
                   <TextField

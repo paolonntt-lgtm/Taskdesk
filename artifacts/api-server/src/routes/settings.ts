@@ -5,6 +5,7 @@ import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { stripeService } from "../stripeService";
 import { type SmtpConfig } from "../lib/email";
 import { validateSmtpHost } from "../lib/smtpHostValidator";
+import { isOrganizationProfession } from "../lib/organizationProfession";
 
 const router: IRouter = Router();
 
@@ -490,6 +491,7 @@ router.get("/settings/organization", requireAuth, async (req, res): Promise<void
   res.json({
     name: org.name,
     businessType: org.businessType,
+    profession: org.profession,
     clientsEnabled: org.clientsEnabled,
     workedTimeEnabled: org.workedTimeEnabled,
     timeTrackingModuleEnabled: org.timeTrackingModuleEnabled,
@@ -499,13 +501,17 @@ router.get("/settings/organization", requireAuth, async (req, res): Promise<void
 });
 
 router.patch("/settings/organization", requireAuth, requireAdmin, async (req, res): Promise<void> => {
-  const { name, businessType, clientsEnabled, workedTimeEnabled, timeTrackingModuleEnabled, entitySingular, entityPlural } = req.body ?? {};
+  const { name, businessType, profession, clientsEnabled, workedTimeEnabled, timeTrackingModuleEnabled, entitySingular, entityPlural } = req.body ?? {};
   if (typeof name !== "string" || name.trim().length < 2) {
     res.status(400).json({ message: "Il nome azienda deve avere almeno 2 caratteri" });
     return;
   }
   if (businessType !== undefined && businessType !== null && !VALID_BUSINESS_TYPES.includes(businessType)) {
     res.status(400).json({ message: "Tipo di attività non valido" });
+    return;
+  }
+  if (profession !== undefined && profession !== null && !isOrganizationProfession(profession)) {
+    res.status(400).json({ message: "Professione non valida" });
     return;
   }
   const currentUser = (req as any).currentUser;
@@ -515,6 +521,7 @@ router.patch("/settings/organization", requireAuth, requireAdmin, async (req, re
   }
   const updateData: Record<string, unknown> = { name: name.trim() };
   if (businessType !== undefined) updateData.businessType = businessType || null;
+  if (profession !== undefined) updateData.profession = profession;
   if (typeof clientsEnabled === "boolean") updateData.clientsEnabled = clientsEnabled;
   if (typeof workedTimeEnabled === "boolean") updateData.workedTimeEnabled = workedTimeEnabled;
   if (typeof timeTrackingModuleEnabled === "boolean") updateData.timeTrackingModuleEnabled = timeTrackingModuleEnabled;
@@ -557,6 +564,7 @@ router.patch("/settings/organization", requireAuth, requireAdmin, async (req, re
   res.json({
     name: updated.name,
     businessType: updated.businessType,
+    profession: updated.profession,
     clientsEnabled: updated.clientsEnabled,
     workedTimeEnabled: updated.workedTimeEnabled,
     timeTrackingModuleEnabled: updated.timeTrackingModuleEnabled,

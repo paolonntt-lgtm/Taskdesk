@@ -1650,26 +1650,71 @@ export type CompleteOnboarding200 = {
   categories?: string[];
 };
 
+export type GetOrganizationSettings200Profession = typeof GetOrganizationSettings200Profession[keyof typeof GetOrganizationSettings200Profession] | null;
+
+
+export const GetOrganizationSettings200Profession = {
+  commercialisti: 'commercialisti',
+  avvocati: 'avvocati',
+  'consulenti-del-lavoro': 'consulenti-del-lavoro',
+  notai: 'notai',
+  commercio: 'commercio',
+  agenzie: 'agenzie',
+  it_support: 'it_support',
+  other: 'other',
+} as const;
+
 export type GetOrganizationSettings200 = {
   name?: string;
   businessType?: string | null;
+  profession?: GetOrganizationSettings200Profession;
   clientsEnabled?: boolean;
   workedTimeEnabled?: boolean;
   timeTrackingModuleEnabled?: boolean;
 };
+
+export type UpdateOrganizationSettingsBodyProfession = typeof UpdateOrganizationSettingsBodyProfession[keyof typeof UpdateOrganizationSettingsBodyProfession] | null;
+
+
+export const UpdateOrganizationSettingsBodyProfession = {
+  commercialisti: 'commercialisti',
+  avvocati: 'avvocati',
+  'consulenti-del-lavoro': 'consulenti-del-lavoro',
+  notai: 'notai',
+  commercio: 'commercio',
+  agenzie: 'agenzie',
+  it_support: 'it_support',
+  other: 'other',
+} as const;
 
 export type UpdateOrganizationSettingsBody = {
   /** @minLength 2 */
   name: string;
   businessType?: string | null;
+  profession?: UpdateOrganizationSettingsBodyProfession;
   clientsEnabled?: boolean;
   workedTimeEnabled?: boolean;
   timeTrackingModuleEnabled?: boolean;
 };
 
+export type UpdateOrganizationSettings200Profession = typeof UpdateOrganizationSettings200Profession[keyof typeof UpdateOrganizationSettings200Profession] | null;
+
+
+export const UpdateOrganizationSettings200Profession = {
+  commercialisti: 'commercialisti',
+  avvocati: 'avvocati',
+  'consulenti-del-lavoro': 'consulenti-del-lavoro',
+  notai: 'notai',
+  commercio: 'commercio',
+  agenzie: 'agenzie',
+  it_support: 'it_support',
+  other: 'other',
+} as const;
+
 export type UpdateOrganizationSettings200 = {
   name?: string;
   businessType?: string | null;
+  profession?: UpdateOrganizationSettings200Profession;
 };
 
 export type WaitForPermissionChanges200Type = typeof WaitForPermissionChanges200Type[keyof typeof WaitForPermissionChanges200Type];

@@ -5,8 +5,10 @@
  * Internal Ticketing System API
  * OpenAPI spec version: 0.1.0
  */
+import type { UpdateOrganizationSettings200Profession } from './updateOrganizationSettings200Profession';
 
 export type UpdateOrganizationSettings200 = {
   name?: string;
   businessType?: string | null;
+  profession?: UpdateOrganizationSettings200Profession;
 };

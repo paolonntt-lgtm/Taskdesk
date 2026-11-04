@@ -5,10 +5,12 @@
  * Internal Ticketing System API
  * OpenAPI spec version: 0.1.0
  */
+import type { GetOrganizationSettings200Profession } from './getOrganizationSettings200Profession';
 
 export type GetOrganizationSettings200 = {
   name?: string;
   businessType?: string | null;
+  profession?: GetOrganizationSettings200Profession;
   clientsEnabled?: boolean;
   workedTimeEnabled?: boolean;
   timeTrackingModuleEnabled?: boolean;

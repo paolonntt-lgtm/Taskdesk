@@ -5,11 +5,13 @@
  * Internal Ticketing System API
  * OpenAPI spec version: 0.1.0
  */
+import type { UpdateOrganizationSettingsBodyProfession } from './updateOrganizationSettingsBodyProfession';
 
 export type UpdateOrganizationSettingsBody = {
   /** @minLength 2 */
   name: string;
   businessType?: string | null;
+  profession?: UpdateOrganizationSettingsBodyProfession;
   clientsEnabled?: boolean;
   workedTimeEnabled?: boolean;
   timeTrackingModuleEnabled?: boolean;

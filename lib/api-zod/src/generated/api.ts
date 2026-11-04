@@ -446,11 +446,12 @@ export const CompleteOnboardingResponse = zod.object({
 
 
 /**
- * @summary Get current organization name and business type
+ * @summary Get current organization name, business type, and profession
  */
 export const GetOrganizationSettingsResponse = zod.object({
   "name": zod.string().optional(),
   "businessType": zod.string().nullish(),
+  "profession": zod.enum(['commercialisti', 'avvocati', 'consulenti-del-lavoro', 'notai', 'commercio', 'agenzie', 'it_support', 'other']).nullish(),
   "clientsEnabled": zod.boolean().optional(),
   "workedTimeEnabled": zod.boolean().optional(),
   "timeTrackingModuleEnabled": zod.boolean().optional()
@@ -458,7 +459,7 @@ export const GetOrganizationSettingsResponse = zod.object({
 
 
 /**
- * @summary Update organization name and/or business type (admin only)
+ * @summary Update organization settings and profession (admin only)
  */
 export const updateOrganizationSettingsBodyNameMin = 2;
 
@@ -467,6 +468,7 @@ export const updateOrganizationSettingsBodyNameMin = 2;
 export const UpdateOrganizationSettingsBody = zod.object({
   "name": zod.string().min(updateOrganizationSettingsBodyNameMin),
   "businessType": zod.string().nullish(),
+  "profession": zod.enum(['commercialisti', 'avvocati', 'consulenti-del-lavoro', 'notai', 'commercio', 'agenzie', 'it_support', 'other']).nullish(),
   "clientsEnabled": zod.boolean().optional(),
   "workedTimeEnabled": zod.boolean().optional(),
   "timeTrackingModuleEnabled": zod.boolean().optional()
@@ -474,7 +476,8 @@ export const UpdateOrganizationSettingsBody = zod.object({
 
 export const UpdateOrganizationSettingsResponse = zod.object({
   "name": zod.string().optional(),
-  "businessType": zod.string().nullish()
+  "businessType": zod.string().nullish(),
+  "profession": zod.enum(['commercialisti', 'avvocati', 'consulenti-del-lavoro', 'notai', 'commercio', 'agenzie', 'it_support', 'other']).nullish()
 })
 
 

@@ -570,7 +570,7 @@ paths:
     get:
       operationId: getOrganizationSettings
       tags: [auth]
-      summary: Get current organization name and business type
+      summary: Get current organization name, business type, and profession
       responses:
         "200":
           description: Organization settings
@@ -584,6 +584,10 @@ paths:
                   businessType:
                     type: string
                     nullable: true
+                  profession:
+                    type: string
+                    nullable: true
+                    enum: [commercialisti, avvocati, consulenti-del-lavoro, notai, commercio, agenzie, it_support, other]
                   clientsEnabled:
                     type: boolean
                   workedTimeEnabled:
@@ -593,7 +597,7 @@ paths:
     patch:
       operationId: updateOrganizationSettings
       tags: [auth]
-      summary: Update organization name and/or business type (admin only)
+      summary: Update organization settings and profession (admin only)
       requestBody:
         required: true
         content:
@@ -608,6 +612,10 @@ paths:
                 businessType:
                   type: string
                   nullable: true
+                profession:
+                  type: string
+                  nullable: true
+                  enum: [commercialisti, avvocati, consulenti-del-lavoro, notai, commercio, agenzie, it_support, other]
                 clientsEnabled:
                   type: boolean
                 workedTimeEnabled:
@@ -627,6 +635,10 @@ paths:
                   businessType:
                     type: string
                     nullable: true
+                  profession:
+                    type: string
+                    nullable: true
+                    enum: [commercialisti, avvocati, consulenti-del-lavoro, notai, commercio, agenzie, it_support, other]
         "400":
           description: Invalid input
           content:

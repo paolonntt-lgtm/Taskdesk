@@ -1237,6 +1237,9 @@ const it = {
     orgNameTitle: 'Nome Azienda',
     orgNameLabel: 'Nome azienda',
     orgNameNote: "Il nome dell'azienda viene mostrato nella barra laterale per tutti gli utenti dell'organizzazione.",
+    orgProfessionLabel: 'Professione',
+    orgProfessionNone: '— Non specificata —',
+    orgProfessionHint: 'Aggiorna il profilo professionale dell’organizzazione e le funzioni collegate, come le categorie 770/CU.',
     orgBusinessTypeLabel: 'Tipo di attività',
     orgBusinessTypeNone: '— Non specificato —',
     orgBusinessTypeOptions: [
@@ -3457,6 +3460,9 @@ const en: typeof it = {
     orgNameTitle: 'Company Name',
     orgNameLabel: 'Company name',
     orgNameNote: 'The company name is shown in the sidebar for all organization users.',
+    orgProfessionLabel: 'Profession',
+    orgProfessionNone: '— Not specified —',
+    orgProfessionHint: 'Updates the organization’s professional profile and related features, such as the 770/CU categories.',
     orgBusinessTypeLabel: 'Business type',
     orgBusinessTypeNone: '— Not specified —',
     orgBusinessTypeOptions: [
