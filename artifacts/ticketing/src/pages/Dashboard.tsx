@@ -64,6 +64,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTicketStatuses } from '../hooks/useTicketStatuses';
 import { useEntityTerm } from '../hooks/useEntityTerm';
 import { useClientNoteDeclaratives } from '../hooks/useClientNoteDeclaratives';
+import { hasDeclarativeClientNoteCategory } from '../lib/clientNoteHashtag';
 import {
   dashboardPreferenceStorageKey,
   dashboardWidgetInstancePreferenceKey,
@@ -1156,6 +1157,7 @@ function ClientNotesWidget() {
     const monthSet = new Set<string>();
     for (const note of allNotes) {
       if (!note.clientId) continue;
+      if (hasDeclarativeClientNoteCategory(note.categories)) continue;
       const noteMonth = note.monthOverride ?? note.createdAt.slice(0, 7);
       monthSet.add(noteMonth);
     }
@@ -1169,6 +1171,7 @@ function ClientNotesWidget() {
   const rows = React.useMemo(() => {
     const map = new Map<number, { name: string; slug: string | null; count: number }>();
     for (const note of allNotes) {
+      if (hasDeclarativeClientNoteCategory(note.categories)) continue;
       const noteMonth = note.monthOverride ?? note.createdAt.slice(0, 7);
       if (noteMonth !== effectiveMonth) continue;
       if (!note.clientId) continue;

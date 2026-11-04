@@ -73,3 +73,4 @@
 - [Shared workspace collaboration](shared-workspace-collaboration.md) — Additional workspaces can be shared externally by invitation; the switcher only changes workspace.
 - [Workspace invite notification actions](workspace-invite-notification-actions.md) — Tie actions to active invite records; never detect invitations using one localized sentence.
 - [Profession-based onboarding dashboard](profession-onboarding-dashboard.md) — Start new organizations with a profession-specific dashboard preset, but keep the choice and later customization flexible.
+- [Albert client-note workflow](albert-client-note-workflow.md) — Start notes with an explicit quick action, then select the client via @ and write the note.

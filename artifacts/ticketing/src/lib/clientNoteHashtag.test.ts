@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { getDefaultNoteMonthOverride, hasClientNoteCategoryTag, hasUnavailableBuiltInClientNoteTag, parseClientNoteTags, parseHashtag } from "./clientNoteHashtag";
+import { getDefaultNoteMonthOverride, hasClientNoteCategoryTag, hasDeclarativeClientNoteCategory, hasUnavailableBuiltInClientNoteTag, parseClientNoteTags, parseHashtag } from "./clientNoteHashtag";
 
 describe("client note hashtag parsing", () => {
+  it("identifies custom and built-in declaration categories", () => {
+    expect(hasDeclarativeClientNoteCategory(["declarative:cb73ea3c-e70f-4de0-97c6-5946f6bdfe5f:27"])).toBe(true);
+    expect(hasDeclarativeClientNoteCategory(["declarative:cb73ea3c-e70f-4de0-97c6-5946f6bdfe5f"])).toBe(true);
+    expect(hasDeclarativeClientNoteCategory(["CU27", "77027"])).toBe(true);
+    expect(hasDeclarativeClientNoteCategory(["ordinary", null])).toBe(false);
+    expect(hasDeclarativeClientNoteCategory(null)).toBe(false);
+  });
+
   it("recognizes reserved category tags so unsupported profiles can be told clearly", () => {
     expect(hasClientNoteCategoryTag("Nota #cu")).toBe(true);
     expect(hasClientNoteCategoryTag("Nota #77027")).toBe(true);

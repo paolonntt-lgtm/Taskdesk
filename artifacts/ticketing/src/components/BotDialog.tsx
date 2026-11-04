@@ -4,7 +4,7 @@ import {
   Avatar, CircularProgress, Divider, Paper, Tooltip, Badge,
 } from '@mui/material';
 import {
-  Send, Close, ConfirmationNumber,
+  Send, Close, ConfirmationNumber, EditNote,
   KeyboardArrowDown, KeyboardArrowUp, DeleteOutline, Fullscreen, FullscreenExit,
 } from '@mui/icons-material';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -15,7 +15,7 @@ import { trackEvent } from '../lib/analytics';
 import { MarkdownContent } from './MarkdownContent';
 import { AlbertAvatarIcon } from './AlbertAvatarIcon';
 import { shouldShowYesNoReplies } from './botFollowUp';
-import { parseAlbertClientNoteCommand } from '../lib/albertClientNoteCommand';
+import { parseAlbertClientNoteCommand, parseAlbertClientNoteDraft } from '../lib/albertClientNoteCommand';
 import { getDefaultNoteMonthOverride, hasUnavailableBuiltInClientNoteTag, parseClientNoteTags } from '../lib/clientNoteHashtag';
 import { resolveClientBySlug, useCreateClientNote } from '@workspace/api-client-react';
 
@@ -323,6 +323,7 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
   // Restore from sessionStorage on first mount; fall back to empty
   const [messages, setMessages] = useState<Message[]>(() => loadSession()?.messages ?? []);
   const [input, setInput] = useState('');
+  const [noteModeActive, setNoteModeActive] = useState(false);
   const [clientMentionSearch, setClientMentionSearch] = useState('');
   const [clientMentionOpen, setClientMentionOpen] = useState(false);
   const [clientMentionStart, setClientMentionStart] = useState<number | null>(null);
@@ -363,7 +364,7 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
   const isInitialBotState = messages.length === 0
     || (messages.length === 1 && messages[0].role === 'assistant');
   const showReportShortcuts = !reportWizardActive
-    && (pickingLocation || isInitialBotState || isExplicitReportShortcutRequest(latestUserMessage));
+    && (pickingLocation || isInitialBotState || noteModeActive || isExplicitReportShortcutRequest(latestUserMessage));
 
   // Persist to sessionStorage whenever messages or pendingAction change
   useEffect(() => {
@@ -549,6 +550,8 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
   useEffect(() => {
     if (!open) {
       setPickingLocation(false);
+      setNoteModeActive(false);
+      setClientMentionOpen(false);
     }
   }, [open]);
 
@@ -610,6 +613,7 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
     setPendingAction(null);
     saveSession(welcome, null);
     setInput('');
+    setNoteModeActive(false);
     exitReportWizard();
     setTimeout(() => inputRef.current?.focus(), 50);
   };
@@ -676,8 +680,12 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
       monthOverride = getDefaultNoteMonthOverride(monthOverride, categories);
       if (!noteBody.trim()) {
         finish(lang === 'it'
-          ? 'Aggiungi il testo della nota dopo il comando. Esempio: `@cliente aggiungi nota: Richiamare il cliente #marzo`.'
-          : 'Include the note text after the command. Example: `@client add note: Call the client #march`.');
+          ? noteModeActive
+            ? 'Scrivi il testo della nota dopo il cliente selezionato.'
+            : 'Aggiungi il testo della nota dopo il comando. Esempio: `@cliente aggiungi nota: Richiamare il cliente #marzo`.'
+          : noteModeActive
+            ? 'Write the note text after the selected client.'
+            : 'Include the note text after the command. Example: `@client add note: Call the client #march`.');
         return;
       }
 
@@ -687,6 +695,7 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
         id: clientId,
         data: { body: '', checklist: checklist.length ? checklist : null, monthOverride, categories } as any,
       });
+      setNoteModeActive(false);
       finish(lang === 'it'
         ? `Nota aggiunta alla scheda di **${client.name ?? clientSlug}**.`
         : `Note added to **${client.name ?? clientSlug}**.`);
@@ -703,7 +712,19 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
   const sendWithText = async (text: string) => {
     if (!text || loading) return;
     setShowTeamReports(false);
-    const noteCommand = !reportWizardActiveRef.current ? parseAlbertClientNoteCommand(text) : null;
+    const explicitNoteCommand = !reportWizardActiveRef.current ? parseAlbertClientNoteCommand(text) : null;
+    const noteCommand = explicitNoteCommand
+      ?? (!reportWizardActiveRef.current && noteModeActive ? parseAlbertClientNoteDraft(text) : null);
+    if (noteModeActive && !noteCommand && !reportWizardActiveRef.current) {
+      setInput('');
+      setMessages((prev) => [...prev, { role: 'user', content: text }, {
+        role: 'assistant',
+        content: lang === 'it'
+          ? 'Seleziona il cliente scrivendo `@` e scegliendolo dai suggerimenti, poi scrivi il testo della nota.'
+          : 'Select the client by typing `@` and choosing a suggestion, then write the note text.',
+      }]);
+      return;
+    }
     if (noteCommand) {
       await submitAlbertClientNote(text, noteCommand.clientSlug, noteCommand.noteText);
       return;
@@ -797,9 +818,25 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
     setClientMentionOpen(true);
   };
 
-  const selectClientMention = (client: any) => {
+  const selectClientMention = async (client: any) => {
     if (clientMentionStart == null) return;
-    const mention = `@${client.slug ?? client.name}`;
+    let slug = client.slug as string | null | undefined;
+    if (!slug) {
+      try {
+        const response = await fetch(`/api/clients/${client.id}`, { credentials: 'include' });
+        if (!response.ok) throw new Error('Unable to load client');
+        const details = await response.json();
+        slug = details.slug;
+      } catch {
+        setMentionError(true);
+        return;
+      }
+    }
+    if (!slug) {
+      setMentionError(true);
+      return;
+    }
+    const mention = `@${slug}`;
     const end = clientMentionStart + clientMentionSearch.length + 1;
     const nextInput = `${input.slice(0, clientMentionStart)}${mention} ${input.slice(end)}`;
     const nextCursor = clientMentionStart + mention.length + 1;
@@ -852,6 +889,18 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
       trackEvent('bot_ticket_action', { action: 'view' });
       onClose();
     }
+  };
+
+  const startNoteMode = () => {
+    setShowTeamReports(false);
+    setNoteModeActive(true);
+    setMessages((prev) => [...prev, {
+      role: 'assistant',
+      content: lang === 'it'
+        ? 'Modalità aggiunta nota: digita `@`, seleziona il cliente dai suggerimenti e scrivi il testo. Puoi aggiungere `#mese` o un hashtag dichiarativo.'
+        : 'Add-note mode: type `@`, select a client from the suggestions, and write the note. You can add `#month` or a declaration hashtag.',
+    }]);
+    setTimeout(() => inputRef.current?.focus(), 50);
   };
 
   if (!open) return null;
@@ -1205,6 +1254,24 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
             )}
 
             {/* ── Daily report quick-action button ── */}
+            {showReportShortcuts && (
+              <Box sx={{ px: 2, pt: 1.25, pb: 0 }}>
+                <Button
+                  data-testid="button-add-client-note"
+                  fullWidth
+                  variant="outlined"
+                  size="small"
+                  disabled={loading}
+                  startIcon={<EditNote fontSize="small" />}
+                  onClick={() => noteModeActive ? setNoteModeActive(false) : startNoteMode()}
+                  sx={{ borderRadius: 2, textTransform: 'none', justifyContent: 'flex-start', color: noteModeActive ? 'text.secondary' : 'primary.main' }}
+                >
+                  {noteModeActive
+                    ? (lang === 'it' ? 'Annulla aggiunta nota' : 'Cancel adding note')
+                    : (lang === 'it' ? 'Aggiungi nota' : 'Add a note')}
+                </Button>
+              </Box>
+            )}
             {showReportShortcuts && todayReportSubmitted !== null && (
               <Box sx={{ px: 2, pt: 1.25, pb: 0 }}>
                 {pickingLocation ? (
@@ -1387,7 +1454,9 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
                   size="small"
                   multiline
                   maxRows={3}
-                  placeholder={t.bot.placeholder}
+                  placeholder={noteModeActive
+                    ? (lang === 'it' ? 'Seleziona @cliente e scrivi la nota…' : 'Select @client and write the note…')
+                    : t.bot.placeholder}
                   value={input}
                   onChange={handleInputChange}
                   onKeyDown={handleKey}

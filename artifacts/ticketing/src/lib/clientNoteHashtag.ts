@@ -92,6 +92,14 @@ export interface HashtagParseError {
 
 export type ClientNoteCategory = string;
 
+export function hasDeclarativeClientNoteCategory(categories: unknown): boolean {
+  if (!Array.isArray(categories)) return false;
+  return categories.some((category) =>
+    typeof category === 'string'
+      && (/^declarative:/i.test(category) || /^(?:CU|770)\d{2}$/i.test(category)),
+  );
+}
+
 export interface ClientNoteDeclarative {
   id: string;
   name: string;
