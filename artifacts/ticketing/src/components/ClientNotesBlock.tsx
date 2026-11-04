@@ -427,10 +427,14 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
                   variant={isSelected ? 'filled' : 'outlined'}
                   color={isSelected ? 'primary' : 'default'}
                   sx={{
+                    width: 92,
+                    minWidth: 92,
+                    height: 42,
                     fontWeight: isCurrent ? 700 : 400,
                     borderStyle: isCurrent && !isSelected ? 'dashed' : 'solid',
                     cursor: 'pointer',
                     ml: '6px',
+                    '& .MuiChip-label': { px: 0.5, whiteSpace: 'nowrap' },
                   }}
                 />
               </Badge>
@@ -446,11 +450,13 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
               data-testid={`client-note-category-${category.key.slice('category:'.length)}`}
               sx={{
                 flexShrink: 0,
+                width: 92,
                 minWidth: 92,
-                minHeight: 34,
+                height: 42,
+                minHeight: 42,
                 ml: 0.5,
-                px: 1.25,
-                py: 0.35,
+                px: 0.5,
+                py: 0.25,
                 borderRadius: 2,
                 display: 'flex',
                 flexDirection: 'column',
@@ -538,9 +544,6 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
                         timeStyle: 'short',
                       })}
                     </Typography>
-                    {note.categories?.map((category: string) => (
-                      <Chip key={category} label={`#${category}`} size="small" color="secondary" sx={{ height: 18, fontSize: '0.65rem' }} />
-                    ))}
                   </Box>
                   {(canEdit(note) || canDelete(note)) && (
                     <Box display="flex" alignItems="center" gap={0.5} flexShrink={0} ml={1}>
