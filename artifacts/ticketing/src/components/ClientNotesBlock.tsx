@@ -441,36 +441,46 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
             );
           })}
           {availableGroups.filter(group => group.type === 'category').map((category) => (
-            <Button
+            <Badge
               key={category.key}
-              variant={category.key === effectiveGroupKey ? 'contained' : 'outlined'}
+              badgeContent={category.count}
+              showZero
               color="secondary"
-              size="small"
-              onClick={() => setSelectedGroupKey(category.key)}
-              data-testid={`client-note-category-${category.key.slice('category:'.length)}`}
+              anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
               sx={{
                 flexShrink: 0,
-                width: 92,
-                minWidth: 92,
-                height: 42,
-                minHeight: 42,
                 ml: 0.5,
-                px: 0.5,
-                py: 0.25,
-                borderRadius: 2,
-                display: 'flex',
-                flexDirection: 'column',
-                lineHeight: 1.1,
-                textTransform: 'none',
+                '& .MuiBadge-badge': {
+                  fontSize: '0.55rem',
+                  height: 14,
+                  minWidth: 14,
+                  padding: '0 3px',
+                },
               }}
             >
-              <Typography component="span" variant="caption" fontWeight={700}>
-                {category.label}
-              </Typography>
-              <Typography component="span" variant="caption" sx={{ opacity: 0.75, fontSize: '0.62rem' }}>
-                {category.count}
-              </Typography>
-            </Button>
+              <Button
+                variant={category.key === effectiveGroupKey ? 'contained' : 'outlined'}
+                color="secondary"
+                size="small"
+                onClick={() => setSelectedGroupKey(category.key)}
+                data-testid={`client-note-category-${category.key.slice('category:'.length)}`}
+                sx={{
+                  flexShrink: 0,
+                  width: 92,
+                  minWidth: 92,
+                  height: 42,
+                  minHeight: 42,
+                  px: 0.5,
+                  py: 0.25,
+                  borderRadius: 2,
+                  textTransform: 'none',
+                }}
+              >
+                <Typography component="span" variant="caption" fontWeight={700}>
+                  {category.label}
+                </Typography>
+              </Button>
+            </Badge>
           ))}
         </Box>
       )}

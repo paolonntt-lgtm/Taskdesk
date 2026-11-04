@@ -10,6 +10,7 @@ import {
   clientsTable,
   clientNotesTable,
   appointmentsTable,
+  settingsTable,
   getDefaultStatuses,
 } from "@workspace/db";
 import { hashPassword } from "./auth";
@@ -2501,6 +2502,109 @@ async function seedImpiantiIndustriali(pw: string) {
   ]);
 }
 
+async function seedAgenziaEnergia(pw: string): Promise<void> {
+  await db.transaction(async (tx) => {
+    const provisionedAt = new Date();
+    const dueAt = new Date(provisionedAt.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const [org] = await tx.insert(organizationsTable).values({
+      name: "Energia Chiara — Servizi Luce e Gas",
+      businessType: "agency",
+      profession: "agenzie",
+      entitySingular: "Pratica",
+      entityPlural: "Pratiche",
+      onboardingDone: true,
+      clientsEnabled: true,
+    }).returning();
+
+    const orgId = org.id;
+    const [admin, operator1, operator2] = await tx.insert(usersTable).values([
+      {
+        name: "Demo Energia — Amministratore",
+        email: "demo.energia.admin@taskdesk.it",
+        passwordHash: pw,
+        role: "admin",
+        organizationId: orgId,
+        isActive: true,
+      },
+      {
+        name: "Demo Energia — Operatore 1",
+        email: "demo.energia.user1@taskdesk.it",
+        passwordHash: pw,
+        role: "user",
+        organizationId: orgId,
+        isActive: true,
+      },
+      {
+        name: "Demo Energia — Operatore 2",
+        email: "demo.energia.user2@taskdesk.it",
+        passwordHash: pw,
+        role: "user",
+        organizationId: orgId,
+        isActive: true,
+      },
+    ]).returning();
+
+    await tx.insert(ticketStatusesTable).values([
+      { organizationId: orgId, key: "open", label: "Aperto", labelIt: "Aperto", labelEn: "Open", color: "#1976d2", sortOrder: 0, isDefault: true, isClosed: false },
+      { organizationId: orgId, key: "waiting_documentation", label: "In attesa di documentazione", labelIt: "In attesa di documentazione", labelEn: "Waiting for documentation", color: "#ed6c02", sortOrder: 1, isDefault: false, isClosed: false },
+      { organizationId: orgId, key: "waiting_supplier_response", label: "In attesa di risposta fornitore", labelIt: "In attesa di risposta fornitore", labelEn: "Waiting for supplier response", color: "#9c27b0", sortOrder: 2, isDefault: false, isClosed: false },
+      { organizationId: orgId, key: "closed", label: "Chiusa", labelIt: "Chiusa", labelEn: "Closed", color: "#616161", sortOrder: 3, isDefault: false, isClosed: true },
+    ]);
+
+    await tx.insert(settingsTable).values({
+      key: `org_${orgId}_categories`,
+      value: JSON.stringify(["Voltura Luce", "Voltura Gas", "Voltura Luce e Gas"]),
+    });
+
+    const clientData = [
+      { name: "Condominio Aurora", address: "Via del Sole 1, Milano", contactPerson: "Marta Lume", email: "cliente01@energia-demo.example", phone: "+39 02 0000 0001" },
+      { name: "Panificio La Spiga", address: "Via del Grano 8, Torino", contactPerson: "Paolo Forno", email: "cliente02@energia-demo.example", phone: "+39 011 000 0002" },
+      { name: "Studio Grafico Prisma", address: "Via dei Colori 14, Bologna", contactPerson: "Lidia Forma", email: "cliente03@energia-demo.example", phone: "+39 051 000 0003" },
+      { name: "Officina Motori Beta", address: "Via delle Ruote 21, Verona", contactPerson: "Enzo Meccanica", email: "cliente04@energia-demo.example", phone: "+39 045 000 0004" },
+      { name: "Residenza Le Querce", address: "Via del Bosco 5, Firenze", contactPerson: "Nadia Verde", email: "cliente05@energia-demo.example", phone: "+39 055 000 0005" },
+      { name: "Caffè Binario", address: "Piazza della Stazione 3, Genova", contactPerson: "Renato Tazza", email: "cliente06@energia-demo.example", phone: "+39 010 000 0006" },
+      { name: "Hotel Piccolo Porto", address: "Lungomare 12, Trieste", contactPerson: "Sonia Marina", email: "cliente07@energia-demo.example", phone: "+39 040 000 0007" },
+      { name: "Sartoria Filigrana", address: "Via del Ricamo 19, Padova", contactPerson: "Ada Filo", email: "cliente08@energia-demo.example", phone: "+39 049 000 0008" },
+      { name: "Farmacia del Parco", address: "Viale delle Magnolie 6, Parma", contactPerson: "Dario Salvia", email: "cliente09@energia-demo.example", phone: "+39 0521 000 009" },
+      { name: "Magazzino Nord", address: "Via delle Merci 30, Brescia", contactPerson: "Giorgio Scorta", email: "cliente10@energia-demo.example", phone: "+39 030 000 0010" },
+    ];
+    const clients = await tx.insert(clientsTable).values(
+      clientData.map((client) => ({ ...client, organizationId: orgId }))
+    ).returning();
+
+    const practiceData = [
+      { title: "Voltura luce — Condominio Aurora", description: "Avvio voltura della fornitura elettrica per le parti comuni. Verificare la lettura del contatore e i documenti dell'amministrazione.", category: "Voltura Luce", location: "Milano", status: "open", priority: "high" as const, clientIndex: 0, assignedTo: operator1.id },
+      { title: "Voltura gas — Panificio La Spiga", description: "Richiesta di voltura del gas per il nuovo gestore dell'attività. È necessaria una copia leggibile del documento del firmatario.", category: "Voltura Gas", location: "Torino", status: "waiting_documentation", priority: "high" as const, clientIndex: 1, assignedTo: operator2.id },
+      { title: "Voltura luce e gas — Studio Grafico Prisma", description: "Gestire il passaggio contestuale delle forniture luce e gas nella nuova sede. Pratica trasmessa, in attesa di conferma dal fornitore.", category: "Voltura Luce e Gas", location: "Bologna", status: "waiting_supplier_response", priority: "medium" as const, clientIndex: 2, assignedTo: operator1.id },
+      { title: "Voltura luce — Officina Motori Beta", description: "Cambio intestatario della fornitura elettrica dell'officina. Controllare la corrispondenza tra POD e indirizzo del punto di fornitura.", category: "Voltura Luce", location: "Verona", status: "open", priority: "medium" as const, clientIndex: 3, assignedTo: operator2.id },
+      { title: "Voltura gas — Residenza Le Querce", description: "Preparare la voltura del contatore gas per il nuovo amministratore. Richiesta la delega condominiale firmata.", category: "Voltura Gas", location: "Firenze", status: "waiting_documentation", priority: "medium" as const, clientIndex: 4, assignedTo: operator1.id },
+      { title: "Voltura luce — Caffè Binario", description: "Cambio intestatario della fornitura elettrica del locale. Il codice POD è stato verificato; attendiamo l'esito del fornitore.", category: "Voltura Luce", location: "Genova", status: "waiting_supplier_response", priority: "low" as const, clientIndex: 5, assignedTo: operator2.id },
+      { title: "Voltura luce e gas — Hotel Piccolo Porto", description: "Avviare la voltura delle due forniture per il cambio di gestione della struttura. Coordinare la data di decorrenza con il cliente.", category: "Voltura Luce e Gas", location: "Trieste", status: "open", priority: "high" as const, clientIndex: 6, assignedTo: operator1.id },
+      { title: "Voltura luce — Sartoria Filigrana", description: "Pratica di voltura luce per il nuovo titolare del laboratorio. Da acquisire il modulo di richiesta completato e firmato.", category: "Voltura Luce", location: "Padova", status: "waiting_documentation", priority: "low" as const, clientIndex: 7, assignedTo: operator2.id },
+      { title: "Voltura gas — Farmacia del Parco", description: "Richiesta inoltrata per il cambio d'intestatario della fornitura gas. In attesa della conferma di presa in carico del fornitore.", category: "Voltura Gas", location: "Parma", status: "waiting_supplier_response", priority: "medium" as const, clientIndex: 8, assignedTo: operator1.id },
+      { title: "Voltura luce — Magazzino Nord", description: "Voltura della fornitura elettrica completata; confermata la nuova intestazione e registrata la lettura iniziale del contatore.", category: "Voltura Luce", location: "Brescia", status: "closed", priority: "low" as const, clientIndex: 9, assignedTo: operator2.id },
+    ];
+
+    await tx.insert(ticketsTable).values(practiceData.map((practice) => ({
+      organizationId: orgId,
+      title: practice.title,
+      description: practice.description,
+      category: practice.category,
+      location: practice.location,
+      priority: practice.priority,
+      status: practice.status,
+      clientId: clients[practice.clientIndex].id,
+      createdBy: admin.id,
+      assignedTo: practice.assignedTo,
+      createdAt: provisionedAt,
+      updatedAt: provisionedAt,
+      dueAt,
+      closedAt: practice.status === "closed" ? provisionedAt : null,
+      resolutionNote: practice.status === "closed" ? "Voltura completata e confermata nel riepilogo della fornitura." : null,
+    })));
+  });
+}
+
 // ─── Main route ──────────────────────────────────────────────────────────────
 router.post("/seed-demo-multi", async (req: Request, res: Response): Promise<void> => {
   if (process.env.NODE_ENV === "production") {
@@ -2515,13 +2619,26 @@ router.post("/seed-demo-multi", async (req: Request, res: Response): Promise<voi
   }
 
   // Check which demo tenants already exist
-  const [existingLegale, existingIndustria] = await Promise.all([
+  const [existingLegale, existingIndustria, existingEnergia] = await Promise.all([
     db.select().from(usersTable).where(eq(usersTable.email, "demo.legale.admin@taskdesk.it")),
     db.select().from(usersTable).where(eq(usersTable.email, "demo.industria.admin@taskdesk.it")),
+    db.select().from(usersTable).where(eq(usersTable.email, "demo.energia.admin@taskdesk.it")),
   ]);
 
-  if (existingLegale.length > 0 && existingIndustria.length > 0) {
-    res.json({ skipped: true, message: "Demo multi-settore già presenti" });
+  if (existingLegale.length > 0 && existingIndustria.length > 0 && existingEnergia.length > 0) {
+    res.json({
+      skipped: true,
+      message: "Demo multi-settore già presenti",
+      tenants: [
+        { settore: "Studio Legale", admin: "demo.legale.admin@taskdesk.it", users: ["demo.legale.user1@taskdesk.it", "demo.legale.user2@taskdesk.it"] },
+        { settore: "Commercialista", admin: "demo.comm.admin@taskdesk.it", users: ["demo.comm.user1@taskdesk.it", "demo.comm.user2@taskdesk.it"] },
+        { settore: "Agenzia Immobiliare", admin: "demo.immo.admin@taskdesk.it", users: ["demo.immo.user1@taskdesk.it", "demo.immo.user2@taskdesk.it"] },
+        { settore: "Agenzia Assicurazioni", admin: "demo.assic.admin@taskdesk.it", users: ["demo.assic.user1@taskdesk.it", "demo.assic.user2@taskdesk.it"] },
+        { settore: "Impianti Industriali (DG Engineering S.p.A.)", admin: "demo.industria.admin@taskdesk.it", users: ["demo.industria.user1@taskdesk.it", "demo.industria.user2@taskdesk.it"] },
+        { settore: "Agenzia Energia", admin: "demo.energia.admin@taskdesk.it", users: ["demo.energia.user1@taskdesk.it", "demo.energia.user2@taskdesk.it"] },
+      ],
+      password: "Demo2024!",
+    });
     return;
   }
 
@@ -2536,6 +2653,10 @@ router.post("/seed-demo-multi", async (req: Request, res: Response): Promise<voi
 
   if (existingIndustria.length === 0) {
     await seedImpiantiIndustriali(pw);
+  }
+
+  if (existingEnergia.length === 0) {
+    await seedAgenziaEnergia(pw);
   }
 
   res.json({
@@ -2565,6 +2686,11 @@ router.post("/seed-demo-multi", async (req: Request, res: Response): Promise<voi
         settore: "Impianti Industriali (DG Engineering S.p.A.)",
         admin: "demo.industria.admin@taskdesk.it",
         users: ["demo.industria.user1@taskdesk.it", "demo.industria.user2@taskdesk.it"],
+      },
+      {
+        settore: "Agenzia Energia",
+        admin: "demo.energia.admin@taskdesk.it",
+        users: ["demo.energia.user1@taskdesk.it", "demo.energia.user2@taskdesk.it"],
       },
     ],
     password: "Demo2024!",
