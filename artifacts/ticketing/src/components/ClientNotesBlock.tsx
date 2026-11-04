@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import {
-  Box, Typography, TextField, Button, IconButton, Checkbox,
+  Box, Typography, TextField, Button, IconButton, Checkbox, FormControlLabel,
   CircularProgress, Tooltip, Dialog, Avatar, Chip, Badge,
   LinearProgress,
   DialogTitle, DialogContent, DialogActions, Snackbar, Alert,
@@ -92,6 +92,24 @@ function authorInitials(name: string | null | undefined): string {
   const parts = name.trim().split(/\s+/);
   if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   return name.slice(0, 2).toUpperCase();
+}
+
+function getClientNoteCategoryOptions(note: any): string[] {
+  const years = new Set<string>();
+  const categories: string[] = Array.isArray(note.categories) ? note.categories : [];
+  for (const category of categories) {
+    const match = /^(?:770|CU)(\d{2}|\d{4})$/i.exec(category);
+    if (match) years.add(match[1].slice(-2));
+  }
+
+  if (years.size === 0) {
+    const month = note.monthOverride ?? monthKeyFromDate(note.createdAt);
+    years.add(month.slice(2, 4));
+  }
+
+  return [...years]
+    .sort()
+    .flatMap((year) => [`770${year}`, `CU${year}`]);
 }
 
 export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, canEditClientNotes, canDeleteClientNotes }: ClientNotesBlockProps) {
@@ -198,6 +216,7 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
   const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
   const [editBody, setEditBody] = useState('');
   const [editMonth, setEditMonth] = useState('');
+  const [editCategories, setEditCategories] = useState<string[]>([]);
   const [editSaving, setEditSaving] = useState(false);
   const [movingNoteId, setMovingNoteId] = useState<number | null>(null);
 
@@ -307,12 +326,14 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
     setEditingNoteId(note.id);
     setEditBody(noteToEditableText(note));
     setEditMonth(note.monthOverride ?? (note.categories?.length ? '' : monthKeyFromDate(note.createdAt)));
+    setEditCategories(Array.isArray(note.categories) ? [...note.categories] : []);
   };
 
   const handleEditCancel = () => {
     setEditingNoteId(null);
     setEditBody('');
     setEditMonth('');
+    setEditCategories([]);
   };
 
   const handleEditSave = async (note: any) => {
@@ -320,13 +341,19 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
     const categoryOnlyNote = !note.monthOverride && note.categories?.length > 0;
     if (!editMonth && !categoryOnlyNote) { showToast('error', tc.editMonthRequired); return; }
     const contentChanged = editBody.trim() !== noteToEditableText(note).trim();
-    const updateData: Record<string, unknown> = {
-      monthOverride: editMonth || (categoryOnlyNote ? null : undefined),
-    };
+    const initialMonth = note.monthOverride ?? (note.categories?.length ? '' : monthKeyFromDate(note.createdAt));
+    const updateData: Record<string, unknown> = {};
+    if (editMonth !== initialMonth) updateData.monthOverride = editMonth || null;
     if (contentChanged) {
       const checklist = bodyToChecklist(editBody);
       updateData.body = '';
       updateData.checklist = checklist.length > 0 ? checklist : null;
+    }
+    const originalCategories: string[] = Array.isArray(note.categories) ? note.categories : [];
+    const normalizeCategories = (categories: string[]) => [...categories].sort();
+    if (canCategorize
+      && JSON.stringify(normalizeCategories(editCategories)) !== JSON.stringify(normalizeCategories(originalCategories))) {
+      updateData.categories = editCategories;
     }
     setEditSaving(true);
     try {
@@ -340,6 +367,7 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
       setEditingNoteId(null);
       setEditBody('');
       setEditMonth('');
+      setEditCategories([]);
       showToast('success', tc.editNoteSave);
     } catch {
       showToast('error', tc.errorEdit);
@@ -629,6 +657,36 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
                         InputLabelProps={{ shrink: true }}
                         sx={{ mb: 1 }}
                       />
+                      {canCategorize && (
+                        <Box sx={{ mb: 1 }} data-testid={`client-note-edit-categories-${note.id}`}>
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                            {tc.editNoteCategories}
+                          </Typography>
+                          <Box display="flex" alignItems="center" flexWrap="wrap" columnGap={1}>
+                            {getClientNoteCategoryOptions(note).map((category) => (
+                              <FormControlLabel
+                                key={category}
+                                data-testid={`client-note-edit-category-${category.toLowerCase()}-${note.id}`}
+                                control={
+                                  <Checkbox
+                                    size="small"
+                                    checked={editCategories.includes(category)}
+                                    onChange={(event) => {
+                                      setEditCategories((current) =>
+                                        event.target.checked
+                                          ? [...current, category]
+                                          : current.filter((value) => value !== category),
+                                      );
+                                    }}
+                                  />
+                                }
+                                label={category}
+                                sx={{ ml: 0, mr: 1 }}
+                              />
+                            ))}
+                          </Box>
+                        </Box>
+                      )}
                       <TextField
                         fullWidth
                         multiline

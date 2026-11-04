@@ -257,4 +257,59 @@ describe("client note month permissions", () => {
       expect.objectContaining({ id: "editor-edit", text: "Testo aggiornato dall'editor", checked: false }),
     ]);
   });
+
+  it("allows labor consultants to change or remove note categories without changing the note content or month", async () => {
+    const path = `/api/clients/${clientId}/notes/${noteId}`;
+    const checklist = [{ id: "preserved-item", text: "Checklist invariata", checked: false }];
+    await db.update(organizationsTable)
+      .set({ profession: null })
+      .where(eq(organizationsTable.id, organizationId));
+    await db.update(clientNotesTable)
+      .set({
+        body: "Testo invariato",
+        checklist,
+        monthOverride: "2026-04",
+        categories: [],
+      })
+      .where(eq(clientNotesTable.id, noteId));
+
+    const deniedAdd = await request(path, adminSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ categories: ["CU26"] }),
+    });
+    const deniedRemove = await request(path, adminSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ categories: [] }),
+    });
+    expect(deniedAdd.status).toBe(403);
+    expect(deniedRemove.status).toBe(403);
+
+    await db.update(organizationsTable)
+      .set({ profession: "consulenti-del-lavoro" })
+      .where(eq(organizationsTable.id, organizationId));
+
+    const addCategory = await request(path, adminSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ categories: ["CU26"] }),
+    });
+    expect(addCategory.status).toBe(200);
+    expect(addCategory.body).toMatchObject({
+      body: "Testo invariato",
+      monthOverride: "2026-04",
+      categories: ["CU26"],
+      checklist,
+    });
+
+    const removeCategory = await request(path, adminSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ categories: [] }),
+    });
+    expect(removeCategory.status).toBe(200);
+    expect(removeCategory.body).toMatchObject({
+      body: "Testo invariato",
+      monthOverride: "2026-04",
+      categories: [],
+      checklist,
+    });
+  });
 });

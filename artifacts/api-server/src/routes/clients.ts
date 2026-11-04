@@ -1116,16 +1116,14 @@ router.patch("/clients/:id/notes/:noteId", requireClientFeature, async (req, res
     }
     if (parsed.data.categories !== undefined) {
       const categories = parsed.data.categories ?? [];
-      if (categories.length > 0) {
-        const [organization] = await db
-          .select({ profession: organizationsTable.profession })
-          .from(organizationsTable)
-          .where(eq(organizationsTable.id, currentUser.organizationId))
-          .limit(1);
-        if (organization?.profession !== "consulenti-del-lavoro") {
-          res.status(403).json({ error: "Client note categories are only available to labor consultants" });
-          return;
-        }
+      const [organization] = await db
+        .select({ profession: organizationsTable.profession })
+        .from(organizationsTable)
+        .where(eq(organizationsTable.id, currentUser.organizationId))
+        .limit(1);
+      if (organization?.profession !== "consulenti-del-lavoro") {
+        res.status(403).json({ error: "Client note categories are only available to labor consultants" });
+        return;
       }
       updateData.categories = categories;
     }
