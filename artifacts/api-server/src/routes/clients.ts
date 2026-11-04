@@ -1,4 +1,5 @@
 import { Router, type IRouter, type RequestHandler } from "express";
+import { randomUUID } from "node:crypto";
 import { eq, and, ilike, or, asc, desc, ne, gte, lt, isNotNull, isNull, inArray } from "drizzle-orm";
 import {
   db,
@@ -249,7 +250,25 @@ async function getClientNoteDeclaratives(organizationId: number) {
     .from(settingsTable)
     .where(eq(settingsTable.key, clientNoteDeclarativesKey(organizationId)))
     .limit(1);
-  if (!row) return [];
+  if (!row) {
+    const [organization] = await db.select({ profession: organizationsTable.profession })
+      .from(organizationsTable).where(eq(organizationsTable.id, organizationId)).limit(1);
+    const defaults = organization?.profession === "consulenti-del-lavoro"
+      ? [
+          { id: randomUUID(), name: "CU", alias: "#CU" },
+          { id: randomUUID(), name: "770", alias: "#770" },
+        ]
+      : organization?.profession === "commercialisti"
+        ? [{ id: randomUUID(), name: "Dichiarazione dei Redditi", alias: "#REDDITI" }]
+        : [];
+    if (defaults.length === 0) return [];
+    const value = JSON.stringify(defaults);
+    await db.insert(settingsTable).values({ key: clientNoteDeclarativesKey(organizationId), value }).onConflictDoNothing();
+    const [saved] = await db.select({ value: settingsTable.value })
+      .from(settingsTable).where(eq(settingsTable.key, clientNoteDeclarativesKey(organizationId))).limit(1);
+    if (saved) return ClientNoteDeclarativesBody.parse({ declaratives: JSON.parse(saved.value) }).declaratives;
+    return defaults;
+  }
   const parsed = ClientNoteDeclarativesBody.safeParse({ declaratives: JSON.parse(row.value) });
   if (!parsed.success) throw new Error("Stored client note declaratives are invalid");
   return parsed.data.declaratives;
@@ -268,7 +287,7 @@ async function validateClientNoteCategories(organizationId: number, categories: 
   }
   const builtInCategories = categories.filter((category) => /^(?:CU|770)\d{2}$/.test(category));
   const declarativeIds = categories
-    .map((category) => /^declarative:(.+)$/.exec(category)?.[1])
+    .map((category) => /^declarative:([0-9a-f-]{36})(?::\d{2})?$/i.exec(category)?.[1])
     .filter((id): id is string => !!id);
   if (categories.length !== builtInCategories.length + declarativeIds.length) {
     return { status: 400, error: "Invalid client note category" };
@@ -307,12 +326,15 @@ router.put("/client-note-declaratives", requireClientFeature, requireAdmin, asyn
   const organizationId = (req as any).currentUser.organizationId as number;
   const current = await getClientNoteDeclaratives(organizationId);
   const nextIds = new Set(parsed.data.declaratives.map((item) => item.id));
-  const removedIds = new Set(current.filter((item) => !nextIds.has(item.id)).map((item) => `declarative:${item.id}`));
+   const removedIds = new Set(current.filter((item) => !nextIds.has(item.id)).map((item) => item.id));
   if (removedIds.size > 0) {
     const storedNotes = await db.select({ categories: clientNotesTable.categories })
       .from(clientNotesTable)
       .where(eq(clientNotesTable.organizationId, organizationId));
-    const inUse = storedNotes.some((note) => (note.categories ?? []).some((category) => removedIds.has(category)));
+    const inUse = storedNotes.some((note) => (note.categories ?? []).some((category) => {
+      const id = /^declarative:([0-9a-f-]{36})/i.exec(category)?.[1];
+      return id ? removedIds.has(id) : false;
+    }));
     if (inUse) {
       res.status(409).json({ error: "Remove this declarative from existing client notes before deleting it" });
       return;

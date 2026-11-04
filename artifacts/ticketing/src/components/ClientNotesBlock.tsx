@@ -105,19 +105,26 @@ function getClientNoteCategoryOptions(
   for (const category of categories) {
     const match = /^(?:770|CU)(\d{2}|\d{4})$/i.exec(category);
     if (match) years.add(match[1].slice(-2));
+    const custom = /^declarative:[0-9a-f-]{36}:(\d{2})$/i.exec(category);
+    if (custom) years.add(custom[1]);
   }
 
-  if (years.size === 0 && canUseBuiltIns) {
+  if (years.size === 0) {
     const month = note.monthOverride ?? monthKeyFromDate(note.createdAt);
     years.add(month.slice(2, 4));
   }
+  const referenceYears = [...years].sort();
 
   return [
-    ...(canUseBuiltIns ? [...years].sort().flatMap((year) => [
-      { value: `770${year}`, label: `770${year}` },
-      { value: `CU${year}`, label: `CU${year}` },
+    ...(canUseBuiltIns ? referenceYears.flatMap((year) => [
+      { value: `770${year}`, label: `770 ${2000 + Number(year)}` },
+      { value: `CU${year}`, label: `CU ${2000 + Number(year)}` },
     ]) : []),
-    ...declaratives.map((item) => ({ value: `declarative:${item.id}`, label: `${item.name} (${item.alias})` })),
+    ...declaratives.filter((item) => !canUseBuiltIns || !/^#(?:CU|770)$/i.test(item.alias))
+      .flatMap((item) => referenceYears.map((year) => ({
+      value: `declarative:${item.id}:${year}`,
+      label: `${item.name} ${2000 + Number(year)} (${item.alias})`,
+      }))),
   ];
 }
 
@@ -174,11 +181,12 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
         return year * 1000 + month * 10;
       }
 
-      const categoryMatch = /^category:(CU|770)(\d{2})$/.exec(group.key);
-      if (!categoryMatch) return Number.MAX_SAFE_INTEGER;
-
-      const year = 2000 + Number(categoryMatch[2]);
-      const categoryOrder = categoryMatch[1] === 'CU' ? 1 : 2;
+      const category = group.key.slice('category:'.length);
+      const fixed = /^(CU|770)(\d{2})$/.exec(category);
+      const custom = /^declarative:[0-9a-f-]{36}:(\d{2})$/i.exec(category);
+      const yearPart = fixed?.[2] ?? custom?.[1];
+      const year = yearPart ? 2000 + Number(yearPart) : new Date().getFullYear();
+      const categoryOrder = fixed ? (fixed[1] === 'CU' ? 1 : 2) : 3;
       return year * 1000 + 12 * 10 + categoryOrder;
     };
 
@@ -192,9 +200,13 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
         ? formatMonthShort(group.key, lang)
         : (() => {
             const category = group.key.slice('category:'.length);
-            const custom = /^declarative:(.+)$/.exec(category);
-            if (custom) return declaratives.find((item) => item.id === custom[1])?.name ?? category;
-            return category.replace(/^(770)(\d{2})$/, '$1-$2');
+            const custom = /^declarative:([0-9a-f-]{36})(?::(\d{2}))?$/i.exec(category);
+            if (custom) {
+              const year = custom[2] ? 2000 + Number(custom[2]) : new Date().getFullYear();
+              return `${declaratives.find((item) => item.id === custom[1])?.name ?? 'Dichiarativo'} ${year}`;
+            }
+            const fixed = /^(CU|770)(\d{2})$/.exec(category);
+            return fixed ? `${fixed[1]} ${2000 + Number(fixed[2])}` : category;
           })(),
       count: group.notes.length,
       openCount: group.notes.reduce((sum, note) => sum + countNoteOpenItems(note), 0),
@@ -338,7 +350,12 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
     setEditingNoteId(note.id);
     setEditBody(noteToEditableText(note));
     setEditMonth(note.monthOverride ?? (note.categories?.length ? '' : monthKeyFromDate(note.createdAt)));
-    setEditCategories(Array.isArray(note.categories) ? [...note.categories] : []);
+    const referenceYear = (note.monthOverride ?? monthKeyFromDate(note.createdAt)).slice(2, 4);
+    setEditCategories(Array.isArray(note.categories)
+      ? note.categories.map((category: string) =>
+          /^declarative:([0-9a-f-]{36})$/i.test(category) ? `${category}:${referenceYear}` : category,
+        )
+      : []);
   };
 
   const handleEditCancel = () => {

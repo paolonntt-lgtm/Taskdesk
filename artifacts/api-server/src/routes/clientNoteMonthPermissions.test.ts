@@ -317,6 +317,24 @@ describe("client note month permissions", () => {
     });
   });
 
+  it("seeds profession-specific default declaratives the first time settings are read", async () => {
+    await db.update(organizationsTable).set({ profession: "consulenti-del-lavoro" })
+      .where(eq(organizationsTable.id, organizationId));
+    const labor = await request("/api/client-note-declaratives", adminSessionId);
+    expect(labor.body.declaratives.map((item: any) => [item.name, item.alias])).toEqual([
+      ["CU", "#CU"],
+      ["770", "#770"],
+    ]);
+
+    await db.delete(settingsTable).where(eq(settingsTable.key, `org_${organizationId}_client_note_declaratives`));
+    await db.update(organizationsTable).set({ profession: "commercialisti" })
+      .where(eq(organizationsTable.id, organizationId));
+    const accountants = await request("/api/client-note-declaratives", adminSessionId);
+    expect(accountants.body.declaratives.map((item: any) => [item.name, item.alias])).toEqual([
+      ["Dichiarazione dei Redditi", "#REDDITI"],
+    ]);
+  });
+
   it("lets an organization configure and use client-note declaratives without deleting tags in use", async () => {
     const declarative = {
       id: crypto.randomUUID(),
@@ -334,12 +352,16 @@ describe("client note month permissions", () => {
     expect(readByCollaborator.status).toBe(200);
     expect(readByCollaborator.body.declaratives).toEqual([declarative]);
 
+    const referenceYear = new Intl.DateTimeFormat("en", {
+      timeZone: "Europe/Rome",
+      year: "2-digit",
+    }).format(new Date());
     const create = await request(`/api/clients/${clientId}/notes`, authorSessionId, {
       method: "POST",
-      body: JSON.stringify({ body: "Nota dichiarativo", categories: [`declarative:${declarative.id}`] }),
+      body: JSON.stringify({ body: "Nota dichiarativo", categories: [`declarative:${declarative.id}:${referenceYear}`] }),
     });
     expect(create.status).toBe(201);
-    expect(create.body.categories).toEqual([`declarative:${declarative.id}`]);
+    expect(create.body.categories).toEqual([`declarative:${declarative.id}:${referenceYear}`]);
 
     const removeInUse = await request("/api/client-note-declaratives", adminSessionId, {
       method: "PUT",
@@ -347,4 +369,5 @@ describe("client note month permissions", () => {
     });
     expect(removeInUse.status).toBe(409);
   });
+
 });

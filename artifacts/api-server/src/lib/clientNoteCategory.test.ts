@@ -14,6 +14,7 @@ describe("normalizeClientNoteCategory", () => {
   it("normalizes two-digit and four-digit category years", () => {
     expect(normalizeClientNoteCategory("cu27")).toBe("CU27");
     expect(normalizeClientNoteCategory("CU2027")).toBe("CU27");
+    expect(normalizeClientNoteCategory("declarative:cb73ea3c-e70f-4de0-97c6-5946f6bdfe5f:2027")).toBe("declarative:cb73ea3c-e70f-4de0-97c6-5946f6bdfe5f:27");
   });
 
   it("rejects invalid categories and year lengths", () => {

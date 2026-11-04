@@ -82,8 +82,17 @@ describe("client note hashtag parsing", () => {
     const declaratives = [{ id: "cb73ea3c-e70f-4de0-97c6-5946f6bdfe5f", name: "Ritenute", alias: "#RIT" }];
     expect(parseClientNoteTags("Verificare pagamento #rit.", declaratives, false)).toEqual({
       monthOverride: null,
-      categories: [`declarative:${declaratives[0].id}`],
+      categories: [`declarative:${declaratives[0].id}:${new Intl.DateTimeFormat('en', { timeZone: 'Europe/Rome', year: '2-digit' }).format(new Date())}`],
       strippedBody: "Verificare pagamento.",
+    });
+  });
+
+  it("uses an explicit year suffix for custom declaratives", () => {
+    const declaratives = [{ id: "cb73ea3c-e70f-4de0-97c6-5946f6bdfe5f", name: "Redditi", alias: "#REDDITI" }];
+    expect(parseClientNoteTags("Dichiarazione #redditi2027", declaratives, false)).toEqual({
+      monthOverride: null,
+      categories: [`declarative:${declaratives[0].id}:27`],
+      strippedBody: "Dichiarazione",
     });
   });
 
@@ -91,8 +100,15 @@ describe("client note hashtag parsing", () => {
     const declaratives = [{ id: "cb73ea3c-e70f-4de0-97c6-5946f6bdfe5f", name: "CU", alias: "#CU" }];
     expect(hasUnavailableBuiltInClientNoteTag("Nota #CU", false, declaratives)).toBe(false);
     expect(hasUnavailableBuiltInClientNoteTag("Nota #77026", false, declaratives)).toBe(true);
-    expect(parseClientNoteTags("Nota #CU", declaratives, false)?.categories).toEqual([
-      `declarative:${declaratives[0].id}`,
+    expect(parseClientNoteTags("Nota #CU2027", declaratives, false)?.categories).toEqual([
+      `declarative:${declaratives[0].id}:27`,
+    ]);
+  });
+
+  it("uses the existing CU card for the labor-consultant CU default", () => {
+    const declaratives = [{ id: "cb73ea3c-e70f-4de0-97c6-5946f6bdfe5f", name: "CU", alias: "#CU" }];
+    expect(parseClientNoteTags("Nota #CU", declaratives, true)?.categories).toEqual([
+      `CU${new Intl.DateTimeFormat('en', { timeZone: 'Europe/Rome', year: '2-digit' }).format(new Date())}`,
     ]);
   });
 });

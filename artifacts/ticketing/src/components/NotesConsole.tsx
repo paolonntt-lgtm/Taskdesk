@@ -379,11 +379,16 @@ export default function NotesConsole() {
                               {note.categories?.map((category: string) => (
                                 <Chip
                                   key={category}
-                                  label={category.startsWith('declarative:')
-                                    ? declaratives.find((item) => `declarative:${item.id}` === category)?.alias
-                                      ?? declaratives.find((item) => `declarative:${item.id}` === category)?.name
-                                      ?? category
-                                    : `#${category}`}
+                                  label={(() => {
+                                    const custom = /^declarative:([0-9a-f-]{36})(?::(\d{2}))?$/i.exec(category);
+                                    if (custom) {
+                                      const item = declaratives.find((entry) => entry.id === custom[1]);
+                                      const year = custom[2] ? 2000 + Number(custom[2]) : new Date().getFullYear();
+                                      return `${item?.alias ?? item?.name ?? '#'} ${year}`;
+                                    }
+                                    const fixed = /^(CU|770)(\d{2})$/.exec(category);
+                                    return fixed ? `#${fixed[1]} ${2000 + Number(fixed[2])}` : `#${category}`;
+                                  })()}
                                   size="small"
                                   color="secondary"
                                   sx={{ fontSize: '0.65rem', height: 18 }}

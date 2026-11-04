@@ -126,9 +126,12 @@ export function hasUnavailableBuiltInClientNoteTag(
 ): boolean {
   if (canUseBuiltIns) return false;
   return [...text.matchAll(/(^|\s)#(770|CU)(\d{2}|\d{4})?(?![\w])/gi)].some((match) => {
-    if (match[3]) return true;
-    const alias = `#${match[2]}`.toLocaleLowerCase();
-    return !declaratives.some((item) => item.alias.toLocaleLowerCase() === alias);
+    const baseAlias = `#${match[2]}`.toLocaleLowerCase();
+    const fullAlias = `${baseAlias}${match[3] ?? ''}`;
+    return !declaratives.some((item) => {
+      const configuredAlias = item.alias.toLocaleLowerCase();
+      return configuredAlias === fullAlias || (!!match[3] && configuredAlias === baseAlias);
+    });
   });
 }
 
@@ -141,7 +144,10 @@ export function parseClientNoteTags(
   declaratives: ClientNoteDeclarative[] = [],
   includeBuiltIns = true,
 ): ClientNoteTags | HashtagParseError | null {
-  const currentYear = String(new Date().getFullYear()).slice(-2);
+  const currentYear = new Intl.DateTimeFormat('en', {
+    timeZone: 'Europe/Rome',
+    year: '2-digit',
+  }).format(new Date());
   const matches: Array<{ index: number; length: number; text: string; category: string }> = [];
   if (includeBuiltIns) {
     for (const match of text.matchAll(/(^|\s)#(770|CU)(\d{2}|\d{4})?(?![\w])/gi)) {
@@ -157,13 +163,17 @@ export function parseClientNoteTags(
   for (const declarative of declaratives) {
     const alias = declarative.alias.trim().replace(/^#/, '');
     if (!alias) continue;
-    const regex = new RegExp(`(^|\\s)#${escapeRegExp(alias)}(?![\\p{L}\\p{N}_])`, 'giu');
+    if (includeBuiltIns && /^#(?:CU|770)$/i.test(declarative.alias.trim())) continue;
+    const regex = new RegExp(`(^|\\s)#${escapeRegExp(alias)}(?:(\\d{2}|\\d{4}))?(?![\\p{L}\\p{N}_])`, 'giu');
     for (const match of text.matchAll(regex)) {
+      const year = match[2]
+        ? match[2].slice(-2)
+        : currentYear;
       matches.push({
         index: match.index ?? 0,
         length: match[0].length,
         text: match[0],
-        category: `declarative:${declarative.id}`,
+        category: `declarative:${declarative.id}:${year}`,
       });
     }
   }
