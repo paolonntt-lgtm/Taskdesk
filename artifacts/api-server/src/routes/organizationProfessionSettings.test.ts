@@ -89,9 +89,21 @@ describe("organization profession settings", () => {
     });
     expect(updated.status).toBe(200);
     expect(updated.body.profession).toBe("consulenti-del-lavoro");
+    expect(updated.body.businessType).toBe("professional_studio");
+
+    const conflictingBusinessType = await request("/api/settings/organization", adminSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({
+        name: `Profession settings ${runId}`,
+        businessType: "agency",
+      }),
+    });
+    expect(conflictingBusinessType.status).toBe(200);
+    expect(conflictingBusinessType.body.businessType).toBe("professional_studio");
 
     const reread = await request("/api/settings/organization", adminSessionId);
     expect(reread.body.profession).toBe("consulenti-del-lavoro");
+    expect(reread.body.businessType).toBe("professional_studio");
 
     const invalid = await request("/api/settings/organization", adminSessionId, {
       method: "PATCH",

@@ -22,10 +22,25 @@ const BUSINESS_TYPE_BY_PROFESSION: Record<OrganizationProfession, string> = {
   other: "other",
 };
 
+const INITIAL_CATEGORIES_BY_PROFESSION: Record<OrganizationProfession, string[]> = {
+  commercialisti: ["Accounting", "Tax Returns", "Payroll", "Corporate", "Client Documents", "Other"],
+  avvocati: ["Civil Law", "Criminal Law", "Corporate Law", "Family Law", "Contracts", "Other"],
+  "consulenti-del-lavoro": ["Employment", "Payroll", "Social Security", "HR Consulting", "770 / CU", "Other"],
+  notai: ["Real Estate", "Succession", "Corporate Acts", "Powers of Attorney", "Contracts", "Other"],
+  commercio: ["Orders", "Sales", "Inventory", "Customers", "Suppliers", "Other"],
+  agenzie: ["Design", "Development", "Marketing", "Project Management", "Client Request", "Other"],
+  it_support: ["PC", "Printer", "Internet / Network", "Software", "Telephony", "Cash register / ERP", "Other"],
+  other: ["General", "IT", "Administrative", "Operations", "Other"],
+};
+
 export function isOrganizationProfession(value: unknown): value is OrganizationProfession {
   return typeof value === "string" && (ORGANIZATION_PROFESSIONS as readonly string[]).includes(value);
 }
 
 export function getOrganizationBusinessType(profession: OrganizationProfession): string {
   return BUSINESS_TYPE_BY_PROFESSION[profession];
+}
+
+export function getDefaultCategoriesForProfession(profession: OrganizationProfession): string[] {
+  return [...INITIAL_CATEGORIES_BY_PROFESSION[profession]];
 }

@@ -15,7 +15,7 @@ import bcrypt from "bcryptjs";
 import { sendEmail, buildRegistrationNotificationEmail } from "../lib/email";
 import { loginRateLimiter, registerRateLimiter } from "../lib/rateLimiter";
 import { logger } from "../lib/logger";
-import { STANDARD_CATEGORIES, DEFAULT_LOCATIONS } from "./settings";
+import { DEFAULT_LOCATIONS } from "./settings";
 import { requireSameOrigin } from "../lib/originCheck";
 import { FREE_TRIAL_DURATION_MS } from "../lib/trialStatus";
 import { recordUserActivity } from "../middlewares/auth";
@@ -25,7 +25,11 @@ import { subscribeToPermissionChanges, type PermissionEvent } from "../lib/permi
 import { attachReferralAtSignup } from "../referralService";
 import { requireAuth } from "../middlewares/auth";
 import { resolveWorkspaceUser } from "../lib/workspaceContext";
-import { getOrganizationBusinessType, isOrganizationProfession } from "../lib/organizationProfession";
+import {
+  getDefaultCategoriesForProfession,
+  getOrganizationBusinessType,
+  isOrganizationProfession,
+} from "../lib/organizationProfession";
 
 const router: IRouter = Router();
 
@@ -179,7 +183,7 @@ router.post("/auth/register", registerRateLimiter, requireSameOrigin, async (req
 
   // Seed default settings for the new organization
   await db.insert(settingsTable).values([
-    { key: `org_${org.id}_categories`, value: JSON.stringify(STANDARD_CATEGORIES) },
+    { key: `org_${org.id}_categories`, value: JSON.stringify(getDefaultCategoriesForProfession(profession)) },
     { key: `org_${org.id}_locations`, value: JSON.stringify(DEFAULT_LOCATIONS) },
   ]).onConflictDoNothing();
 

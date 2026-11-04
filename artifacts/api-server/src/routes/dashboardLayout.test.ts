@@ -1,7 +1,7 @@
 import { createServer, type Server } from "node:http";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { db, organizationsTable, sessionsTable, settingsTable, usersTable } from "@workspace/db";
-import { inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import app from "../app";
 import { createSession } from "../lib/session";
 
@@ -31,14 +31,25 @@ describe("collaborator dashboard onboarding scope", () => {
     const [newOrganization] = await db.insert(organizationsTable).values({
       name: `New dashboard org ${runId}`,
       onboardingDone: false,
+      profession: "commercialisti",
+      businessType: "professional_studio",
     }).returning({ id: organizationsTable.id });
     newOrganizationId = newOrganization.id;
 
     const [existingOrganization] = await db.insert(organizationsTable).values({
       name: `Existing dashboard org ${runId}`,
       onboardingDone: true,
+      profession: "notai",
+      businessType: "professional_studio",
     }).returning({ id: organizationsTable.id });
     existingOrganizationId = existingOrganization.id;
+    await db.insert(settingsTable).values([
+      {
+        key: `org_${newOrganizationId}_categories`,
+        value: JSON.stringify(["Accounting", "Tax Returns", "Payroll", "Corporate", "Client Documents", "Other"]),
+      },
+      { key: `org_${existingOrganizationId}_categories`, value: JSON.stringify(["Categorie personali"]) },
+    ]);
 
     const [newAdmin] = await db.insert(usersTable).values({
       name: "New Dashboard Admin",
@@ -96,9 +107,19 @@ describe("collaborator dashboard onboarding scope", () => {
   it("enables automatic collaborator widgets only when onboarding is first completed", async () => {
     const firstCompletion = await request("/api/onboarding/complete", newAdminSessionId, {
       method: "POST",
-      body: JSON.stringify({ businessType: "it_support" }),
+      body: JSON.stringify({ businessType: "professional_studio", profession: "avvocati" }),
     });
     expect(firstCompletion.status).toBe(200);
+    expect(await firstCompletion.json()).toMatchObject({
+      profession: "avvocati",
+      businessType: "professional_studio",
+      categories: ["Civil Law", "Criminal Law", "Corporate Law", "Family Law", "Contracts", "Other"],
+    });
+    const [updatedNewOrganization] = await db.select({
+      profession: organizationsTable.profession,
+      businessType: organizationsTable.businessType,
+    }).from(organizationsTable).where(eq(organizationsTable.id, newOrganizationId));
+    expect(updatedNewOrganization).toEqual({ profession: "avvocati", businessType: "professional_studio" });
 
     const firstDashboard = await request("/api/dashboard-layout", newAdminSessionId);
     expect(await firstDashboard.json()).toMatchObject({
@@ -109,9 +130,14 @@ describe("collaborator dashboard onboarding scope", () => {
 
     const repeatCompletion = await request("/api/onboarding/complete", existingAdminSessionId, {
       method: "POST",
-      body: JSON.stringify({ businessType: "it_support" }),
+      body: JSON.stringify({ businessType: "it_support", profession: "it_support" }),
     });
     expect(repeatCompletion.status).toBe(200);
+    expect(await repeatCompletion.json()).toMatchObject({ categories: ["Categorie personali"] });
+    const [preservedCategories] = await db.select({ value: settingsTable.value })
+      .from(settingsTable)
+      .where(eq(settingsTable.key, `org_${existingOrganizationId}_categories`));
+    expect(JSON.parse(preservedCategories.value)).toEqual(["Categorie personali"]);
 
     const existingDashboard = await request("/api/dashboard-layout", existingAdminSessionId);
     expect(await existingDashboard.json()).toMatchObject({

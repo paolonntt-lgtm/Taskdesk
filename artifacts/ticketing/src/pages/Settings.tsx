@@ -17,7 +17,11 @@ import ConsoleHistoryTab from './ConsoleHistoryTab';
 import OneDriveConnectionSettings from '../components/OneDriveConnectionSettings';
 import OneDriveLogo from '../components/OneDriveLogo';
 import WorkspaceManagement from './WorkspaceManagement';
-import { ONBOARDING_PROFILE_IDS } from '../lib/onboardingDashboardPresets';
+import {
+  getOnboardingBusinessType,
+  isOnboardingProfileId,
+  ONBOARDING_PROFILE_IDS,
+} from '../lib/onboardingDashboardPresets';
 import * as pdfjsLib from 'pdfjs-dist';
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
@@ -1415,7 +1419,13 @@ export default function Settings() {
                 <Box sx={{ maxWidth: 340 }}>
                   <TextField
                     select size="small" fullWidth label={t.settings.orgProfessionLabel}
-                    value={orgProfession} onChange={(e) => setOrgProfession(e.target.value)}
+                    value={orgProfession} onChange={(e) => {
+                      const profession = e.target.value;
+                      setOrgProfession(profession);
+                      if (isOnboardingProfileId(profession)) {
+                        setOrgBusinessType(getOnboardingBusinessType(profession));
+                      }
+                    }}
                     disabled={orgSaving} helperText={t.settings.orgProfessionHint}
                     inputProps={{ 'data-testid': 'select-org-profession' }}
                   >
@@ -1431,7 +1441,7 @@ export default function Settings() {
                   <TextField
                     select size="small" fullWidth label={t.settings.orgBusinessTypeLabel}
                     value={orgBusinessType} onChange={(e) => setOrgBusinessType(e.target.value)}
-                    disabled={orgSaving} helperText={t.settings.orgBusinessTypeHint}
+                    disabled={orgSaving || Boolean(orgProfession)} helperText={t.settings.orgBusinessTypeHint}
                   >
                     <MenuItem value="">{t.settings.orgBusinessTypeNone}</MenuItem>
                     {(t.settings.orgBusinessTypeOptions as { value: string; label: string }[]).map((opt) => (

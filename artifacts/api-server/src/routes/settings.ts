@@ -5,7 +5,7 @@ import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { stripeService } from "../stripeService";
 import { type SmtpConfig } from "../lib/email";
 import { validateSmtpHost } from "../lib/smtpHostValidator";
-import { isOrganizationProfession } from "../lib/organizationProfession";
+import { getOrganizationBusinessType, isOrganizationProfession } from "../lib/organizationProfession";
 
 const router: IRouter = Router();
 
@@ -490,7 +490,9 @@ router.get("/settings/organization", requireAuth, async (req, res): Promise<void
   }
   res.json({
     name: org.name,
-    businessType: org.businessType,
+    businessType: isOrganizationProfession(org.profession)
+      ? getOrganizationBusinessType(org.profession)
+      : org.businessType,
     profession: org.profession,
     clientsEnabled: org.clientsEnabled,
     workedTimeEnabled: org.workedTimeEnabled,
@@ -520,8 +522,21 @@ router.patch("/settings/organization", requireAuth, requireAdmin, async (req, re
     return;
   }
   const updateData: Record<string, unknown> = { name: name.trim() };
-  if (businessType !== undefined) updateData.businessType = businessType || null;
+  const [currentOrganization] = await db
+    .select({ profession: organizationsTable.profession })
+    .from(organizationsTable)
+    .where(eq(organizationsTable.id, currentUser.organizationId));
+  if (!currentOrganization) {
+    res.status(404).json({ message: "Organizzazione non trovata" });
+    return;
+  }
   if (profession !== undefined) updateData.profession = profession;
+  const effectiveProfession = profession !== undefined ? profession : currentOrganization.profession;
+  if (isOrganizationProfession(effectiveProfession)) {
+    updateData.businessType = getOrganizationBusinessType(effectiveProfession);
+  } else if (businessType !== undefined) {
+    updateData.businessType = businessType || null;
+  }
   if (typeof clientsEnabled === "boolean") updateData.clientsEnabled = clientsEnabled;
   if (typeof workedTimeEnabled === "boolean") updateData.workedTimeEnabled = workedTimeEnabled;
   if (typeof timeTrackingModuleEnabled === "boolean") updateData.timeTrackingModuleEnabled = timeTrackingModuleEnabled;
@@ -563,7 +578,9 @@ router.patch("/settings/organization", requireAuth, requireAdmin, async (req, re
   }
   res.json({
     name: updated.name,
-    businessType: updated.businessType,
+    businessType: isOrganizationProfession(updated.profession)
+      ? getOrganizationBusinessType(updated.profession)
+      : updated.businessType,
     profession: updated.profession,
     clientsEnabled: updated.clientsEnabled,
     workedTimeEnabled: updated.workedTimeEnabled,
