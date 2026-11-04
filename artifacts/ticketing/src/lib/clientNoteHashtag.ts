@@ -90,7 +90,7 @@ export interface HashtagParseError {
   badMonth: string;
 }
 
-export type ClientNoteCategory = "770" | "CU";
+export type ClientNoteCategory = string;
 
 export interface ClientNoteTags {
   monthOverride: string | null;
@@ -99,9 +99,13 @@ export interface ClientNoteTags {
 }
 
 export function parseClientNoteTags(text: string): ClientNoteTags | HashtagParseError | null {
-  const categoryRegex = /(^|\s)#(770|CU)(?![\w])/gi;
+  const categoryRegex = /(^|\s)#(770|CU)(\d{2}|\d{4})?(?![\w])/gi;
   const categoryMatches = [...text.matchAll(categoryRegex)];
-  const categories = [...new Set(categoryMatches.map((match) => match[2].toUpperCase()))] as ClientNoteCategory[];
+  const currentYear = String(new Date().getFullYear()).slice(-2);
+  const categories = [...new Set(categoryMatches.map((match) => {
+    const year = match[3] ? match[3].slice(-2) : currentYear;
+    return `${match[2].toUpperCase()}${year}`;
+  }))];
 
   let strippedBody = text;
   for (const match of categoryMatches) {

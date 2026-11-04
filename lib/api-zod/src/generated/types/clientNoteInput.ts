@@ -5,13 +5,13 @@
  * Internal Ticketing System API
  * OpenAPI spec version: 0.1.0
  */
-import type { ClientNoteInputCategoriesItem } from './clientNoteInputCategoriesItem';
 import type { ClientNoteInputChecklistItem } from './clientNoteInputChecklistItem';
 
 export interface ClientNoteInput {
   body: string;
   /** YYYY-MM month override parsed from hashtag */
   monthOverride?: string | null;
-  categories?: ClientNoteInputCategoriesItem[] | null;
+  /** @items.pattern ^(770|CU)([0-9]{2}|[0-9]{4})?$ */
+  categories?: string[] | null;
   checklist?: ClientNoteInputChecklistItem[] | null;
 }

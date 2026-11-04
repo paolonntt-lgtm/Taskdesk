@@ -5828,7 +5828,7 @@ components:
           nullable: true
           items:
             type: string
-            enum: ["770", "CU"]
+            pattern: '^(770|CU)([0-9]{2}|[0-9]{4})?$'
         createdAt:
           type: string
           format: date-time
@@ -5858,7 +5858,7 @@ components:
           nullable: true
           items:
             type: string
-            enum: ["770", "CU"]
+            pattern: '^(770|CU)([0-9]{2}|[0-9]{4})?$'
         checklist:
           type: array
           nullable: true
@@ -5892,7 +5892,7 @@ components:
           nullable: true
           items:
             type: string
-            enum: ["770", "CU"]
+            pattern: '^(770|CU)([0-9]{2}|[0-9]{4})?$'
         checklist:
           type: array
           nullable: true
@@ -5956,7 +5956,7 @@ components:
           nullable: true
           items:
             type: string
-            enum: ["770", "CU"]
+            pattern: '^(770|CU)([0-9]{2}|[0-9]{4})?$'
         createdAt:
           type: string
           format: date-time

@@ -149,7 +149,7 @@ export default function NotesConsole() {
     // Extract monthOverride from hashtag shortcut
     const hashResult = canCategorize ? parseClientNoteTags(noteBody) : parseHashtag(noteBody);
     let monthOverride: string | null = null;
-    let categories: ('770' | 'CU')[] = [];
+    let categories: string[] = [];
     if (hashResult && 'badMonth' in hashResult) {
       setHashtagError(tc.invalidMonth(hashResult.badMonth));
       return;

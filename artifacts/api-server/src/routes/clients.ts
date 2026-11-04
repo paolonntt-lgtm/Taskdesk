@@ -21,6 +21,7 @@ import {
   normalizeClientEmailAddress,
   normalizeSenderEmail,
 } from "../lib/emailClientAssociation";
+import { normalizeClientNoteCategory } from "../lib/clientNoteCategory";
 
 const router: IRouter = Router();
 
@@ -195,7 +196,11 @@ const ClientsQuerySchema = z.object({
 const ClientNoteBody = z.object({
   body: z.string(),
   monthOverride: z.string().regex(/^\d{4}-\d{2}$/).optional().nullable(),
-  categories: z.array(z.enum(["770", "CU"])).optional().nullable(),
+  categories: z.array(
+    z.string()
+      .transform((value) => normalizeClientNoteCategory(value))
+      .refine((value): value is string => value !== null, "Invalid client note category"),
+  ).optional().nullable().transform((values) => values == null ? values : [...new Set(values)]),
   checklist: z
     .array(
       z.object({

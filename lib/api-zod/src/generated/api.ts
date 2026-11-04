@@ -4337,6 +4337,9 @@ export const ListClientNotesParams = zod.object({
   "id": zod.coerce.number().int()
 })
 
+export const listClientNotesResponseCategoriesItemRegExp = new RegExp('^(770|CU)([0-9]{2}|[0-9]{4})?$');
+
+
 export const ListClientNotesResponseItem = zod.object({
   "id": zod.int(),
   "clientId": zod.int(),
@@ -4350,7 +4353,7 @@ export const ListClientNotesResponseItem = zod.object({
   "checked": zod.boolean()
 })).nullish(),
   "monthOverride": zod.string().nullish().describe('YYYY-MM override for which month this note appears under'),
-  "categories": zod.array(zod.enum(['770', 'CU'])).nullish(),
+  "categories": zod.array(zod.string().regex(listClientNotesResponseCategoriesItemRegExp)).nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -4364,16 +4367,22 @@ export const CreateClientNoteParams = zod.object({
   "id": zod.coerce.number().int()
 })
 
+export const createClientNoteBodyCategoriesItemRegExp = new RegExp('^(770|CU)([0-9]{2}|[0-9]{4})?$');
+
+
 export const CreateClientNoteBody = zod.object({
   "body": zod.string(),
   "monthOverride": zod.string().nullish().describe('YYYY-MM month override parsed from hashtag'),
-  "categories": zod.array(zod.enum(['770', 'CU'])).nullish(),
+  "categories": zod.array(zod.string().regex(createClientNoteBodyCategoriesItemRegExp)).nullish(),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
   "text": zod.string(),
   "checked": zod.boolean()
 })).nullish()
 })
+
+export const createClientNoteResponseCategoriesItemRegExp = new RegExp('^(770|CU)([0-9]{2}|[0-9]{4})?$');
+
 
 export const CreateClientNoteResponse = zod.object({
   "id": zod.int(),
@@ -4388,7 +4397,7 @@ export const CreateClientNoteResponse = zod.object({
   "checked": zod.boolean()
 })).nullish(),
   "monthOverride": zod.string().nullish().describe('YYYY-MM override for which month this note appears under'),
-  "categories": zod.array(zod.enum(['770', 'CU'])).nullish(),
+  "categories": zod.array(zod.string().regex(createClientNoteResponseCategoriesItemRegExp)).nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -4402,16 +4411,22 @@ export const UpdateClientNoteParams = zod.object({
   "noteId": zod.coerce.number().int()
 })
 
+export const updateClientNoteBodyCategoriesItemRegExp = new RegExp('^(770|CU)([0-9]{2}|[0-9]{4})?$');
+
+
 export const UpdateClientNoteBody = zod.object({
   "body": zod.string().optional(),
   "monthOverride": zod.string().nullish().describe('YYYY-MM month override parsed from hashtag'),
-  "categories": zod.array(zod.enum(['770', 'CU'])).nullish(),
+  "categories": zod.array(zod.string().regex(updateClientNoteBodyCategoriesItemRegExp)).nullish(),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
   "text": zod.string(),
   "checked": zod.boolean()
 })).nullish()
 })
+
+export const updateClientNoteResponseCategoriesItemRegExp = new RegExp('^(770|CU)([0-9]{2}|[0-9]{4})?$');
+
 
 export const UpdateClientNoteResponse = zod.object({
   "id": zod.int(),
@@ -4426,7 +4441,7 @@ export const UpdateClientNoteResponse = zod.object({
   "checked": zod.boolean()
 })).nullish(),
   "monthOverride": zod.string().nullish().describe('YYYY-MM override for which month this note appears under'),
-  "categories": zod.array(zod.enum(['770', 'CU'])).nullish(),
+  "categories": zod.array(zod.string().regex(updateClientNoteResponseCategoriesItemRegExp)).nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -4454,6 +4469,9 @@ export const ListAllClientNotesQueryParams = zod.object({
   "dateTo": zod.date().optional()
 })
 
+export const listAllClientNotesResponseCategoriesItemRegExp = new RegExp('^(770|CU)([0-9]{2}|[0-9]{4})?$');
+
+
 export const ListAllClientNotesResponseItem = zod.object({
   "id": zod.int(),
   "clientId": zod.int(),
@@ -4469,7 +4487,7 @@ export const ListAllClientNotesResponseItem = zod.object({
   "checked": zod.boolean()
 })).nullish(),
   "monthOverride": zod.string().nullish().describe('YYYY-MM override for which month this note appears under'),
-  "categories": zod.array(zod.enum(['770', 'CU'])).nullish(),
+  "categories": zod.array(zod.string().regex(listAllClientNotesResponseCategoriesItemRegExp)).nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })

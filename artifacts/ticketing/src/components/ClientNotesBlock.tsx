@@ -192,7 +192,7 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
     const result = canCategorize ? parseClientNoteTags(body) : parseHashtag(body);
     let finalBody = body.trim();
     let monthOverride: string | null = null;
-    let categories: ('770' | 'CU')[] = [];
+    let categories: string[] = [];
 
     if (result && 'strippedBody' in result) {
       finalBody = result.strippedBody;

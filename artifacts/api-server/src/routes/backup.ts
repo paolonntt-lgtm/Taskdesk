@@ -4,6 +4,7 @@ import { runBackupForOrg, buildBackupPayload } from "../lib/backup";
 import { db, organizationsTable, ticketsTable, ticketTimeSessionsTable, ticketCommentsTable, ticketInternalNotesTable, clientsTable, clientNotesTable, usersTable } from "@workspace/db";
 import { and, eq, inArray } from "drizzle-orm";
 import { logger } from "../lib/logger";
+import { normalizeClientNoteCategory } from "../lib/clientNoteCategory";
 
 const router: IRouter = Router();
 
@@ -220,7 +221,10 @@ router.post("/backup/restore", requireAuth, requireAdmin, async (req, res): Prom
         checklist: cn.checklist ?? null,
         monthOverride: cn.monthOverride ?? null,
         categories: canRestoreNoteCategories && Array.isArray(cn.categories)
-          ? cn.categories.filter((category: unknown) => category === "770" || category === "CU")
+          ? [...new Set((cn.categories as unknown[]).flatMap((category) => {
+              const normalized = normalizeClientNoteCategory(category);
+              return normalized ? [normalized] : [];
+            }))]
           : [],
         createdAt: cn.createdAt ? new Date(cn.createdAt) : new Date(),
       });
