@@ -6,12 +6,12 @@ import {
   Button, IconButton, Collapse, Select, MenuItem, FormControl,
 } from '@mui/material';
 import {
-  Business, Search, Person, AccessTime, ConfirmationNumber,
+  Business, Search, AdminPanelSettings, Person, AccessTime, ConfirmationNumber,
   BugReport, ExpandMore, ExpandLess, CheckCircle, Reply, Refresh, Visibility, VisibilityOff,
   FiberManualRecord,
 } from '@mui/icons-material';
 import { useLanguage } from '../contexts/LanguageContext';
-import { groupOrganizationsByOwner } from '../lib/groupOrganizationsByAdmin';
+import { groupOrganizationsByOwner } from '../lib/groupOrganizationsByOwner';
 
 interface OrgUser {
   id: number;

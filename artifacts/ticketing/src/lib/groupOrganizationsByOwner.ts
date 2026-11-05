@@ -4,7 +4,7 @@ export interface OrganizationWithOwner {
   billingOwnerOrganizationId: number | null;
 }
 
-export interface OrganizationAdminGroup<T extends OrganizationWithOwner> {
+export interface OrganizationOwnerGroup<T extends OrganizationWithOwner> {
   key: string;
   organizations: T[];
   ownerName: string;
@@ -12,7 +12,7 @@ export interface OrganizationAdminGroup<T extends OrganizationWithOwner> {
 
 export function groupOrganizationsByOwner<T extends OrganizationWithOwner>(
   organizations: T[],
-): OrganizationAdminGroup<T>[] {
+): OrganizationOwnerGroup<T>[] {
   const organizationsById = new Map(organizations.map((organization) => [organization.id, organization]));
   const grouped = new Map<number, T[]>();
 
@@ -23,16 +23,9 @@ export function groupOrganizationsByOwner<T extends OrganizationWithOwner>(
     grouped.set(ownerId, members);
   }
 
-  const groups: OrganizationAdminGroup<T>[] = [];
-
-  for (const [ownerId, members] of grouped) {
-    const owner = organizationsById.get(ownerId);
-    groups.push({
-      key: members.map(({ id }) => id).sort((a, b) => a - b).join("-"),
-      organizations: members,
-      ownerName: owner?.name ?? members[0].name,
-    });
-  }
-
-  return groups;
+  return Array.from(grouped, ([ownerId, members]) => ({
+    key: members.map(({ id }) => id).sort((a, b) => a - b).join("-"),
+    organizations: members,
+    ownerName: organizationsById.get(ownerId)?.name ?? members[0].name,
+  }));
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groupOrganizationsByOwner } from "./groupOrganizationsByAdmin";
+import { groupOrganizationsByOwner } from "./groupOrganizationsByOwner";
 
 describe("groupOrganizationsByOwner", () => {
   it("groups a billing organization with its shared workspaces, not other organizations with common admins", () => {
