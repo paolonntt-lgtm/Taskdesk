@@ -1093,14 +1093,16 @@ export async function disconnectOneDriveUser(userId: number, organizationId: num
           .where(eq(oneDriveClientFoldersTable.organizationId, organizationId));
         const targetEmail = target.microsoftEmail.toLocaleLowerCase();
         for (const folder of folders) {
-          const page = await graph<{ value?: DrivePermission[] }>(
-            accessToken,
-            `/me/drive/items/${encodeURIComponent(folder.driveItemId)}/permissions?$select=id,roles,invitation,grantedToV2,grantedTo,link&$top=200`,
-          );
-          for (const permission of page.value ?? []) {
-            if (shouldRevokeOneDrivePermission(permission, new Set([targetEmail]), owner.microsoftEmail)) {
-              await graph(accessToken, `/me/drive/items/${encodeURIComponent(folder.driveItemId)}/permissions/${encodeURIComponent(permission.id!)}`, { method: "DELETE" });
+          let next: string | null =
+            `${GRAPH}/me/drive/items/${encodeURIComponent(folder.driveItemId)}/permissions?$select=id,roles,invitation,grantedToV2,grantedTo,link&$top=200`;
+          while (next) {
+            const page: { value?: DrivePermission[]; "@odata.nextLink"?: string } = await graph(accessToken, next);
+            for (const permission of page.value ?? []) {
+              if (shouldRevokeOneDrivePermission(permission, new Set([targetEmail]), owner.microsoftEmail)) {
+                await graph(accessToken, `/me/drive/items/${encodeURIComponent(folder.driveItemId)}/permissions/${encodeURIComponent(permission.id!)}`, { method: "DELETE" });
+              }
             }
+            next = page["@odata.nextLink"] ?? null;
           }
         }
       } catch (error) {
