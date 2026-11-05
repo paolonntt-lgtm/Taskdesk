@@ -12,9 +12,11 @@ const mocks = vi.hoisted(() => {
     organizationId: {},
     tenantId: {},
   };
+  const oneDriveClientArchiveTable = { organizationId: {}, ownerUserId: {} };
   return {
     usersTable,
     oneDriveConnectionsTable,
+    oneDriveClientArchiveTable,
     db: { select: vi.fn(), insert: vi.fn() },
     previousConnection: null as null | Record<string, unknown>,
     exchangeMicrosoftCode: vi.fn(),
@@ -33,6 +35,7 @@ vi.mock("@workspace/db", () => ({
   db: mocks.db,
   usersTable: mocks.usersTable,
   oneDriveConnectionsTable: mocks.oneDriveConnectionsTable,
+  oneDriveClientArchiveTable: mocks.oneDriveClientArchiveTable,
 }));
 
 vi.mock("drizzle-orm", () => ({
@@ -86,6 +89,7 @@ vi.mock("../lib/onedriveGraph", () => ({
   downloadSharedOneDriveItem: vi.fn(),
   disconnectOneDriveUser: mocks.disconnectOneDriveUser,
   syncPendingOneDriveAttachments: mocks.syncPendingOneDriveAttachments,
+  shareOneDriveClientFoldersWithUser: vi.fn(),
   uploadSharedOneDriveFile: vi.fn(),
 }));
 

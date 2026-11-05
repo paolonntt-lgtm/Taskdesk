@@ -16,12 +16,14 @@ import {
 import { CloudSync, LinkOff } from "@mui/icons-material";
 import { useLanguage } from "../contexts/LanguageContext";
 import OneDriveLogo from "./OneDriveLogo";
+import { useAuth } from "../contexts/AuthContext";
 
 type Connection = { connected: boolean; microsoftEmail?: string; reconnectRequired?: boolean };
 type Notice = { severity: "success" | "error" | "info"; text: string } | null;
 
 export default function OneDriveConnectionSettings() {
   const { t, lang } = useLanguage();
+  const { user } = useAuth();
   const copy = t.settings;
   const [connection, setConnection] = useState<Connection | null>(null);
   const [loading, setLoading] = useState(true);
@@ -30,6 +32,7 @@ export default function OneDriveConnectionSettings() {
   const [reconnectRequired, setReconnectRequired] = useState(false);
   const [switchDialogOpen, setSwitchDialogOpen] = useState(false);
   const [disconnectDialogOpen, setDisconnectDialogOpen] = useState(false);
+  const [archiveOwner, setArchiveOwner] = useState<{ ownerUserId: number; ownerEmail: string | null } | null>(null);
 
   const loadConnection = useCallback(async () => {
     setLoading(true);
@@ -42,6 +45,11 @@ export default function OneDriveConnectionSettings() {
       if (!response.ok) throw new Error(data.error || copy.oneDriveLoadError);
       setConnection(data as Connection);
       setReconnectRequired(Boolean((data as Connection).reconnectRequired));
+      const archiveResponse = await fetch("/api/onedrive/client-archive", { credentials: "include", cache: "no-store" });
+      if (archiveResponse.ok) {
+        const archive = await archiveResponse.json();
+        setArchiveOwner(archive.configured ? { ownerUserId: archive.ownerUserId, ownerEmail: archive.ownerEmail } : null);
+      }
     } catch (error) {
       setNotice({
         severity: "error",
@@ -51,6 +59,22 @@ export default function OneDriveConnectionSettings() {
       setLoading(false);
     }
   }, [copy.oneDriveLoadError]);
+
+  const selectClientArchive = async () => {
+    setSaving(true);
+    setNotice(null);
+    try {
+      const response = await fetch("/api/onedrive/client-archive/select", { method: "POST", credentials: "include" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || (lang === "it" ? "Impossibile impostare l’archivio clienti." : "Could not set the client archive."));
+      setArchiveOwner({ ownerUserId: user!.id, ownerEmail: connection?.microsoftEmail ?? null });
+      setNotice({ severity: "success", text: lang === "it" ? "Archivio clienti OneDrive attivato." : "OneDrive client archive enabled." });
+    } catch (error) {
+      setNotice({ severity: "error", text: error instanceof Error ? error.message : copy.oneDriveRequestError });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   useEffect(() => {
     void loadConnection();
@@ -170,6 +194,28 @@ export default function OneDriveConnectionSettings() {
               <Typography variant="body2" color="text.secondary" mb={2}>
                 {copy.oneDriveAccountHint}
               </Typography>
+              {user?.role === "admin" && connection?.connected && (
+                <Box mb={2}>
+                  {archiveOwner ? (
+                    <Alert severity={archiveOwner.ownerUserId === user.id ? "success" : "info"}>
+                      {archiveOwner.ownerUserId === user.id
+                        ? (lang === "it" ? "Questo account ospita l’archivio OneDrive dei clienti." : "This account owns the OneDrive client archive.")
+                        : (lang === "it" ? `Archivio clienti gestito da ${archiveOwner.ownerEmail ?? "un altro amministratore"}.` : `Client archive managed by ${archiveOwner.ownerEmail ?? "another administrator"}.`)}
+                    </Alert>
+                  ) : (
+                    <Stack spacing={1}>
+                      <Alert severity="info">
+                        {lang === "it"
+                          ? "Per creare nomi descrittivi, l’IA analizzerà gli allegati. Il contenuto o il testo estratto sarà inviato al servizio IA."
+                          : "To create descriptive names, AI will analyze attachments. File content or extracted text will be sent to the AI service."}
+                      </Alert>
+                      <Button variant="outlined" onClick={() => void selectClientArchive()} disabled={saving || reconnectRequired}>
+                        {lang === "it" ? "Usa questo account per l’archivio clienti" : "Use this account for the client archive"}
+                      </Button>
+                    </Stack>
+                  )}
+                </Box>
+              )}
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
                 <Button
                   variant="contained"

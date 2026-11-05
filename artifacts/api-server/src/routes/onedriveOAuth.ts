@@ -1,7 +1,7 @@
 import express, { Router } from "express";
 import { and, eq } from "drizzle-orm";
 import { createHash, randomBytes } from "node:crypto";
-import { db, oneDriveConnectionsTable, usersTable } from "@workspace/db";
+import { db, oneDriveConnectionsTable, oneDriveClientArchiveTable, usersTable } from "@workspace/db";
 import { getSession, getSessionId } from "../lib/session";
 import { microsoftOneDriveCallbackUri } from "../lib/appUrl";
 import { logger } from "../lib/logger";
@@ -38,6 +38,7 @@ import {
   downloadSharedOneDriveItem,
   disconnectOneDriveUser,
   syncPendingOneDriveAttachments,
+  shareOneDriveClientFoldersWithUser,
   uploadSharedOneDriveFile,
 } from "../lib/onedriveGraph";
 import { requireAuth } from "../middlewares/auth";
@@ -223,6 +224,9 @@ router.get("/onedrive/callback", async (req, res): Promise<void> => {
     if (previousConnection) invalidateOneDriveAccessToken(previousConnection.id);
     void syncPendingOneDriveAttachments(user.id, user.organizationId, user.role === "admin").catch((error) => {
       logger.warn({ err: error, userId: user.id }, "Could not retry pending OneDrive attachments");
+    });
+    void shareOneDriveClientFoldersWithUser(user.organizationId, user.id).catch((error) => {
+      logger.warn({ err: error, userId: user.id }, "Could not share client archive folders with new OneDrive connection");
     });
     finish(res, "connected", current.returnTo, restoredSessionCookie);
   } catch (error) {
@@ -568,6 +572,14 @@ router.delete("/onedrive/connection", requireAuth, async (req, res): Promise<voi
   const user = (req as any).currentUser as { id: number; organizationId: number | null };
   if (!user.organizationId) {
     res.status(400).json({ error: "An organization account is required." });
+    return;
+  }
+  const [archive] = await db.select({ ownerUserId: oneDriveClientArchiveTable.ownerUserId })
+    .from(oneDriveClientArchiveTable)
+    .where(eq(oneDriveClientArchiveTable.organizationId, user.organizationId))
+    .limit(1);
+  if (archive?.ownerUserId === user.id) {
+    res.status(409).json({ code: "ONEDRIVE_CLIENT_ARCHIVE_OWNER", error: "Select another administrator account before disconnecting this OneDrive." });
     return;
   }
   try {

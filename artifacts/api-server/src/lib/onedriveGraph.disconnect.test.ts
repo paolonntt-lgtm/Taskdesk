@@ -21,6 +21,9 @@ const mocks = vi.hoisted(() => {
 vi.mock("@workspace/db", () => ({
   db: mocks.db,
   oneDriveConnectionsTable: mocks.connectionTable,
+  oneDriveClientArchiveTable: {},
+  oneDriveClientFoldersTable: {},
+  clientsTable: {},
   ticketAttachmentOneDriveCopiesTable: {},
   ticketAttachmentsTable: {},
   ticketsTable: {},

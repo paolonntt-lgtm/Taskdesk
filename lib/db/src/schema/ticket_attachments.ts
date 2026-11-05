@@ -30,6 +30,7 @@ export const ticketAttachmentOneDriveCopiesTable = pgTable("ticket_attachment_on
   ownerEmail: text("owner_email").notNull(),
   ownerTenantId: text("owner_tenant_id").notNull(),
   itemId: text("item_id").notNull(),
+  itemName: text("item_name"),
   isCurrent: boolean("is_current").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [

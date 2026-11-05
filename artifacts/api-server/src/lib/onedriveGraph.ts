@@ -7,14 +7,23 @@ import {
   ticketAttachmentsTable,
   ticketsTable,
   usersTable,
+  clientsTable,
+  oneDriveClientArchiveTable,
+  oneDriveClientFoldersTable,
 } from "@workspace/db";
 import { ObjectStorageService } from "./objectStorage";
 import { logger } from "./logger";
 import { microsoftOneDriveCallbackOrigin } from "./appUrl";
 import { ALLOWED_ATTACHMENT_MIME_TYPES, MAX_TICKET_ATTACHMENT_SIZE_BYTES } from "./allowedMimeTypes";
+import OpenAI from "openai";
+import path from "node:path";
 
 const GRAPH = "https://graph.microsoft.com/v1.0";
 const storage = new ObjectStorageService();
+const openai = new OpenAI({
+  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+});
 export const ONE_DRIVE_DOWNLOAD_CONCURRENCY_LIMIT = 2;
 export const CONSUMER_TENANT_ID = "9188040d-6c67-4c5b-b112-36a304b66e";
 type RefreshedOneDriveAccessToken = {
@@ -87,9 +96,10 @@ export function isExpectedOneDriveAttachmentCopy(
   ticketId: number,
   attachmentId: number,
   fileName: string,
+  itemName?: string | null,
 ): boolean {
   return item.id === itemId &&
-    item.name === getOneDriveAttachmentCopyName(ticketId, attachmentId, fileName) &&
+    item.name === (itemName ?? getOneDriveAttachmentCopyName(ticketId, attachmentId, fileName)) &&
     !!item.file;
 }
 
@@ -271,6 +281,227 @@ export async function createDefaultFolders(accessToken: string, operatorName: st
   );
   if (!rootDetails.webUrl) throw new Error("Microsoft did not return a Taskdesk folder URL.");
   return { rootFolderId: root.id, operatorFolderId: operator.id, shareUrl: rootDetails.webUrl };
+}
+
+function safeFolderSegment(value: string): string {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9 _-]/g, "").trim().replace(/\s+/g, "-").slice(0, 70) || "cliente";
+}
+
+async function ensureClientArchiveFolder(accessToken: string, rootFolderId: string) {
+  const children = await graph<{ value: Array<{ id: string; name: string; folder?: object; webUrl?: string }> }>(
+    accessToken,
+    `/me/drive/items/${encodeURIComponent(rootFolderId)}/children?$select=id,name,folder,webUrl&$top=200`,
+  );
+  let folder = children.value?.find((item) => item.folder && item.name.toLocaleLowerCase() === "clienti");
+  if (!folder) {
+    folder = await graph(accessToken, `/me/drive/items/${encodeURIComponent(rootFolderId)}/children`, {
+      method: "POST",
+      body: JSON.stringify({ name: "Clienti", folder: {}, "@microsoft.graph.conflictBehavior": "fail" }),
+    });
+  }
+  if (!folder?.id) throw new Error("Could not create the Taskdesk client folder.");
+  const details = await graph<{ webUrl?: string }>(
+    accessToken,
+    `/me/drive/items/${encodeURIComponent(folder.id)}?$select=webUrl`,
+  );
+  return { id: folder.id, webUrl: details.webUrl ?? folder.webUrl ?? null };
+}
+
+async function inviteClientFolderReaders(accessToken: string, folderId: string, organizationId: number, ownerUserId: number) {
+  const connections = await db.select({
+    microsoftEmail: oneDriveConnectionsTable.microsoftEmail,
+    userId: oneDriveConnectionsTable.userId,
+  }).from(oneDriveConnectionsTable)
+    .innerJoin(usersTable, eq(usersTable.id, oneDriveConnectionsTable.userId))
+    .where(and(
+      eq(oneDriveConnectionsTable.organizationId, organizationId),
+      eq(usersTable.isActive, true),
+    ));
+  for (const recipient of connections) {
+    if (recipient.userId === ownerUserId) continue;
+    try {
+      await graph(accessToken, `/me/drive/items/${encodeURIComponent(folderId)}/invite`, {
+        method: "POST",
+        body: JSON.stringify({
+          recipients: [{ email: recipient.microsoftEmail }],
+          message: "TaskDesk client ticket attachments",
+          requireSignIn: true,
+          sendInvitation: true,
+          roles: ["read"],
+        }),
+      });
+    } catch (error) {
+      logger.warn({ err: error, organizationId, userId: recipient.userId }, "Could not share a OneDrive client folder");
+    }
+  }
+}
+
+export async function selectOneDriveClientArchive(organizationId: number, ownerUserId: number) {
+  const [existingArchive] = await db.select().from(oneDriveClientArchiveTable)
+    .where(eq(oneDriveClientArchiveTable.organizationId, organizationId)).limit(1);
+  if (existingArchive && existingArchive.ownerUserId !== ownerUserId) {
+    throw new OneDriveBrowseError("The client archive is already owned by another administrator account.", 409);
+  }
+  const [connection] = await db.select().from(oneDriveConnectionsTable).where(and(
+    eq(oneDriveConnectionsTable.userId, ownerUserId),
+    eq(oneDriveConnectionsTable.organizationId, organizationId),
+  )).limit(1);
+  if (!connection) throw new OneDriveBrowseError("Connect OneDrive before selecting the client archive.", 409);
+  const accessToken = await refreshConnection(connection);
+  const clientsRoot = await ensureClientArchiveFolder(accessToken, connection.rootFolderId);
+  await db.insert(oneDriveClientArchiveTable).values({
+    organizationId,
+    ownerUserId,
+    clientsFolderId: clientsRoot.id,
+    clientsFolderUrl: clientsRoot.webUrl,
+  }).onConflictDoNothing();
+  return syncOneDriveClientFolders(organizationId);
+}
+
+export async function syncOneDriveClientFolders(organizationId: number) {
+  const [archive] = await db.select().from(oneDriveClientArchiveTable)
+    .where(eq(oneDriveClientArchiveTable.organizationId, organizationId)).limit(1);
+  if (!archive) return [];
+  const [ownerConnection] = await db.select({
+    connection: oneDriveConnectionsTable,
+  }).from(oneDriveConnectionsTable)
+    .innerJoin(usersTable, eq(usersTable.id, oneDriveConnectionsTable.userId))
+    .where(and(
+      eq(oneDriveConnectionsTable.userId, archive.ownerUserId),
+      eq(oneDriveConnectionsTable.organizationId, organizationId),
+      eq(usersTable.isActive, true),
+      eq(usersTable.role, "admin"),
+    )).limit(1);
+  if (!ownerConnection?.connection) throw new OneDriveBrowseError("Reconnect the administrator OneDrive account.", 401);
+  const accessToken = await refreshConnection(ownerConnection.connection);
+  const clients = await db.select({ id: clientsTable.id, name: clientsTable.name })
+    .from(clientsTable).where(eq(clientsTable.organizationId, organizationId));
+  const results = [];
+  for (const client of clients) {
+    let [saved] = await db.select().from(oneDriveClientFoldersTable).where(and(
+      eq(oneDriveClientFoldersTable.organizationId, organizationId),
+      eq(oneDriveClientFoldersTable.clientId, client.id),
+    )).limit(1);
+    if (!saved) {
+      const folderName = `${safeFolderSegment(client.name)}-${client.id}`;
+      const currentChildren = await graph<{ value: Array<{ id: string; name: string; folder?: object; webUrl?: string }> }>(
+        accessToken,
+        `/me/drive/items/${encodeURIComponent(archive.clientsFolderId)}/children?$select=id,name,folder,webUrl&$top=200`,
+      );
+      let created: { id?: string; name?: string; folder?: object; webUrl?: string } | undefined =
+        currentChildren.value?.find((item) => item.folder && item.name === folderName);
+      if (!created) {
+        created = await graph<{ id?: string; webUrl?: string }>(
+          accessToken,
+          `/me/drive/items/${encodeURIComponent(archive.clientsFolderId)}/children`,
+          {
+            method: "POST",
+            body: JSON.stringify({ name: folderName, folder: {}, "@microsoft.graph.conflictBehavior": "rename" }),
+          },
+        );
+      }
+      if (!created.id || !created.webUrl) throw new Error("Microsoft did not return the client folder details.");
+      [saved] = await db.insert(oneDriveClientFoldersTable).values({
+        organizationId,
+        clientId: client.id,
+        driveItemId: created.id,
+        folderName,
+        webUrl: created.webUrl,
+      }).onConflictDoUpdate({
+        target: [oneDriveClientFoldersTable.organizationId, oneDriveClientFoldersTable.clientId],
+        set: { driveItemId: created.id, folderName, webUrl: created.webUrl },
+      }).returning();
+      await inviteClientFolderReaders(accessToken, created.id, organizationId, archive.ownerUserId);
+    } else if (saved.folderName !== `${safeFolderSegment(client.name)}-${client.id}`) {
+      // Keep folder identity stable when a client is renamed.
+      const nextName = `${safeFolderSegment(client.name)}-${client.id}`;
+      const renamed = await graph<{ id?: string; webUrl?: string }>(
+        accessToken,
+        `/me/drive/items/${encodeURIComponent(saved.driveItemId)}`,
+        { method: "PATCH", body: JSON.stringify({ name: nextName }) },
+      );
+      [saved] = await db.update(oneDriveClientFoldersTable)
+        .set({ folderName: nextName, webUrl: renamed.webUrl ?? saved.webUrl })
+        .where(eq(oneDriveClientFoldersTable.id, saved.id)).returning();
+    }
+    results.push({ clientId: client.id, clientName: client.name, folderName: saved.folderName, webUrl: saved.webUrl });
+  }
+  return results;
+}
+
+export async function shareOneDriveClientFoldersWithUser(organizationId: number, userId: number) {
+  const [archive] = await db.select().from(oneDriveClientArchiveTable)
+    .where(eq(oneDriveClientArchiveTable.organizationId, organizationId)).limit(1);
+  if (!archive || archive.ownerUserId === userId) return;
+  const [owner] = await db.select().from(oneDriveConnectionsTable).where(and(
+    eq(oneDriveConnectionsTable.userId, archive.ownerUserId),
+    eq(oneDriveConnectionsTable.organizationId, organizationId),
+  )).limit(1);
+  const [recipient] = await db.select({ email: oneDriveConnectionsTable.microsoftEmail })
+    .from(oneDriveConnectionsTable).innerJoin(usersTable, eq(usersTable.id, oneDriveConnectionsTable.userId))
+    .where(and(
+      eq(oneDriveConnectionsTable.userId, userId),
+      eq(oneDriveConnectionsTable.organizationId, organizationId),
+      eq(usersTable.isActive, true),
+    )).limit(1);
+  if (!owner || !recipient) return;
+  const accessToken = await refreshConnection(owner);
+  const folders = await db.select().from(oneDriveClientFoldersTable)
+    .where(eq(oneDriveClientFoldersTable.organizationId, organizationId));
+  for (const folder of folders) {
+    await graph(accessToken, `/me/drive/items/${encodeURIComponent(folder.driveItemId)}/invite`, {
+      method: "POST",
+      body: JSON.stringify({
+        recipients: [{ email: recipient.email }],
+        message: "TaskDesk client ticket attachments",
+        requireSignIn: true,
+        sendInvitation: true,
+        roles: ["read"],
+      }),
+    });
+  }
+}
+
+export function contentBasedFileName(originalName: string, suggestion: string): string {
+  const extension = path.extname(originalName);
+  const clean = suggestion.trim().replace(/^["'`]|["'`]$/g, "")
+    .replace(new RegExp(`${extension.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"), "")
+    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, " ").replace(/\s+/g, " ")
+    .replace(/[. ]+$/g, "").slice(0, 100).trim();
+  return clean ? `${clean}${extension}` : originalName;
+}
+
+async function suggestAttachmentName(bytes: Buffer, originalName: string, mimeType: string): Promise<string> {
+  if (bytes.length > 5 * 1024 * 1024) return originalName;
+  const normalizedMime = mimeType.toLowerCase().split(";")[0].trim();
+  let content: any[] | null = null;
+  const instruction = "Give this document a concise descriptive filename in the document's language. Return only the filename stem, no extension, no quotes, no personal identifiers, maximum 70 characters.";
+  if (normalizedMime.startsWith("text/") || normalizedMime === "text/csv") {
+    const text = bytes.toString("utf8").slice(0, 12_000).trim();
+    if (text.length >= 20) content = [{ type: "input_text", text: `${instruction}\n\nDocument text:\n${text}` }];
+  } else if (normalizedMime === "application/pdf") {
+    content = [
+      { type: "input_file", filename: originalName, file_data: `data:application/pdf;base64,${bytes.toString("base64")}` },
+      { type: "input_text", text: instruction },
+    ];
+  } else if (["image/jpeg", "image/png", "image/webp"].includes(normalizedMime)) {
+    content = [
+      { type: "input_image", image_url: `data:${normalizedMime};base64,${bytes.toString("base64")}` },
+      { type: "input_text", text: instruction },
+    ];
+  }
+  if (!content) return originalName;
+  try {
+    const response = await openai.responses.create({
+      model: "gpt-5.6-luna",
+      input: [{ role: "user", content }],
+    } as any);
+    const suggestion = (response.output_text ?? "").trim();
+    return contentBasedFileName(originalName, suggestion);
+  } catch {
+    return originalName;
+  }
 }
 
 export async function getMicrosoftUser(accessToken: string) {
@@ -842,8 +1073,45 @@ export async function disconnectOneDriveUser(userId: number, organizationId: num
 
   const orgConnections = await db.select().from(oneDriveConnectionsTable)
     .where(eq(oneDriveConnectionsTable.organizationId, organizationId));
+  const [clientArchive] = await db.select().from(oneDriveClientArchiveTable)
+    .where(eq(oneDriveClientArchiveTable.organizationId, organizationId)).limit(1);
+  if (clientArchive?.ownerUserId === userId) {
+    throw new OneDriveAccessRevocationError(false);
+  }
   let failed = false;
   let requiresReconnect = false;
+
+  if (clientArchive) {
+    const [owner] = await db.select().from(oneDriveConnectionsTable).where(and(
+      eq(oneDriveConnectionsTable.userId, clientArchive.ownerUserId),
+      eq(oneDriveConnectionsTable.organizationId, organizationId),
+    )).limit(1);
+    if (owner) {
+      try {
+        const accessToken = await refreshConnection(owner);
+        const folders = await db.select().from(oneDriveClientFoldersTable)
+          .where(eq(oneDriveClientFoldersTable.organizationId, organizationId));
+        const targetEmail = target.microsoftEmail.toLocaleLowerCase();
+        for (const folder of folders) {
+          const page = await graph<{ value?: DrivePermission[] }>(
+            accessToken,
+            `/me/drive/items/${encodeURIComponent(folder.driveItemId)}/permissions?$select=id,roles,invitation,grantedToV2,grantedTo,link&$top=200`,
+          );
+          for (const permission of page.value ?? []) {
+            if (shouldRevokeOneDrivePermission(permission, new Set([targetEmail]), owner.microsoftEmail)) {
+              await graph(accessToken, `/me/drive/items/${encodeURIComponent(folder.driveItemId)}/permissions/${encodeURIComponent(permission.id!)}`, { method: "DELETE" });
+            }
+          }
+        }
+      } catch (error) {
+        failed = true;
+        if ((error instanceof OneDriveBrowseError || error instanceof OneDriveGraphError) && error.statusCode === 401) {
+          requiresReconnect = true;
+        }
+        logger.warn({ err: error, userId, organizationId }, "Could not revoke OneDrive client-folder access");
+      }
+    }
+  }
 
   for (const owner of orgConnections) {
     if (owner.userId === userId) continue;
@@ -896,12 +1164,95 @@ export async function syncOneDriveAttachment(
   const [ticket] = await db.select({
     id: ticketsTable.id,
     organizationId: ticketsTable.organizationId,
+    clientId: ticketsTable.clientId,
     assignedTo: ticketsTable.assignedTo,
     createdBy: ticketsTable.createdBy,
     inboundChannelId: ticketsTable.inboundChannelId,
     deletedAt: ticketsTable.deletedAt,
   }).from(ticketsTable).where(eq(ticketsTable.id, attachment.ticketId)).limit(1);
   if (!ticket || ticket.deletedAt || !ticket.organizationId) return;
+
+  const [archive] = ticket.clientId == null ? [] : await db.select()
+    .from(oneDriveClientArchiveTable)
+    .where(eq(oneDriveClientArchiveTable.organizationId, ticket.organizationId))
+    .limit(1);
+  if (archive && ticket.clientId != null) {
+    try {
+      const [ownerConnection] = await db.select().from(oneDriveConnectionsTable).where(and(
+        eq(oneDriveConnectionsTable.userId, archive.ownerUserId),
+        eq(oneDriveConnectionsTable.organizationId, ticket.organizationId),
+      )).limit(1);
+      if (!ownerConnection) throw new Error("The client archive OneDrive account is not connected.");
+      const folders = await syncOneDriveClientFolders(ticket.organizationId);
+      const folder = folders.find(({ clientId }) => clientId === ticket.clientId);
+      if (!folder) throw new Error("The client OneDrive folder is unavailable.");
+      const [folderRow] = await db.select().from(oneDriveClientFoldersTable).where(and(
+        eq(oneDriveClientFoldersTable.organizationId, ticket.organizationId),
+        eq(oneDriveClientFoldersTable.clientId, ticket.clientId),
+      )).limit(1);
+      if (!folderRow) throw new Error("The client OneDrive folder is unavailable.");
+
+      const accessToken = await refreshConnection(ownerConnection);
+      const object = await storage.getObjectEntityFile(attachment.objectPath);
+      const [bytes] = await object.download();
+      const contentName = await suggestAttachmentName(bytes, attachment.fileName, attachment.mimeType);
+      const copyName = `ticket-${ticket.id}-attachment-${attachment.id}-${contentName}`;
+      const uploaded = await graph<{ id?: string }>(
+        accessToken,
+        `/me/drive/items/${encodeURIComponent(folderRow.driveItemId)}:/${encodeURIComponent(copyName)}:/content?@microsoft.graph.conflictBehavior=replace`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": attachment.mimeType },
+          body: bytes,
+        },
+      );
+      if (!uploaded.id) throw new Error("Microsoft Graph did not return the OneDrive copy ID.");
+      await db.transaction(async (tx) => {
+        const [currentTicket] = await tx.select({
+          organizationId: ticketsTable.organizationId,
+          clientId: ticketsTable.clientId,
+          deletedAt: ticketsTable.deletedAt,
+        }).from(ticketsTable).where(eq(ticketsTable.id, ticket.id)).for("update").limit(1);
+        if (!currentTicket || currentTicket.deletedAt || currentTicket.organizationId !== ticket.organizationId) return;
+        const isCurrent = currentTicket.clientId === ticket.clientId;
+        const [currentAttachment] = await tx.select({ oneDriveItemId: ticketAttachmentsTable.oneDriveItemId })
+          .from(ticketAttachmentsTable).where(eq(ticketAttachmentsTable.id, attachment.id)).for("update").limit(1);
+        if (!currentAttachment) return;
+        if (isCurrent) {
+          await tx.update(ticketAttachmentOneDriveCopiesTable)
+            .set({ isCurrent: false })
+            .where(eq(ticketAttachmentOneDriveCopiesTable.attachmentId, attachment.id));
+          await tx.update(ticketAttachmentsTable)
+            .set({ oneDriveItemId: uploaded.id!, oneDriveSyncError: null })
+            .where(eq(ticketAttachmentsTable.id, attachment.id));
+        }
+        await tx.insert(ticketAttachmentOneDriveCopiesTable).values({
+          attachmentId: attachment.id,
+          ownerUserId: archive.ownerUserId,
+          ownerName: ownerConnection.microsoftEmail,
+          ownerEmail: ownerConnection.microsoftEmail,
+          ownerTenantId: ownerConnection.tenantId,
+          itemId: uploaded.id!,
+          itemName: copyName,
+          isCurrent,
+        }).onConflictDoUpdate({
+          target: [
+            ticketAttachmentOneDriveCopiesTable.attachmentId,
+            ticketAttachmentOneDriveCopiesTable.ownerTenantId,
+            ticketAttachmentOneDriveCopiesTable.ownerEmail,
+            ticketAttachmentOneDriveCopiesTable.itemId,
+          ],
+          set: { ownerUserId: archive.ownerUserId, ownerName: ownerConnection.microsoftEmail, itemName: copyName, isCurrent },
+        });
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "OneDrive client archive sync failed.";
+      logger.warn({ attachmentId, organizationId: ticket.organizationId, clientId: ticket.clientId, message }, "OneDrive client attachment sync failed");
+      await db.update(ticketAttachmentsTable).set({ oneDriveSyncError: message.slice(0, 500) })
+        .where(eq(ticketAttachmentsTable.id, attachment.id));
+    }
+    return;
+  }
 
   const useEmailFallback = emailFallback || (retryExisting && ticket.inboundChannelId != null);
   const targetUserId = ticket.assignedTo ?? (useEmailFallback
@@ -1011,6 +1362,7 @@ export async function syncOneDriveAttachment(
         ownerEmail: connection.microsoftEmail,
         ownerTenantId: connection.tenantId,
         itemId: uploaded.id!,
+        itemName: name,
         isCurrent,
       }).onConflictDoUpdate({
         target: [
@@ -1022,6 +1374,7 @@ export async function syncOneDriveAttachment(
         set: {
           ownerUserId: targetUserId,
           ownerName: owner?.name || connection.microsoftEmail,
+          itemName: name,
           isCurrent,
         },
       });
@@ -1059,6 +1412,7 @@ export async function removeStaleOneDriveAttachmentCopy(
       ownerEmail: ticketAttachmentOneDriveCopiesTable.ownerEmail,
       ownerTenantId: ticketAttachmentOneDriveCopiesTable.ownerTenantId,
       itemId: ticketAttachmentOneDriveCopiesTable.itemId,
+      itemName: ticketAttachmentOneDriveCopiesTable.itemName,
       isCurrent: ticketAttachmentOneDriveCopiesTable.isCurrent,
       ticketId: ticketsTable.id,
       assignedTo: ticketsTable.assignedTo,
@@ -1107,7 +1461,7 @@ export async function removeStaleOneDriveAttachmentCopy(
       accessToken,
       `${itemPath}?$select=id,name,file`,
     );
-    if (!isExpectedOneDriveAttachmentCopy(item, copy.itemId, copy.ticketId, copy.attachmentId, copy.fileName)) {
+    if (!isExpectedOneDriveAttachmentCopy(item, copy.itemId, copy.ticketId, copy.attachmentId, copy.fileName, copy.itemName)) {
       throw new OneDriveCopyRemovalError(
         "The selected OneDrive item does not match this TaskDesk attachment. Nothing was deleted.",
         409,

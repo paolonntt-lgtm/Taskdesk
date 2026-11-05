@@ -49,6 +49,7 @@ type OrganizationShare = {
   url: string;
   canUpload: boolean;
 };
+type ClientFolder = { clientId: number; clientName?: string; folderName: string; webUrl: string };
 
 type Breadcrumb = { id: string; name: string };
 type BrowseState = {
@@ -78,6 +79,7 @@ export default function OneDrivePage() {
   const copy = t.settings.oneDriveBrowse;
   const [shares, setShares] = useState<OrganizationShare[]>([]);
   const [sharedFolders, setSharedFolders] = useState<OneDriveSharedFolder[]>([]);
+  const [clientFolders, setClientFolders] = useState<ClientFolder[]>([]);
   const [connected, setConnected] = useState(false);
   const [reconnectRequired, setReconnectRequired] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -153,13 +155,16 @@ export default function OneDrivePage() {
           return;
         }
         if (!shareResponse.ok) throw new Error(copy.loadSharesError);
-        const [shareData, sharedFoldersData] = await Promise.all([
+        const [shareData, sharedFoldersData, archiveResponse] = await Promise.all([
           shareResponse.json() as Promise<OrganizationShare[]>,
           listOneDriveSharedWithMe({ credentials: "include", cache: "no-store" }),
+          fetch("/api/onedrive/client-archive", { credentials: "include", cache: "no-store" }),
         ]);
+        const archiveData = archiveResponse.ok ? await archiveResponse.json() : { configured: false, clients: [] };
         if (!active) return;
         setShares(shareData);
         setSharedFolders(sharedFoldersData);
+        setClientFolders(archiveData.configured ? archiveData.clients : []);
         setConnected(connection.connected);
         setReconnectRequired(false);
       } catch (failure) {
@@ -321,6 +326,31 @@ export default function OneDrivePage() {
       )}
 
       <Stack spacing={1.5}>
+        {clientFolders.length > 0 && (
+          <Card variant="outlined">
+            <CardContent>
+              <Typography variant="h6" fontWeight={700} mb={1.5}>
+                {it ? "Cartelle clienti" : "Client folders"}
+              </Typography>
+              <List disablePadding sx={{ display: "grid", gap: 1 }}>
+                {clientFolders.map((folder) => (
+                  <ListItemButton
+                    key={folder.clientId}
+                    component="a"
+                    href={folder.webUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2 }}
+                  >
+                    <ListItemIcon><FolderOutlined color="primary" /></ListItemIcon>
+                    <ListItemText primary={folder.clientName ?? folder.folderName} secondary={folder.folderName} />
+                    <OpenInNew fontSize="small" color="action" />
+                  </ListItemButton>
+                ))}
+              </List>
+            </CardContent>
+          </Card>
+        )}
         {shares.map((share) => {
           const browse = browsers[share.ownerUserId];
           const uploadNotice = uploadNotices[share.ownerUserId];

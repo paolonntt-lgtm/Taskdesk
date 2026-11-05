@@ -46,6 +46,7 @@ import driveFoldersRouter from "./driveFolders";
 import onedriveFoldersRouter from "./onedriveFolders";
 import onedriveOAuthRouter from "./onedriveOAuth";
 import onedriveCopiesRouter from "./onedriveCopies";
+import onedriveClientArchiveRouter from "./onedriveClientArchive";
 import workspacesRouter from "./workspaces";
 
 const router: IRouter = Router();
@@ -75,6 +76,7 @@ router.use(driveFoldersRouter);
 router.use(onedriveFoldersRouter);
 router.use(onedriveOAuthRouter);
 router.use(onedriveCopiesRouter);
+router.use(onedriveClientArchiveRouter);
 router.use(oauthRouter);
 router.use(botRouter);
 router.use(aiSuggestRouter);
