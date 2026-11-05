@@ -1,57 +1,36 @@
-export interface OrganizationAdmin {
+export interface OrganizationWithOwner {
   id: number;
   name: string;
-  email: string;
+  billingOwnerOrganizationId: number | null;
 }
 
-export interface OrganizationWithAdmins {
-  id: number;
-  adminUsers?: OrganizationAdmin[];
-}
-
-export interface OrganizationAdminGroup<T extends OrganizationWithAdmins> {
+export interface OrganizationAdminGroup<T extends OrganizationWithOwner> {
   key: string;
   organizations: T[];
-  admins: OrganizationAdmin[];
+  ownerName: string;
 }
 
-export function groupOrganizationsByAdmin<T extends OrganizationWithAdmins>(
+export function groupOrganizationsByOwner<T extends OrganizationWithOwner>(
   organizations: T[],
 ): OrganizationAdminGroup<T>[] {
-  const remaining = new Map(organizations.map((organization) => [organization.id, organization]));
+  const organizationsById = new Map(organizations.map((organization) => [organization.id, organization]));
+  const grouped = new Map<number, T[]>();
+
+  for (const organization of organizations) {
+    const ownerId = organization.billingOwnerOrganizationId ?? organization.id;
+    const members = grouped.get(ownerId) ?? [];
+    members.push(organization);
+    grouped.set(ownerId, members);
+  }
+
   const groups: OrganizationAdminGroup<T>[] = [];
-  const accountKey = (admin: OrganizationAdmin) => admin.email.trim().toLowerCase();
 
-  while (remaining.size > 0) {
-    const first = remaining.values().next().value as T;
-    remaining.delete(first.id);
-    const members = [first];
-    const admins = new Map<string, OrganizationAdmin>();
-    for (const admin of first.adminUsers ?? []) {
-      const key = accountKey(admin);
-      if (key) admins.set(key, admin);
-    }
-
-    let changed = true;
-    while (changed) {
-      changed = false;
-      for (const [id, candidate] of remaining) {
-        const candidateAdmins = candidate.adminUsers ?? [];
-        if (!candidateAdmins.some((admin) => admins.has(accountKey(admin)))) continue;
-        remaining.delete(id);
-        members.push(candidate);
-        for (const admin of candidateAdmins) {
-          const key = accountKey(admin);
-          if (key) admins.set(key, admin);
-        }
-        changed = true;
-      }
-    }
-
+  for (const [ownerId, members] of grouped) {
+    const owner = organizationsById.get(ownerId);
     groups.push({
       key: members.map(({ id }) => id).sort((a, b) => a - b).join("-"),
       organizations: members,
-      admins: Array.from(admins.values()),
+      ownerName: owner?.name ?? members[0].name,
     });
   }
 

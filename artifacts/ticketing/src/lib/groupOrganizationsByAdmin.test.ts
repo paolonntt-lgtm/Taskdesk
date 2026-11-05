@@ -1,35 +1,32 @@
 import { describe, expect, it } from "vitest";
-import { groupOrganizationsByAdmin } from "./groupOrganizationsByAdmin";
+import { groupOrganizationsByOwner } from "./groupOrganizationsByAdmin";
 
-describe("groupOrganizationsByAdmin", () => {
-  it("groups organizations by the same admin account email, ignoring email case", () => {
+describe("groupOrganizationsByOwner", () => {
+  it("groups a billing organization with its shared workspaces, not other organizations with common admins", () => {
     const organizations = [
-      { id: 1, adminUsers: [{ id: 10, name: "Paolo", email: "paolonntt@gmail.com" }] },
-      { id: 2, adminUsers: [{ id: 21, name: "Paolo", email: "PaoloNNTT@gmail.com" }] },
-      { id: 3, adminUsers: [{ id: 30, name: "Other", email: "other@example.com" }] },
+      { id: 1, name: "La Mandrakata", billingOwnerOrganizationId: null, adminUsers: ["paolonntt@gmail.com"] },
+      { id: 1127, name: "Prova2", billingOwnerOrganizationId: 1, adminUsers: ["paolonntt@gmail.com", "enrico@example.com"] },
+      { id: 1235, name: "rreee", billingOwnerOrganizationId: 1, adminUsers: ["paolonntt@gmail.com"] },
+      { id: 10, name: "Studio Iannetti", billingOwnerOrganizationId: null, adminUsers: ["enrico@example.com"] },
     ];
 
-    const groups = groupOrganizationsByAdmin(organizations);
+    const groups = groupOrganizationsByOwner(organizations);
 
-    expect(groups.map((group) => group.organizations.map((org) => org.id))).toEqual([[1, 2], [3]]);
+    expect(groups.map((group) => group.organizations.map((org) => org.id))).toEqual([
+      [1, 1127, 1235],
+      [10],
+    ]);
+    expect(groups[0].ownerName).toBe("La Mandrakata");
   });
 
-  it("keeps the existing transitive grouping for organizations sharing admin accounts", () => {
+  it("keeps unrelated organizations separate when they have no billing owner link", () => {
     const organizations = [
-      {
-        id: 1,
-        adminUsers: [
-          { id: 10, name: "Paolo", email: "paolo@example.com" },
-          { id: 11, name: "Anna", email: "anna@example.com" },
-        ],
-      },
-      { id: 2, adminUsers: [{ id: 12, name: "Anna", email: "anna@example.com" }] },
-      { id: 3, adminUsers: [{ id: 13, name: "Paolo", email: "paolo@example.com" }] },
+      { id: 3, name: "A", billingOwnerOrganizationId: null },
+      { id: 4, name: "B", billingOwnerOrganizationId: null },
     ];
 
-    const groups = groupOrganizationsByAdmin(organizations);
+    const groups = groupOrganizationsByOwner(organizations);
 
-    expect(groups).toHaveLength(1);
-    expect(groups[0].organizations.map((org) => org.id)).toEqual([1, 2, 3]);
+    expect(groups).toHaveLength(2);
   });
 });

@@ -28,6 +28,7 @@ router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Prom
         orgId: organizationsTable.id,
         orgName: organizationsTable.name,
         orgCreatedAt: organizationsTable.createdAt,
+        billingOwnerOrganizationId: organizationsTable.billingOwnerOrganizationId,
         hiddenFromSuperadmin: organizationsTable.hiddenFromSuperadmin,
         userId: usersTable.id,
         userName: usersTable.name,
@@ -168,6 +169,7 @@ router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Prom
     id: number;
     name: string;
     createdAt: string | null;
+    billingOwnerOrganizationId: number | null;
     planExpiresAt: string | null;
     hiddenFromSuperadmin: boolean;
     totalTickets: number;
@@ -198,6 +200,7 @@ router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Prom
         id: row.orgId,
         name: row.orgName,
         createdAt: row.orgCreatedAt?.toISOString() ?? null,
+        billingOwnerOrganizationId: row.billingOwnerOrganizationId,
         planExpiresAt: planExpiryByOrg.get(row.orgId) ?? null,
         hiddenFromSuperadmin: row.hiddenFromSuperadmin,
         totalTickets: totalByOrg.get(row.orgId) ?? 0,

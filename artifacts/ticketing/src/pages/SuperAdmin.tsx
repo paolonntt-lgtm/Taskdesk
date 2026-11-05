@@ -6,12 +6,12 @@ import {
   Button, IconButton, Collapse, Select, MenuItem, FormControl,
 } from '@mui/material';
 import {
-  Business, Search, AdminPanelSettings, Person, AccessTime, ConfirmationNumber,
+  Business, Search, Person, AccessTime, ConfirmationNumber,
   BugReport, ExpandMore, ExpandLess, CheckCircle, Reply, Refresh, Visibility, VisibilityOff,
   FiberManualRecord,
 } from '@mui/icons-material';
 import { useLanguage } from '../contexts/LanguageContext';
-import { groupOrganizationsByAdmin } from '../lib/groupOrganizationsByAdmin';
+import { groupOrganizationsByOwner } from '../lib/groupOrganizationsByAdmin';
 
 interface OrgUser {
   id: number;
@@ -44,6 +44,7 @@ interface Organization {
   id: number;
   name: string;
   createdAt: string | null;
+  billingOwnerOrganizationId: number | null;
   planExpiresAt: string | null;
   hiddenFromSuperadmin: boolean;
   totalTickets: number;
@@ -254,7 +255,7 @@ export default function SuperAdmin() {
   };
 
   const query = search.trim().toLowerCase();
-  const filteredGroups = groupOrganizationsByAdmin(orgs).filter((group) => {
+  const filteredGroups = groupOrganizationsByOwner(orgs).filter((group) => {
     if (!query) return true;
     return group.organizations.some((org) =>
       org.name.toLowerCase().includes(query) ||
@@ -390,8 +391,8 @@ export default function SuperAdmin() {
               <Box key={group.key} display="flex" flexDirection="column" gap={1}>
                 {group.organizations.length > 1 && (
                   <Box display="flex" alignItems="center" gap={1} px={0.5}>
-                    <Tooltip title={group.admins.map((admin) => `${admin.name} (${admin.email})`).join(', ')}>
-                      <AdminPanelSettings color="primary" fontSize="small" />
+                    <Tooltip title={group.ownerName}>
+                      <Business color="primary" fontSize="small" />
                     </Tooltip>
                     <Typography variant="subtitle2" color="text.secondary">
                       {sa.relatedSpaces}
