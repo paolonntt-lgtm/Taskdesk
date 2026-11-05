@@ -16,6 +16,29 @@ const MAX_ATTEMPTS = 6;
 const BATCH_SIZE = 4;
 let cycleRunning = false;
 
+export function summarizeOneDriveClientArchiveBackfill(
+  rows: Array<{ status: string; count: number | string }>,
+) {
+  const counts = Object.fromEntries(rows.map((row) => [row.status, Number(row.count)]));
+  const pending = counts.queued ?? 0;
+  const processing = counts.processing ?? 0;
+  const completed = counts.complete ?? 0;
+  const failed = counts.failed ?? 0;
+  const total = pending + processing + completed + failed;
+  return {
+    total,
+    pending,
+    processing,
+    completed,
+    failed,
+    status: processing > 0 ? "processing" : pending > 0 ? "pending" : failed > 0 ? "failed" : total > 0 ? "complete" : "idle",
+  } as const;
+}
+
+export function oneDriveBackfillRetryDelay(attempt: number): number {
+  return Math.min(60 * 60_000, 30_000 * 2 ** Math.max(0, attempt - 1));
+}
+
 export async function enqueueOneDriveClientArchiveBackfill(organizationId: number): Promise<number> {
   const attachments = await db.select({ attachmentId: ticketAttachmentsTable.id })
     .from(ticketAttachmentsTable)
@@ -46,20 +69,7 @@ export async function getOneDriveClientArchiveBackfillStatus(organizationId: num
   }).from(oneDriveClientArchiveBackfillItemsTable)
     .where(eq(oneDriveClientArchiveBackfillItemsTable.organizationId, organizationId))
     .groupBy(oneDriveClientArchiveBackfillItemsTable.status);
-  const counts = Object.fromEntries(rows.map((row) => [row.status, Number(row.count)]));
-  const pending = counts.queued ?? 0;
-  const processing = counts.processing ?? 0;
-  const completed = counts.complete ?? 0;
-  const failed = counts.failed ?? 0;
-  const total = pending + processing + completed + failed;
-  return {
-    total,
-    pending,
-    processing,
-    completed,
-    failed,
-    status: processing > 0 ? "processing" : pending > 0 ? "pending" : failed > 0 ? "failed" : total > 0 ? "complete" : "idle",
-  };
+  return summarizeOneDriveClientArchiveBackfill(rows);
 }
 
 export async function retryFailedOneDriveClientArchiveBackfill(organizationId: number): Promise<number> {
@@ -158,7 +168,7 @@ async function processItem(item: NonNullable<Awaited<ReturnType<typeof claimNext
   } catch (error) {
     const message = error instanceof Error ? error.message : "OneDrive backfill failed.";
     const terminal = item.attempts >= MAX_ATTEMPTS;
-    const delay = Math.min(60 * 60_000, 30_000 * 2 ** Math.max(0, item.attempts - 1));
+    const delay = oneDriveBackfillRetryDelay(item.attempts);
     await db.update(oneDriveClientArchiveBackfillItemsTable)
       .set({
         status: terminal ? "failed" : "queued",

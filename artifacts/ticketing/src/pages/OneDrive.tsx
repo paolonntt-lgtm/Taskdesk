@@ -387,6 +387,11 @@ export default function OneDrivePage() {
                 : (it
                   ? `Backfill allegati: ${backfillStatus.completed}/${backfillStatus.total} completati; ${backfillStatus.pending + backfillStatus.processing} in attesa o in corso.`
                   : `Attachment backfill: ${backfillStatus.completed}/${backfillStatus.total} complete; ${backfillStatus.pending + backfillStatus.processing} pending or processing.`)}
+            {backfillStatus.failed > 0 && backfillStatus.pending + backfillStatus.processing > 0 && (
+              <Typography variant="body2" sx={{ mt: 0.5 }}>
+                {it ? `${backfillStatus.failed} allegati richiedono un nuovo tentativo.` : `${backfillStatus.failed} attachments need another retry.`}
+              </Typography>
+            )}
             {backfillStatus.pending + backfillStatus.processing > 0 && <LinearProgress sx={{ mt: 1 }} />}
             {backfillError && <Typography variant="body2" sx={{ mt: 1 }}>{backfillError}</Typography>}
           </Alert>
