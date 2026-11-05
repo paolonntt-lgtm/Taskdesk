@@ -330,6 +330,16 @@ describe("Microsoft OneDrive OAuth callback", () => {
     });
   });
 
+  it("returns reconnect guidance instead of a server error for expired organization-share grants", async () => {
+    mocks.revokeOrganizationRootInvitations.mockRejectedValue(new OneDriveAccessRevocationError(true));
+
+    const response = await fetch(`${baseUrl}/api/onedrive/organization-shares`);
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ code: "ONEDRIVE_RECONNECT_REQUIRED" });
+    expect(mocks.db.select).not.toHaveBeenCalled();
+  });
+
   it("explains that reauthorization is needed when token renewal blocks safe disconnection", async () => {
     mocks.disconnectOneDriveUser.mockRejectedValue(new OneDriveAccessRevocationError(true));
 

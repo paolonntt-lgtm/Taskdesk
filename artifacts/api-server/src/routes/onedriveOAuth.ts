@@ -286,6 +286,10 @@ router.get("/onedrive/organization-shares", requireAuth, async (req, res): Promi
     await revokeOrganizationRootInvitations(user.organizationId);
   } catch (error) {
     req.log.error({ err: error, organizationId: user.organizationId }, "Could not remove organization-wide OneDrive root access");
+    if (error instanceof OneDriveAccessRevocationError && error.requiresReconnect) {
+      res.status(409).json({ code: "ONEDRIVE_RECONNECT_REQUIRED" });
+      return;
+    }
     res.status(503).json({ error: "TaskDesk could not safely limit OneDrive access. Please retry." });
     return;
   }

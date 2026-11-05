@@ -25,6 +25,12 @@ export function isTransientStripeAvailabilityError(error: unknown): boolean {
     || ["ETIMEDOUT", "ECONNRESET", "ECONNREFUSED", "EAI_AGAIN", "ENETUNREACH", "EHOSTUNREACH"].includes(code ?? "");
 }
 
+function isMissingStripeCustomer(error: unknown): boolean {
+  const candidate = error as { code?: string; param?: string; message?: string } | null;
+  return candidate?.code === "resource_missing"
+    && (candidate.param === "customer" || /no such customer/i.test(candidate.message ?? ""));
+}
+
 type SignupReferralResult = "attached" | "not_applicable" | "stripe_unavailable";
 
 async function attemptReferralAtSignup(
@@ -104,21 +110,29 @@ export async function getReferralPlan(organizationId: number, activeOnly = true)
   const subs: Stripe.Subscription[] = [];
   for (const customer of customerIds) {
     let startingAfter: string | undefined;
-    while (true) {
-      const result = await stripe.subscriptions.list({
-        customer,
-        status: "all",
-        limit: 100,
-        expand: ["data.items.data.price"],
-        ...(startingAfter ? { starting_after: startingAfter } : {}),
-      });
-      subs.push(...result.data);
-      if (!result.has_more) break;
-      const lastSubscription = result.data.at(-1);
-      if (!lastSubscription) {
-        throw new Error(`Stripe returned another subscription page without a cursor for customer ${customer}`);
+    try {
+      while (true) {
+        const result = await stripe.subscriptions.list({
+          customer,
+          status: "all",
+          limit: 100,
+          expand: ["data.items.data.price"],
+          ...(startingAfter ? { starting_after: startingAfter } : {}),
+        });
+        subs.push(...result.data);
+        if (!result.has_more) break;
+        const lastSubscription = result.data.at(-1);
+        if (!lastSubscription) {
+          throw new Error(`Stripe returned another subscription page without a cursor for customer ${customer}`);
+        }
+        startingAfter = lastSubscription.id;
       }
-      startingAfter = lastSubscription.id;
+    } catch (error) {
+      if (!isMissingStripeCustomer(error)) throw error;
+      logger.warn(
+        { organizationId, customerId: customer },
+        "Skipping referral eligibility for a Stripe customer missing from the configured account",
+      );
     }
   }
   const candidates = subs

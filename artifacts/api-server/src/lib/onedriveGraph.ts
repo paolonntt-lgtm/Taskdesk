@@ -802,16 +802,23 @@ export async function revokeOrganizationRootInvitations(organizationId: number):
     .where(eq(oneDriveConnectionsTable.organizationId, organizationId));
   const recipientEmails = connections.map((connection) => connection.microsoftEmail);
   let failed = false;
+  let requiresReconnect = false;
   for (const owner of connections) {
     try {
       const accessToken = await refreshConnection(owner);
       await revokeFolderInvitations(accessToken, owner, recipientEmails);
     } catch (error) {
       failed = true;
+      if (
+        (error instanceof OneDriveBrowseError || error instanceof OneDriveGraphError)
+        && error.statusCode === 401
+      ) {
+        requiresReconnect = true;
+      }
       logger.warn({ err: error, ownerUserId: owner.userId }, "Could not remove organization-wide OneDrive root access");
     }
   }
-  if (failed) throw new OneDriveAccessRevocationError();
+  if (failed) throw new OneDriveAccessRevocationError(requiresReconnect);
 }
 
 export class OneDriveAccessRevocationError extends Error {

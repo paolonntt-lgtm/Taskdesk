@@ -102,6 +102,7 @@ import {
   hasReferralAttribution,
   getReferralApplicationStatus,
   getReferralOverview,
+  getReferralPlan,
   isTransientStripeAvailabilityError,
   processReferralChargeRefunded,
   processReferralDisputeCreated,
@@ -222,6 +223,19 @@ describe("TaskDesk referral Stripe rewards", () => {
       mocks.balanceTransactions.set(key, transaction);
       return transaction;
     });
+  });
+
+  it("skips a missing Stripe customer while checking referral eligibility", async () => {
+    mocks.stripeSubscriptionsList.mockRejectedValue(Object.assign(
+      new Error("No such customer: 'cus_referrer'"),
+      { code: "resource_missing", param: "customer" },
+    ));
+
+    await expect(getReferralPlan(10)).resolves.toBeNull();
+    expect(mocks.stripeSubscriptionsList).toHaveBeenCalledWith(expect.objectContaining({
+      customer: "cus_referrer",
+      status: "all",
+    }));
   });
 
   it("ignores zero-value trial invoices without looking up or qualifying a referral", async () => {
