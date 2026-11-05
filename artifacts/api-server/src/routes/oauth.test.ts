@@ -228,19 +228,28 @@ describe("Google OAuth callback", () => {
     };
   }
 
-  async function callback(
+  async function callbackAt(
+    callbackBaseUrl: string,
     state: string,
     nonceCookie: string,
     extraParams: Record<string, string> = {},
   ): Promise<Response> {
     const params = new URLSearchParams({ code: "test-code", state, ...extraParams });
-    return fetch(`${baseUrl}/api/auth/google/callback?${params}`, {
+    return fetch(`${callbackBaseUrl}/api/auth/google/callback?${params}`, {
       headers: { Cookie: nonceCookie },
       redirect: "manual",
     });
   }
 
-  function mockGoogleSuccess(): void {
+  async function callback(
+    state: string,
+    nonceCookie: string,
+    extraParams: Record<string, string> = {},
+  ): Promise<Response> {
+    return callbackAt(baseUrl, state, nonceCookie, extraParams);
+  }
+
+  function mockGoogleSuccess(additionalApiBaseUrls: string[] = []): void {
     const googleResponses = [
       new Response(JSON.stringify({ access_token: "test-access-token" }), { status: 200 }),
       new Response(JSON.stringify({
@@ -249,12 +258,98 @@ describe("Google OAuth callback", () => {
       }), { status: 200 }),
     ];
     globalThis.fetch = vi.fn(async (input: string | URL, init?: RequestInit) => {
-      if (String(input).startsWith(baseUrl)) return originalGlobalFetch(input, init);
+      if ([baseUrl, ...additionalApiBaseUrls].some((apiBaseUrl) => String(input).startsWith(apiBaseUrl))) {
+        return originalGlobalFetch(input, init);
+      }
       const response = googleResponses.shift();
       if (!response) throw new Error("Unexpected Google OAuth request");
       return response;
     });
   }
+
+  it("completes Google registration on a fresh router instance", async () => {
+    const { state, nonceCookie } = await startOAuth({
+      mode: "register",
+      profession: "commercio",
+      utm_source: "instance-switch",
+    });
+
+    // A fresh module import creates a different Router, like a callback routed
+    // to another autoscale instance with no process-local pending state.
+    vi.resetModules();
+    const { default: callbackRouter } = await import("./oauth");
+    const { usersTable, organizationsTable } = await import("@workspace/db");
+    const registeredOrganization = { id: 42, name: "New OAuth Registration" };
+    const registeredUser = {
+      ...oauthUser,
+      id: 42,
+      email: oauthUser.email,
+      organizationId: registeredOrganization.id,
+    };
+    mocks.db.select.mockImplementation(() => {
+      const query: Record<string, ReturnType<typeof vi.fn>> = {};
+      query.from = vi.fn(() => query);
+      query.where = vi.fn(async () => []);
+      return query;
+    });
+    const insertedValues: Array<{ table: unknown; values: Record<string, unknown> }> = [];
+    mocks.db.insert.mockImplementation((table: unknown) => {
+      const query: Record<string, ReturnType<typeof vi.fn>> = {};
+      let values: Record<string, unknown> = {};
+      query.values = vi.fn((input: Record<string, unknown>) => {
+        values = input;
+        return query;
+      });
+      query.returning = vi.fn(async () => {
+        insertedValues.push({ table, values });
+        return table === organizationsTable
+          ? [registeredOrganization]
+          : table === usersTable
+            ? [registeredUser]
+            : [];
+      });
+      return query;
+    });
+    const callbackApp = express();
+    callbackApp.use(cookieParser());
+    callbackApp.use("/api", callbackRouter);
+    const callbackServer = createServer(callbackApp);
+    await new Promise<void>((resolve, reject) => {
+      callbackServer.once("error", reject);
+      callbackServer.listen(0, "127.0.0.1", resolve);
+    });
+    const callbackBaseUrl = `http://127.0.0.1:${(callbackServer.address() as AddressInfo).port}`;
+
+    try {
+      mockGoogleSuccess([callbackBaseUrl]);
+      const response = await callbackAt(callbackBaseUrl, state, nonceCookie);
+      const html = await response.text();
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get("content-type")).toContain("text/html");
+      expect(html).toContain('window.location.replace("/app/")');
+      expect(mocks.db.insert).toHaveBeenCalledWith(organizationsTable);
+      expect(mocks.db.insert).toHaveBeenCalledWith(usersTable);
+      expect(mocks.createSession).toHaveBeenCalledWith(registeredUser.id);
+      expect(mocks.attachReferralAtSignup).toHaveBeenCalledWith(
+        null,
+        registeredOrganization.id,
+        registeredUser.email,
+        false,
+      );
+      expect(response.headers.getSetCookie()).toContainEqual(
+        expect.stringContaining("session_id=test-session-id"),
+      );
+      expect(insertedValues.find((entry) => entry.table === organizationsTable)?.values).toMatchObject({
+        profession: "commercio",
+        utmSource: "instance-switch",
+      });
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        callbackServer.close((error) => (error ? reject(error) : resolve()));
+      });
+    }
+  });
 
   it("delivers the secure session cookie on HTTP 200 and authenticates through /api/auth/me", async () => {
     const { state, nonceCookie } = await startOAuth({
@@ -440,10 +535,11 @@ describe("Google OAuth callback", () => {
     expect(mocks.createSession).not.toHaveBeenCalled();
   });
 
-  it("rejects a Google state whose signed payload was changed", async () => {
+  it("rejects a Google state whose signature was changed", async () => {
     const { state, nonceCookie } = await startOAuth();
     const [payload, signature] = state.split(".");
-    const changedState = `${payload.slice(0, -1)}${payload.endsWith("A") ? "B" : "A"}.${signature}`;
+    const changedSignature = `${signature.slice(0, -1)}${signature.endsWith("A") ? "B" : "A"}`;
+    const changedState = `${payload}.${changedSignature}`;
 
     const response = await callback(changedState, `oauth_nonce=${changedState}`);
 
