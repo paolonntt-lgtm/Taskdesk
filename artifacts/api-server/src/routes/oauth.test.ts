@@ -586,13 +586,13 @@ describe("Google OAuth callback", () => {
     expect(mocks.createSession).toHaveBeenCalledTimes(1);
   });
 
-  it("retains the cancellation and token-exchange error responses", async () => {
+  it("retains the provider-denial and token-exchange error responses", async () => {
     const cancelled = await fetch(
       `${baseUrl}/api/auth/google/callback?error=access_denied`,
       { redirect: "manual" },
     );
     expect(cancelled.status).toBe(302);
-    expect(cancelled.headers.get("location")).toBe("/app/?oauth_error=cancelled");
+    expect(cancelled.headers.get("location")).toBe("/app/?oauth_error=denied");
 
     const { state, nonceCookie } = await startOAuth();
     globalThis.fetch = vi.fn(async (input: string | URL, init?: RequestInit) => {
@@ -602,5 +602,79 @@ describe("Google OAuth callback", () => {
     const tokenFailure = await callback(state, nonceCookie);
     expect(tokenFailure.status).toBe(302);
     expect(tokenFailure.headers.get("location")).toBe("/app/?oauth_error=token_exchange");
+  });
+
+  it("returns a translated configuration error for an unconfigured Google registration", async () => {
+    const originalSecret = process.env.GOOGLE_CLIENT_SECRET;
+    process.env.GOOGLE_CLIENT_SECRET = "";
+    try {
+      const response = await fetch(
+        `${baseUrl}/api/auth/google?mode=register&profession=commercio`,
+        { redirect: "manual" },
+      );
+
+      expect(response.status).toBe(302);
+      expect(response.headers.get("location")).toBe(
+        "/app/?mode=register&oauth_error=oauth_configuration",
+      );
+    } finally {
+      if (originalSecret === undefined) delete process.env.GOOGLE_CLIENT_SECRET;
+      else process.env.GOOGLE_CLIENT_SECRET = originalSecret;
+    }
+  });
+
+  it.each([
+    { providerError: "access_denied", expected: "denied" },
+    { providerError: "admin_policy_enforced", expected: "denied" },
+    { providerError: "invalid_client", expected: "oauth_configuration" },
+    { providerError: "server_error", expected: "oauth_temporary" },
+    { providerError: "temporarily_unavailable", expected: "oauth_temporary" },
+    { providerError: "unrecognized_google_error", expected: "provider_error" },
+  ])("classifies Google authorization error $providerError safely", async ({ providerError, expected }) => {
+    const { state, nonceCookie } = await startOAuth({
+      mode: "register",
+      profession: "commercio",
+    });
+    const privateProviderDescription = "provider details must not appear in the redirect";
+
+    const response = await callback(state, nonceCookie, {
+      error: providerError,
+      error_description: privateProviderDescription,
+    });
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe(`/app/?mode=register&oauth_error=${expected}`);
+    expect(response.headers.get("location")).not.toContain(privateProviderDescription);
+  });
+
+  it.each([
+    { providerError: "invalid_client", status: 401, expected: "oauth_configuration" },
+    { providerError: "server_error", status: 503, expected: "oauth_temporary" },
+    { providerError: "temporarily_unavailable", status: 503, expected: "oauth_temporary" },
+    { providerError: "invalid_grant", status: 400, expected: "token_exchange" },
+  ])("classifies Google token error $providerError without exposing provider details", async ({
+    providerError,
+    status,
+    expected,
+  }) => {
+    const { state, nonceCookie } = await startOAuth({
+      mode: "register",
+      profession: "commercio",
+    });
+    const privateProviderDescription = "private-provider-error-description";
+    globalThis.fetch = vi.fn(async (input: string | URL, init?: RequestInit) => {
+      if (String(input).startsWith(baseUrl)) return originalGlobalFetch(input, init);
+      return new Response(JSON.stringify({
+        error: providerError,
+        error_description: privateProviderDescription,
+      }), { status });
+    });
+
+    const response = await callback(state, nonceCookie);
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe(`/app/?mode=register&oauth_error=${expected}`);
+    expect(response.headers.get("location")).not.toContain(privateProviderDescription);
+    expect(mocks.createSession).not.toHaveBeenCalled();
   });
 });

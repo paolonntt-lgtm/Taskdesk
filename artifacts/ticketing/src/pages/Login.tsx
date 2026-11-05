@@ -94,7 +94,7 @@ export default function Login() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [forgotSent, setForgotSent] = useState(false);
-  const [oauthError, setOauthError] = useState<string | null>(null);
+  const [oauthErrorCode, setOauthErrorCode] = useState<string | null>(null);
   const professionalAttribution = parseProfessionalTrialAttribution(window.location.search);
   const googleParams = new URLSearchParams();
   googleParams.set('mode', 'register');
@@ -135,16 +135,7 @@ export default function Login() {
     const params = new URLSearchParams(window.location.search);
     const err = params.get('oauth_error');
     if (err) {
-      const messages: Record<string, string> = {
-        cancelled: t.login.oauthCancelled,
-        invalid_state: t.login.oauthInvalidState,
-        token_exchange: t.login.oauthTokenError,
-        userinfo: t.login.oauthUserinfoError,
-        disabled: t.login.oauthDisabled,
-        server_error: t.login.oauthServerError,
-        profession_required: t.login.professionRequired,
-      };
-      setOauthError(messages[err] ?? t.login.oauthGenericError);
+      setOauthErrorCode(err);
       window.history.replaceState({}, '', window.location.pathname);
     }
   }, []);
@@ -228,6 +219,22 @@ export default function Login() {
     finally { setIsSubmitting(false); }
   };
 
+  const oauthErrorMessages: Record<string, string> = {
+    cancelled: t.login.oauthCancelled,
+    denied: t.login.oauthDenied,
+    invalid_state: t.login.oauthInvalidState,
+    token_exchange: t.login.oauthTokenError,
+    userinfo: t.login.oauthUserinfoError,
+    disabled: t.login.oauthDisabled,
+    server_error: t.login.oauthServerError,
+    oauth_configuration: t.login.oauthConfiguration,
+    oauth_temporary: t.login.oauthTemporary,
+    provider_error: t.login.oauthProviderError,
+    profession_required: t.login.professionRequired,
+  };
+  const oauthError = oauthErrorCode
+    ? oauthErrorMessages[oauthErrorCode] ?? t.login.oauthGenericError
+    : null;
   const displayError = oauthError || localError || (mode === 'login' ? error : null);
 
   return (
@@ -267,7 +274,7 @@ export default function Login() {
 
         {/* Error */}
         {displayError && (
-          <Alert severity="error" sx={{ borderRadius: '12px', fontSize: 13 }} onClose={() => { setLocalError(null); setOauthError(null); }}>
+          <Alert severity="error" sx={{ borderRadius: '12px', fontSize: 13 }} onClose={() => { setLocalError(null); setOauthErrorCode(null); }}>
             {displayError}
           </Alert>
         )}

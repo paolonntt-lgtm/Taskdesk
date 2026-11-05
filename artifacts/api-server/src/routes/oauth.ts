@@ -167,9 +167,58 @@ function getCallbackUrl(): string {
   return `${appBaseUrl()}/api/auth/google/callback`;
 }
 
+type GoogleOAuthFailure =
+  | "denied"
+  | "oauth_configuration"
+  | "oauth_temporary"
+  | "provider_error";
+
+function classifyGoogleOAuthError(error: unknown): GoogleOAuthFailure {
+  if (typeof error !== "string") return "provider_error";
+  switch (error) {
+    case "access_denied":
+    case "admin_policy_enforced":
+    case "org_internal":
+      return "denied";
+    case "invalid_client":
+    case "invalid_request":
+    case "redirect_uri_mismatch":
+    case "unauthorized_client":
+    case "unsupported_response_type":
+      return "oauth_configuration";
+    case "server_error":
+    case "temporarily_unavailable":
+      return "oauth_temporary";
+    default:
+      return "provider_error";
+  }
+}
+
+function classifyTokenExchangeError(
+  error: unknown,
+  status: number,
+): "oauth_configuration" | "oauth_temporary" | "token_exchange" {
+  const providerFailure = classifyGoogleOAuthError(error);
+  if (providerFailure === "oauth_configuration") return providerFailure;
+  if (providerFailure === "oauth_temporary" || status === 408 || status === 429 || status >= 500) {
+    return "oauth_temporary";
+  }
+  return "token_exchange";
+}
+
+function oauthErrorUrl(
+  error: string,
+  registrationProfession: OrganizationProfession | null | undefined,
+): string {
+  const params = new URLSearchParams();
+  if (registrationProfession) params.set("mode", "register");
+  params.set("oauth_error", error);
+  return `/app/?${params.toString()}`;
+}
+
 router.get("/auth/google", (req, res) => {
   if (!googleClientId() || !googleClientSecret()) {
-    res.status(503).send("Google OAuth non configurato. Imposta GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET.");
+    res.redirect(oauthErrorUrl("oauth_configuration", parseRegistrationProfession(req.query)));
     return;
   }
 
@@ -214,11 +263,18 @@ router.get("/auth/google", (req, res) => {
 });
 
 router.get("/auth/google/callback", async (req, res): Promise<void> => {
-  const { code, error, state } = req.query as { code?: string; error?: string; state?: string };
+  const code = typeof req.query.code === "string" ? req.query.code : undefined;
+  const error = typeof req.query.error === "string" ? req.query.error : undefined;
+  const state = typeof req.query.state === "string" ? req.query.state : undefined;
 
   if (error || !code) {
+    const failure = error ? classifyGoogleOAuthError(error) : "cancelled";
+    const pendingState = readOAuthState(state);
+    const isBoundRegistration = !!pendingState && req.cookies?.[OAUTH_NONCE_COOKIE] === state &&
+      !!pendingState.registrationProfession;
+    logger.warn({ failure }, "Google authorization was not completed");
     res.setHeader("Set-Cookie", clearNonceCookie());
-    res.redirect("/app/?oauth_error=cancelled");
+    res.redirect(oauthErrorUrl(failure, isBoundRegistration ? pendingState?.registrationProfession : null));
     return;
   }
 
@@ -242,23 +298,32 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
   }
 
   try {
-    const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        code,
-        client_id: googleClientId(),
-        client_secret: googleClientSecret(),
-        redirect_uri: getCallbackUrl(),
-        grant_type: "authorization_code",
-      }),
-    });
-    const tokens = await tokenRes.json() as { access_token?: string; error?: string };
+    let tokenRes: Response;
+    try {
+      tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          code,
+          client_id: googleClientId(),
+          client_secret: googleClientSecret(),
+          redirect_uri: getCallbackUrl(),
+          grant_type: "authorization_code",
+        }),
+      });
+    } catch (err) {
+      logger.warn({ errorName: err instanceof Error ? err.name : "unknown" }, "Google token endpoint unavailable");
+      res.setHeader("Set-Cookie", clearNonceCookie());
+      res.redirect(oauthErrorUrl("oauth_temporary", pendingState.registrationProfession));
+      return;
+    }
+    const tokens = await tokenRes.json() as { access_token?: string; error?: unknown };
 
     if (!tokenRes.ok || !tokens.access_token) {
-      logger.error({ tokens }, "Google token exchange failed");
+      const failure = classifyTokenExchangeError(tokens.error, tokenRes.status);
+      logger.warn({ status: tokenRes.status, failure }, "Google token exchange failed");
       res.setHeader("Set-Cookie", clearNonceCookie());
-      res.redirect("/app/?oauth_error=token_exchange");
+      res.redirect(oauthErrorUrl(failure, pendingState.registrationProfession));
       return;
     }
 
@@ -272,9 +337,9 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
     };
 
     if (!userInfoRes.ok || !googleUser.email) {
-      logger.error({ googleUser }, "Failed to get Google user info");
+      logger.warn({ status: userInfoRes.status, hasEmail: !!googleUser.email }, "Failed to get Google user info");
       res.setHeader("Set-Cookie", clearNonceCookie());
-      res.redirect("/app/?oauth_error=userinfo");
+      res.redirect(oauthErrorUrl("userinfo", pendingState.registrationProfession));
       return;
     }
 
@@ -365,7 +430,7 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
   } catch (err) {
     logger.error({ err }, "Google OAuth callback error");
     res.setHeader("Set-Cookie", clearNonceCookie());
-    res.redirect("/app/?oauth_error=server_error");
+    res.redirect(oauthErrorUrl("server_error", pendingState.registrationProfession));
   }
 });
 
