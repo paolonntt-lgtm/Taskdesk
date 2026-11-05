@@ -11,7 +11,7 @@ import {
   FiberManualRecord,
 } from '@mui/icons-material';
 import { useLanguage } from '../contexts/LanguageContext';
-import { groupOrganizationsByOwner } from '../lib/groupOrganizationsByOwner';
+import { groupOrganizationsByOwner, isDemoOrganization } from '../lib/groupOrganizationsByOwner';
 
 interface OrgUser {
   id: number;
@@ -267,6 +267,14 @@ export default function SuperAdmin() {
       ),
     );
   });
+  const demoGroups = filteredGroups.filter((group) =>
+    group.organizations.some(isDemoOrganization),
+  );
+  const customerGroups = filteredGroups.filter((group) =>
+    !group.organizations.some(isDemoOrganization),
+  );
+  const groupsToRender = [...customerGroups, ...demoGroups];
+  const demoOrganizationCount = demoGroups.reduce((total, group) => total + group.organizations.length, 0);
 
   const filteredReports = bugReports.filter((r) => {
     if (statusFilter === 'all') return true;
@@ -382,13 +390,22 @@ export default function SuperAdmin() {
 
           {visibilityError && <Alert severity="error" sx={{ mb: 2 }}>{visibilityError}</Alert>}
 
-          {filteredGroups.length === 0 && (
+          {groupsToRender.length === 0 && (
             <Alert severity="info">{sa.noResults}</Alert>
           )}
 
           <Box display="flex" flexDirection="column" gap={2}>
-            {filteredGroups.map((group) => (
-              <Box key={group.key} display="flex" flexDirection="column" gap={1}>
+            {groupsToRender.map((group, index) => (
+              <React.Fragment key={group.key}>
+                {demoGroups.length > 0 && index === customerGroups.length && (
+                  <Box display="flex" alignItems="center" gap={1} mt={1.5}>
+                    <Typography variant="subtitle1" fontWeight={700}>
+                      {sa.demoAccounts}
+                    </Typography>
+                    <Chip size="small" label={demoOrganizationCount} />
+                  </Box>
+                )}
+              <Box display="flex" flexDirection="column" gap={1}>
                 {group.organizations.length > 1 && (
                   <Box display="flex" alignItems="center" gap={1} px={0.5}>
                     <Tooltip title={group.ownerName}>
@@ -622,6 +639,7 @@ export default function SuperAdmin() {
                   ))}
                 </Box>
               </Box>
+              </React.Fragment>
             ))}
           </Box>
         </Box>

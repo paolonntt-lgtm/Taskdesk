@@ -2,6 +2,8 @@ export interface OrganizationWithOwner {
   id: number;
   name: string;
   billingOwnerOrganizationId: number | null;
+  adminUsers?: Array<{ email: string }>;
+  users?: Array<{ email: string }>;
 }
 
 export interface OrganizationOwnerGroup<T extends OrganizationWithOwner> {
@@ -28,4 +30,12 @@ export function groupOrganizationsByOwner<T extends OrganizationWithOwner>(
     organizations: members,
     ownerName: organizationsById.get(ownerId)?.name ?? members[0].name,
   }));
+}
+
+export function isDemoOrganization(organization: OrganizationWithOwner): boolean {
+  const accounts = [
+    ...(organization.adminUsers ?? []),
+    ...(organization.users ?? []),
+  ];
+  return accounts.some(({ email }) => email.trim().toLowerCase().startsWith("demo."));
 }

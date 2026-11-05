@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groupOrganizationsByOwner } from "./groupOrganizationsByOwner";
+import { groupOrganizationsByOwner, isDemoOrganization } from "./groupOrganizationsByOwner";
 
 describe("groupOrganizationsByOwner", () => {
   it("groups a billing organization with its shared workspaces, not other organizations with common admins", () => {
@@ -28,5 +28,20 @@ describe("groupOrganizationsByOwner", () => {
     const groups = groupOrganizationsByOwner(organizations);
 
     expect(groups).toHaveLength(2);
+  });
+
+  it("identifies seeded demo accounts by their email prefix", () => {
+    expect(isDemoOrganization({
+      id: 5,
+      name: "Demo tenant",
+      billingOwnerOrganizationId: null,
+      adminUsers: [{ email: "Demo.legal.admin@taskdesk.it" }],
+    })).toBe(true);
+    expect(isDemoOrganization({
+      id: 6,
+      name: "Customer",
+      billingOwnerOrganizationId: null,
+      adminUsers: [{ email: "owner@example.com" }],
+    })).toBe(false);
   });
 });
