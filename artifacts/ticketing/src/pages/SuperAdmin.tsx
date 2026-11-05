@@ -11,6 +11,7 @@ import {
   FiberManualRecord,
 } from '@mui/icons-material';
 import { useLanguage } from '../contexts/LanguageContext';
+import { groupOrganizationsByAdmin } from '../lib/groupOrganizationsByAdmin';
 
 interface OrgUser {
   id: number;
@@ -49,46 +50,6 @@ interface Organization {
   adminUsers: Array<{ id: number; name: string; email: string }>;
   ticketCreationStats: TicketCreationStats;
   users: OrgUser[];
-}
-
-interface OrganizationAdminGroup {
-  key: string;
-  organizations: Organization[];
-  admins: Array<{ id: number; name: string; email: string }>;
-}
-
-function groupOrganizationsByAdmin(organizations: Organization[]): OrganizationAdminGroup[] {
-  const remaining = new Map(organizations.map((organization) => [organization.id, organization]));
-  const groups: OrganizationAdminGroup[] = [];
-
-  while (remaining.size > 0) {
-    const first = remaining.values().next().value as Organization;
-    remaining.delete(first.id);
-    const members = [first];
-    const admins = new Map<number, { id: number; name: string; email: string }>();
-    for (const admin of first.adminUsers ?? []) admins.set(admin.id, admin);
-
-    let changed = true;
-    while (changed) {
-      changed = false;
-      for (const [id, candidate] of remaining) {
-        const candidateAdmins = candidate.adminUsers ?? [];
-        if (!candidateAdmins.some((admin) => admins.has(admin.id))) continue;
-        remaining.delete(id);
-        members.push(candidate);
-        for (const admin of candidateAdmins) admins.set(admin.id, admin);
-        changed = true;
-      }
-    }
-
-    groups.push({
-      key: members.map(({ id }) => id).sort((a, b) => a - b).join('-'),
-      organizations: members,
-      admins: Array.from(admins.values()),
-    });
-  }
-
-  return groups;
 }
 
 interface BugReport {

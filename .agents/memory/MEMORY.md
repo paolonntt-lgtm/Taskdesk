@@ -59,6 +59,7 @@
 - [Scadenza prova per organizzazione](organization-trial-expiration.md) — After trial expiry, block all organization members while leaving billing and subscription activation to admins.
 - [Stripe referral retry consistency](referral-stripe-idempotency.md) — Store referral reward details from Stripe's returned transaction so a retry records the accepted credit, not a newly calculated plan.
 - [Hidden organizations in superadmin](superadmin-hidden-organizations.md) — Hiding is reversible and affects only the superadmin list; preserve organization data and user access.
+- [Superadmin organization grouping](superadmin-organization-grouping.md) — Group organizations by the creating admin account, not merely by current shared administrators.
 - [Cloud-drive account scope](google-drive-account-scope.md) — Use each signed-in user's account; keep collaborator OneDrive folders read-only and uploads on the owner's folder.
 - [OneDrive authorization status](onedrive-reauthorization-status.md) — Distinguish a saved OneDrive connection from a valid Microsoft authorization and show a same-account reconnect path.
 - [Mobile production-domain 403](mobile-production-domain-403.md) — Compare the custom domain with the direct Replit URL on-device before changing API origin protections.
