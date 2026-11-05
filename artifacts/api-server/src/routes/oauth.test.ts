@@ -271,6 +271,7 @@ describe("Google OAuth callback", () => {
     const { state, nonceCookie } = await startOAuth({
       mode: "register",
       profession: "commercio",
+      ref: "ReferralCode_123",
       utm_source: "instance-switch",
     });
 
@@ -327,15 +328,16 @@ describe("Google OAuth callback", () => {
 
       expect(response.status).toBe(200);
       expect(response.headers.get("content-type")).toContain("text/html");
-      expect(html).toContain('window.location.replace("/app/")');
+      expect(html).toContain('window.location.replace("/app/?ref=ReferralCode_123")');
       expect(mocks.db.insert).toHaveBeenCalledWith(organizationsTable);
       expect(mocks.db.insert).toHaveBeenCalledWith(usersTable);
       expect(mocks.createSession).toHaveBeenCalledWith(registeredUser.id);
+      expect(mocks.attachReferralAtSignup).toHaveBeenCalledTimes(1);
       expect(mocks.attachReferralAtSignup).toHaveBeenCalledWith(
-        null,
+        "ReferralCode_123",
         registeredOrganization.id,
         registeredUser.email,
-        false,
+        true,
       );
       expect(response.headers.getSetCookie()).toContainEqual(
         expect.stringContaining("session_id=test-session-id"),
