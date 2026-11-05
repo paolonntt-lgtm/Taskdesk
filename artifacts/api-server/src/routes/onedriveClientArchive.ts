@@ -1,14 +1,19 @@
 import { Router, type IRouter } from "express";
-import { and, eq, isNotNull, isNull } from "drizzle-orm";
-import { db, oneDriveClientArchiveTable, oneDriveConnectionsTable, usersTable, ticketAttachmentsTable, ticketsTable } from "@workspace/db";
+import { and, eq } from "drizzle-orm";
+import { db, oneDriveClientArchiveTable, oneDriveConnectionsTable, usersTable } from "@workspace/db";
 import { requireAdmin, requireAuth } from "../middlewares/auth";
 import {
   OneDriveBrowseError,
   selectOneDriveClientArchive,
   syncOneDriveClientFolders,
-  syncOneDriveAttachment,
 } from "../lib/onedriveGraph";
 import { logger } from "../lib/logger";
+import {
+  enqueueOneDriveClientArchiveBackfill,
+  getOneDriveClientArchiveBackfillStatus,
+  retryFailedOneDriveClientArchiveBackfill,
+  runOneDriveClientArchiveBackfillCycle,
+} from "../lib/oneDriveClientArchiveBackfill";
 
 const router: IRouter = Router();
 
@@ -36,6 +41,7 @@ router.get("/onedrive/client-archive", requireAuth, async (req, res): Promise<vo
       eq(oneDriveConnectionsTable.organizationId, user.organizationId),
     )).limit(1);
   const clients = await syncOneDriveClientFolders(user.organizationId);
+  const backfill = await getOneDriveClientArchiveBackfillStatus(user.organizationId);
   res.setHeader("Cache-Control", "no-store");
   res.json({
     configured: true,
@@ -45,7 +51,29 @@ router.get("/onedrive/client-archive", requireAuth, async (req, res): Promise<vo
     isOwner: archive.ownerUserId === user.id,
     isAdmin: user.role === "admin",
     clients,
+    backfill,
   });
+});
+
+router.get("/onedrive/client-archive/backfill", requireAuth, async (req, res): Promise<void> => {
+  const user = (req as any).currentUser as { organizationId: number | null };
+  if (!user.organizationId) {
+    res.json({ total: 0, pending: 0, processing: 0, completed: 0, failed: 0, status: "idle" });
+    return;
+  }
+  res.setHeader("Cache-Control", "no-store");
+  res.json(await getOneDriveClientArchiveBackfillStatus(user.organizationId));
+});
+
+router.post("/onedrive/client-archive/backfill/retry", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const user = (req as any).currentUser as { organizationId: number | null };
+  if (!user.organizationId) {
+    res.status(403).json({ error: "An organization account is required." });
+    return;
+  }
+  const retried = await retryFailedOneDriveClientArchiveBackfill(user.organizationId);
+  void runOneDriveClientArchiveBackfillCycle();
+  res.json({ retried, backfill: await getOneDriveClientArchiveBackfillStatus(user.organizationId) });
 });
 
 router.post("/onedrive/client-archive/select", requireAuth, requireAdmin, async (req, res): Promise<void> => {
@@ -56,19 +84,14 @@ router.post("/onedrive/client-archive/select", requireAuth, requireAdmin, async 
   }
   try {
     const clients = await selectOneDriveClientArchive(user.organizationId, user.id);
-    // Backfill previously uploaded attachments without holding up archive setup.
-    const existing = await db.select({ attachmentId: ticketAttachmentsTable.id })
-      .from(ticketAttachmentsTable)
-      .innerJoin(ticketsTable, eq(ticketsTable.id, ticketAttachmentsTable.ticketId))
-      .where(and(
-        eq(ticketsTable.organizationId, user.organizationId),
-        isNotNull(ticketsTable.clientId),
-        isNull(ticketsTable.deletedAt),
-      ));
-    void (async () => {
-      for (const item of existing) await syncOneDriveAttachment(item.attachmentId, false, true);
-    })().catch((error) => logger.warn({ err: error, organizationId: user.organizationId }, "Client archive backfill failed"));
-    res.json({ configured: true, clients });
+    const queued = await enqueueOneDriveClientArchiveBackfill(user.organizationId);
+    void runOneDriveClientArchiveBackfillCycle();
+    res.json({
+      configured: true,
+      clients,
+      queued,
+      backfill: await getOneDriveClientArchiveBackfillStatus(user.organizationId),
+    });
   } catch (error) {
     if (error instanceof OneDriveBrowseError) {
       res.status(error.statusCode).json({ error: error.message });

@@ -12,6 +12,7 @@ import { startTicketRecurrenceJob } from "./lib/ticketRecurrenceJob";
 import { startTrialReminderJob } from "./lib/trialReminderJob";
 import { startTicketTrashCleanupJob } from "./lib/ticketTrash";
 import { startReferralAttributionRetryJob } from "./lib/referralAttributionRetryJob";
+import { startOneDriveClientArchiveBackfillJob } from "./lib/oneDriveClientArchiveBackfill";
 
 const rawPort = process.env["PORT"];
 
@@ -68,6 +69,7 @@ runAppMigrations()
   .then(() => startTrialReminderJob())
   .then(() => startTicketTrashCleanupJob())
   .then(() => startReferralAttributionRetryJob())
+  .then(() => startOneDriveClientArchiveBackfillJob())
   .catch((err) => logger.error({ err }, "Seed/migration failed"));
 initStripe().catch((err) => logger.error({ err }, "initStripe failed"));
 scheduleNightlyBackups();

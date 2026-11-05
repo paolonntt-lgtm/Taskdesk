@@ -13,6 +13,7 @@ import {
   Divider,
   IconButton,
   Link,
+  LinearProgress,
   List,
   ListItemButton,
   ListItemIcon,
@@ -50,6 +51,14 @@ type OrganizationShare = {
   canUpload: boolean;
 };
 type ClientFolder = { clientId: number; clientName?: string; folderName: string; webUrl: string };
+type BackfillStatus = {
+  status: "idle" | "pending" | "processing" | "failed" | "complete";
+  total: number;
+  pending: number;
+  processing: number;
+  completed: number;
+  failed: number;
+};
 
 type Breadcrumb = { id: string; name: string };
 type BrowseState = {
@@ -80,6 +89,10 @@ export default function OneDrivePage() {
   const [shares, setShares] = useState<OrganizationShare[]>([]);
   const [sharedFolders, setSharedFolders] = useState<OneDriveSharedFolder[]>([]);
   const [clientFolders, setClientFolders] = useState<ClientFolder[]>([]);
+  const [backfillStatus, setBackfillStatus] = useState<BackfillStatus | null>(null);
+  const [canRetryBackfill, setCanRetryBackfill] = useState(false);
+  const [retryingBackfill, setRetryingBackfill] = useState(false);
+  const [backfillError, setBackfillError] = useState("");
   const [connected, setConnected] = useState(false);
   const [reconnectRequired, setReconnectRequired] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -155,16 +168,20 @@ export default function OneDrivePage() {
           return;
         }
         if (!shareResponse.ok) throw new Error(copy.loadSharesError);
-        const [shareData, sharedFoldersData, archiveResponse] = await Promise.all([
+        const [shareData, sharedFoldersData, archiveResponse, backfillResponse] = await Promise.all([
           shareResponse.json() as Promise<OrganizationShare[]>,
           listOneDriveSharedWithMe({ credentials: "include", cache: "no-store" }),
           fetch("/api/onedrive/client-archive", { credentials: "include", cache: "no-store" }),
+          fetch("/api/onedrive/client-archive/backfill", { credentials: "include", cache: "no-store" }),
         ]);
         const archiveData = archiveResponse.ok ? await archiveResponse.json() : { configured: false, clients: [] };
+        const backfillData = backfillResponse.ok ? await backfillResponse.json() as BackfillStatus : null;
         if (!active) return;
         setShares(shareData);
         setSharedFolders(sharedFoldersData);
         setClientFolders(archiveData.configured ? archiveData.clients : []);
+        setBackfillStatus(backfillData);
+        setCanRetryBackfill(Boolean(archiveData.isAdmin));
         setConnected(connection.connected);
         setReconnectRequired(false);
       } catch (failure) {
@@ -181,6 +198,34 @@ export default function OneDrivePage() {
       window.removeEventListener("focus", reload);
     };
   }, [copy.checkConnectionError, copy.loadSharesError]);
+
+  useEffect(() => {
+    if (!backfillStatus || !["pending", "processing"].includes(backfillStatus.status)) return;
+    const refresh = async () => {
+      const response = await fetch("/api/onedrive/client-archive/backfill", { credentials: "include", cache: "no-store" });
+      if (response.ok) setBackfillStatus(await response.json() as BackfillStatus);
+    };
+    const interval = window.setInterval(() => void refresh(), 15_000);
+    return () => window.clearInterval(interval);
+  }, [backfillStatus]);
+
+  const retryBackfill = async () => {
+    setRetryingBackfill(true);
+    setBackfillError("");
+    try {
+      const response = await fetch("/api/onedrive/client-archive/backfill/retry", {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || (it ? "Impossibile riprovare il backfill." : "Could not retry the backfill."));
+      setBackfillStatus(data.backfill as BackfillStatus);
+    } catch (failure) {
+      setBackfillError(failure instanceof Error ? failure.message : (it ? "Errore durante il nuovo tentativo." : "Retry failed."));
+    } finally {
+      setRetryingBackfill(false);
+    }
+  };
 
   useEffect(() => {
     if (!connected) return;
@@ -326,6 +371,26 @@ export default function OneDrivePage() {
       )}
 
       <Stack spacing={1.5}>
+        {backfillStatus && backfillStatus.total > 0 && (
+          <Alert
+            severity={backfillStatus.failed > 0 ? "warning" : backfillStatus.status === "complete" ? "success" : "info"}
+            action={backfillStatus.failed > 0 && canRetryBackfill ? (
+              <Button color="inherit" size="small" onClick={() => void retryBackfill()} disabled={retryingBackfill}>
+                {retryingBackfill ? (it ? "Riprovando…" : "Retrying…") : (it ? "Riprova" : "Retry")}
+              </Button>
+            ) : undefined}
+          >
+            {backfillStatus.status === "complete"
+              ? (it ? `Archivio aggiornato: ${backfillStatus.completed} allegati copiati.` : `Archive up to date: ${backfillStatus.completed} attachments copied.`)
+              : backfillStatus.failed > 0 && backfillStatus.pending === 0 && backfillStatus.processing === 0
+                ? (it ? `${backfillStatus.failed} allegati non sono stati copiati. Riprova dopo aver ripristinato OneDrive.` : `${backfillStatus.failed} attachments could not be copied. Retry after reconnecting OneDrive.`)
+                : (it
+                  ? `Backfill allegati: ${backfillStatus.completed}/${backfillStatus.total} completati; ${backfillStatus.pending + backfillStatus.processing} in attesa o in corso.`
+                  : `Attachment backfill: ${backfillStatus.completed}/${backfillStatus.total} complete; ${backfillStatus.pending + backfillStatus.processing} pending or processing.`)}
+            {backfillStatus.pending + backfillStatus.processing > 0 && <LinearProgress sx={{ mt: 1 }} />}
+            {backfillError && <Typography variant="body2" sx={{ mt: 1 }}>{backfillError}</Typography>}
+          </Alert>
+        )}
         {clientFolders.length > 0 && (
           <Card variant="outlined">
             <CardContent>

@@ -1157,6 +1157,7 @@ export async function syncOneDriveAttachment(
   attachmentId: number,
   emailFallback = false,
   retryExisting = false,
+  clientArchiveCopyName?: string,
 ): Promise<void> {
   const [attachment] = await db.select().from(ticketAttachmentsTable)
     .where(eq(ticketAttachmentsTable.id, attachmentId)).limit(1);
@@ -1195,8 +1196,8 @@ export async function syncOneDriveAttachment(
       const accessToken = await refreshConnection(ownerConnection);
       const object = await storage.getObjectEntityFile(attachment.objectPath);
       const [bytes] = await object.download();
-      const contentName = await suggestAttachmentName(bytes, attachment.fileName, attachment.mimeType);
-      const copyName = `ticket-${ticket.id}-attachment-${attachment.id}-${contentName}`;
+      const contentName = clientArchiveCopyName ? null : await suggestAttachmentName(bytes, attachment.fileName, attachment.mimeType);
+      const copyName = clientArchiveCopyName ?? `ticket-${ticket.id}-attachment-${attachment.id}-${contentName}`;
       const uploaded = await graph<{ id?: string }>(
         accessToken,
         `/me/drive/items/${encodeURIComponent(folderRow.driveItemId)}:/${encodeURIComponent(copyName)}:/content?@microsoft.graph.conflictBehavior=replace`,
@@ -1386,6 +1387,19 @@ export async function syncOneDriveAttachment(
       .set({ oneDriveSyncError: message.slice(0, 500) })
       .where(eq(ticketAttachmentsTable.id, attachment.id));
   }
+}
+
+export async function prepareOneDriveClientArchiveCopyName(attachmentId: number): Promise<string | null> {
+  const [attachment] = await db.select().from(ticketAttachmentsTable)
+    .where(eq(ticketAttachmentsTable.id, attachmentId)).limit(1);
+  if (!attachment) return null;
+  const [ticket] = await db.select({ id: ticketsTable.id, clientId: ticketsTable.clientId, deletedAt: ticketsTable.deletedAt })
+    .from(ticketsTable).where(eq(ticketsTable.id, attachment.ticketId)).limit(1);
+  if (!ticket || ticket.deletedAt || ticket.clientId == null) return null;
+  const object = await storage.getObjectEntityFile(attachment.objectPath);
+  const [bytes] = await object.download();
+  const contentName = await suggestAttachmentName(bytes, attachment.fileName, attachment.mimeType);
+  return getOneDriveAttachmentCopyName(ticket.id, attachment.id, contentName);
 }
 
 export async function retryOneDriveAttachment(attachmentId: number, emailFallback = false): Promise<void> {
