@@ -440,6 +440,19 @@ describe("Google OAuth callback", () => {
     expect(mocks.createSession).not.toHaveBeenCalled();
   });
 
+  it("rejects a Google state whose signed payload was changed", async () => {
+    const { state, nonceCookie } = await startOAuth();
+    const [payload, signature] = state.split(".");
+    const changedState = `${payload.slice(0, -1)}${payload.endsWith("A") ? "B" : "A"}.${signature}`;
+
+    const response = await callback(changedState, `oauth_nonce=${changedState}`);
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe("/app/?oauth_error=invalid_state");
+    expect(mocks.createSession).not.toHaveBeenCalled();
+    expect(nonceCookie).not.toBe(`oauth_nonce=${changedState}`);
+  });
+
   it("rejects an expired state", async () => {
     const now = vi.spyOn(Date, "now");
     now.mockReturnValue(1_000);
@@ -454,16 +467,26 @@ describe("Google OAuth callback", () => {
     now.mockRestore();
   });
 
-  it("rejects reuse of a state after a successful callback", async () => {
+  it("does not create another session when Google rejects a reused authorization code", async () => {
     const { state, nonceCookie } = await startOAuth();
-    mockGoogleSuccess();
+    const responses = [
+      new Response(JSON.stringify({ access_token: "test-access-token" }), { status: 200 }),
+      new Response(JSON.stringify({ email: oauthUser.email, name: oauthUser.name }), { status: 200 }),
+      new Response(JSON.stringify({ error: "invalid_grant" }), { status: 400 }),
+    ];
+    globalThis.fetch = vi.fn(async (input: string | URL, init?: RequestInit) => {
+      if (String(input).startsWith(baseUrl)) return originalGlobalFetch(input, init);
+      const response = responses.shift();
+      if (!response) throw new Error("Unexpected Google OAuth request");
+      return response;
+    });
     const firstResponse = await callback(state, nonceCookie);
     expect(firstResponse.status).toBe(200);
 
     const secondResponse = await callback(state, nonceCookie);
 
     expect(secondResponse.status).toBe(302);
-    expect(secondResponse.headers.get("location")).toBe("/app/?oauth_error=invalid_state");
+    expect(secondResponse.headers.get("location")).toBe("/app/?oauth_error=token_exchange");
     expect(mocks.createSession).toHaveBeenCalledTimes(1);
   });
 

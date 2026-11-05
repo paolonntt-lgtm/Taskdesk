@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { eq, sql } from "drizzle-orm";
-import { randomBytes } from "crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "crypto";
 import { db, usersTable, organizationsTable } from "@workspace/db";
 import { createSession, SESSION_COOKIE_MAX_AGE } from "../lib/session";
 import { appBaseUrl } from "../lib/appUrl";
@@ -35,22 +35,53 @@ type UTMAttribution = {
 };
 type PendingOAuthState = {
   createdAt: number;
+  nonce: string;
   professionalAttribution: ProfessionalTrialAttribution | null;
   registrationProfession: OrganizationProfession | null;
   referralCode: string | null;
   referralAttempted: boolean;
   utmAttribution: UTMAttribution;
 };
-const pendingOAuthStates = new Map<string, PendingOAuthState>();
 
 const isProduction = process.env.NODE_ENV === "production";
 
-function pruneExpiredStates(): void {
-  const now = Date.now();
-  for (const [state, pending] of pendingOAuthStates) {
-    if (now - pending.createdAt > OAUTH_STATE_TTL_MS) {
-      pendingOAuthStates.delete(state);
-    }
+function signOAuthState(payload: string): string {
+  return createHmac("sha256", googleClientSecret())
+    .update(`taskdesk-google-oauth-state-v1\0${payload}`)
+    .digest("base64url");
+}
+
+function createOAuthState(data: Omit<PendingOAuthState, "createdAt" | "nonce">): string {
+  const payload = Buffer.from(JSON.stringify({
+    ...data,
+    createdAt: Date.now(),
+    nonce: randomBytes(24).toString("hex"),
+  } satisfies PendingOAuthState)).toString("base64url");
+  return `${payload}.${signOAuthState(payload)}`;
+}
+
+function readOAuthState(state: unknown): PendingOAuthState | undefined {
+  if (typeof state !== "string" || state.length > 4096) return undefined;
+  const [payload, signature, extra] = state.split(".");
+  if (!payload || !signature || extra !== undefined) return undefined;
+
+  const expected = Buffer.from(signOAuthState(payload));
+  const actual = Buffer.from(signature);
+  if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) return undefined;
+
+  try {
+    const pending = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as PendingOAuthState;
+    if (
+      !Number.isFinite(pending.createdAt) ||
+      typeof pending.nonce !== "string" ||
+      !/^[a-f0-9]{48}$/.test(pending.nonce) ||
+      !Number.isFinite(Date.now() - pending.createdAt) ||
+      Date.now() - pending.createdAt < 0 ||
+      Date.now() - pending.createdAt > OAUTH_STATE_TTL_MS
+    ) return undefined;
+    return pending;
+  } catch {
+    return undefined;
   }
 }
 
@@ -137,20 +168,17 @@ function getCallbackUrl(): string {
 }
 
 router.get("/auth/google", (req, res) => {
-  if (!googleClientId()) {
+  if (!googleClientId() || !googleClientSecret()) {
     res.status(503).send("Google OAuth non configurato. Imposta GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET.");
     return;
   }
 
-  pruneExpiredStates();
   const registrationProfession = parseRegistrationProfession(req.query);
   if (req.query.mode === "register" && !registrationProfession) {
     res.status(400).send("Seleziona una professione prima di registrarti.");
     return;
   }
-  const state = randomBytes(24).toString("hex");
-  pendingOAuthStates.set(state, {
-    createdAt: Date.now(),
+  const state = createOAuthState({
     professionalAttribution: parseProfessionalTrialAttribution(req.query),
     registrationProfession,
     referralCode: typeof req.query.ref === "string" && /^[A-Za-z0-9_-]{8,40}$/.test(req.query.ref)
@@ -194,29 +222,20 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
     return;
   }
 
-  // Verify state exists in the server-side map (not expired, not reused).
-  // Additionally, verify the state matches the oauth_nonce cookie that was
+  // Verify the signed state and bind it to the browser cookie that was
   // set in the initiating browser when /auth/google was visited. This binds
   // the callback to the browser that started the flow and prevents an attacker
   // from completing an OAuth exchange in a victim's browser (login CSRF /
-  // session forcing). The nonce cookie is set on a 200 response (not a 302)
-  // to work around the Replit proxy stripping Set-Cookie on redirects.
+  // session forcing). The signed state is self-contained so autoscale callbacks
+  // can be handled by a different server instance. Google authorization codes
+  // are single-use, which prevents successful callback replay.
   const nonceCookie = req.cookies?.[OAUTH_NONCE_COOKIE];
-  const pendingState = state ? pendingOAuthStates.get(state) : undefined;
+  const pendingState = readOAuthState(state);
   if (!state || !pendingState || nonceCookie !== state) {
     logger.warn(
-      { state, hasState: !!state, hasNonce: !!nonceCookie, nonceMatch: nonceCookie === state },
+      { hasState: !!state, hasNonce: !!nonceCookie, nonceMatch: nonceCookie === state },
       "OAuth callback state/nonce validation failed"
     );
-    res.setHeader("Set-Cookie", clearNonceCookie());
-    res.redirect("/app/?oauth_error=invalid_state");
-    return;
-  }
-
-  pendingOAuthStates.delete(state);
-
-  if (Date.now() - pendingState.createdAt > OAUTH_STATE_TTL_MS) {
-    logger.warn({ state }, "OAuth state expired");
     res.setHeader("Set-Cookie", clearNonceCookie());
     res.redirect("/app/?oauth_error=invalid_state");
     return;

@@ -137,6 +137,7 @@ export default function Login() {
     if (err) {
       const messages: Record<string, string> = {
         cancelled: t.login.oauthCancelled,
+        invalid_state: t.login.oauthInvalidState,
         token_exchange: t.login.oauthTokenError,
         userinfo: t.login.oauthUserinfoError,
         disabled: t.login.oauthDisabled,
