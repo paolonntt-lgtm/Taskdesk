@@ -12,6 +12,7 @@ import { CheckCircleOutline, CheckCircle, ArrowBack, Person, Group, EditOutlined
 import {
   useGetTicket, useUpdateTicket, useListTicketComments, useAddTicketComment,
   useListTicketActivity, useListTicketAttachments, useSaveTicketAttachment,
+  useListClients, getListClientsQueryKey,
   useDeleteTicket,
   useListTicketNotes, useAddTicketNote,
   useUpdateTicketComment, useDeleteTicketComment,
@@ -39,6 +40,7 @@ import PermissionGateButton from '../components/PermissionGateButton';
 import { trackEvent } from '../lib/analytics';
 
 import { getEmailClientAssociationExplanationKey } from '../lib/emailClientAssociationDisplay';
+import { scopeWorkspaceQueryKey } from '../lib/workspaceQueryScope';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -171,6 +173,8 @@ export default function TicketDetail() {
   const [commentError, setCommentError] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [ticketUpdateError, setTicketUpdateError] = useState<string | null>(null);
+  const [manualClientId, setManualClientId] = useState('');
+  const [clientAssociationError, setClientAssociationError] = useState<string | null>(null);
   const [sendToCustomer, setSendToCustomer] = useState(false);
   const [emailReplyOpen, setEmailReplyOpen] = useState(false);
   const [emailReplyBody, setEmailReplyBody] = useState('');
@@ -217,10 +221,20 @@ export default function TicketDetail() {
   const [recurrenceError, setRecurrenceError] = useState<string | null>(null);
 
   const { data: ticket, isLoading } = useGetTicket(ticketId, { query: { enabled: !!ticketId, refetchInterval: 30_000, refetchIntervalInBackground: false } as any });
+  const clientsEnabled = (currentUser as any)?.clientsEnabled !== false;
+  const hasInboundEmailMetadata = Boolean(
+    ticket?.inboundChannelId || (ticket as any)?.emailMessageId || (ticket as any)?.emailConversationId,
+  );
   const { data: comments } = useListTicketComments(ticketId, { query: { enabled: !!ticketId, staleTime: 30_000, refetchInterval: 30_000, refetchIntervalInBackground: false } as any });
   const { data: activities } = useListTicketActivity(ticketId, { query: { enabled: !!ticketId, staleTime: 60_000, refetchInterval: 30_000, refetchIntervalInBackground: false } as any });
   const activeWorkspaceId =
     (currentUser as any)?.activeWorkspaceId ?? currentUser?.organizationId;
+  const { data: associationClients = [] } = useListClients(undefined, {
+    query: {
+      queryKey: scopeWorkspaceQueryKey(getListClientsQueryKey(), activeWorkspaceId),
+      enabled: clientsEnabled && hasInboundEmailMetadata && !(ticket as any)?.clientId,
+    } as any,
+  });
   const { data: users, isSuccess: workspaceCollaboratorsLoaded } = useWorkspaceCollaborators(
     activeWorkspaceId,
     currentUser?.role === 'admin',
@@ -275,6 +289,24 @@ export default function TicketDetail() {
   const updateTicket = useUpdateTicket();
   const addComment = useAddTicketComment();
   const saveAttachment = useSaveTicketAttachment();
+
+  const handleClientAssociation = async () => {
+    const clientId = Number(manualClientId);
+    if (!Number.isInteger(clientId) || clientId <= 0) return;
+    setClientAssociationError(null);
+    try {
+      await updateTicket.mutateAsync({ id: ticketId, data: { clientId } as any });
+      setManualClientId('');
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) }),
+        queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() }),
+      ]);
+    } catch {
+      setClientAssociationError(lang === 'it'
+        ? 'Non è stato possibile associare il cliente. Riprova.'
+        : 'The client could not be assigned. Please try again.');
+    }
+  };
 
   const hasGroupPerm = (perm: string) =>
     ((currentUser as any)?.groupPermissions as string[] | undefined ?? []).includes(perm);
@@ -887,11 +919,7 @@ export default function TicketDetail() {
   const canChangeAssignment = (ticket as any).timeTrackingEnabled
     ? isAdmin || hasGroupPerm('assign_time_tracked_tickets')
     : isAdmin || (!assignedGroup && (!(ticket as any).assignedTo || isAssignee));
-  const clientsEnabled = (currentUser as any)?.clientsEnabled !== false;
   const ticketClient = (ticket as any).client ?? null;
-  const hasInboundEmailMetadata = Boolean(
-    ticket.inboundChannelId || (ticket as any).emailMessageId || (ticket as any).emailConversationId,
-  );
   const selectedTicketClient = ticketClient;
   const emailAssociationReason = (ticket as any).emailClientAssociationReason as string | undefined;
   const emailAssociationSource = (ticket as any).emailClientAssociationSource as string | null | undefined;
@@ -1206,6 +1234,40 @@ export default function TicketDetail() {
               </Box>
               {ticket.inboundChannelId && selectedTicketClient && (
                 <FormHelperText>{t.ticketDetail.clientEmailAssociationHint}</FormHelperText>
+              )}
+              {hasInboundEmailMetadata && !selectedTicketClient && (
+                <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    {t.ticketDetail.clientAssociationChooseHint}
+                  </Typography>
+                  <TextField
+                    select
+                    size="small"
+                    fullWidth
+                    label={t.clients.clientField}
+                    value={manualClientId}
+                    onChange={(event) => {
+                      setManualClientId(event.target.value);
+                      setClientAssociationError(null);
+                    }}
+                    disabled={updateTicket.isPending}
+                  >
+                    {(associationClients as any[]).map((client) => (
+                      <MenuItem key={client.id} value={String(client.id)}>{client.name}</MenuItem>
+                    ))}
+                  </TextField>
+                  <FormHelperText>{t.ticketDetail.clientAssociationSaveHint}</FormHelperText>
+                  {clientAssociationError && <Alert severity="error">{clientAssociationError}</Alert>}
+                  <Button
+                    variant="contained"
+                    size="small"
+                    disabled={!manualClientId || updateTicket.isPending}
+                    onClick={() => void handleClientAssociation()}
+                    sx={{ alignSelf: 'flex-start' }}
+                  >
+                    {updateTicket.isPending ? t.ticketDetail.sending : t.ticketDetail.clientAssociationSave}
+                  </Button>
+                </Box>
               )}
             </Box>
           )}

@@ -106,15 +106,16 @@ export function resolveEmailClientAssociation(input: {
 }
 
 /**
- * For forwarded messages, prefer a unique or conflicting match for the
- * original sender. Fall back to the outer sender only when the original
- * sender has no profile match; an unconfirmed suggestion is never enough.
+ * For forwarded messages, use the original sender when it can be identified.
+ * If that sender has no profile match, leave the ticket unassociated for manual
+ * selection rather than assigning it to the forwarding account's client.
+ * Use the outer sender only when the original sender could not be identified.
  */
 export function chooseForwardedEmailAssociation(
   outerSender: EmailClientAssociationResult,
   originalSender?: EmailClientAssociationResult,
 ): EmailClientAssociationResult {
   if (originalSender?.clientId != null || originalSender?.clientAssociationIssue) return originalSender;
-  if (outerSender.clientId != null || outerSender.clientAssociationIssue) return outerSender;
+  if (originalSender) return originalSender;
   return outerSender;
 }

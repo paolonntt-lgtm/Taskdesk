@@ -143,9 +143,9 @@ describe("email client association", () => {
 
   it("does not turn an original-sender suggestion into an association", () => {
     expect(chooseForwardedEmailAssociation(
-      { clientId: null, suggestedClientId: null },
+      { clientId: 1, suggestedClientId: null, matchType: "profile_contact" },
       { clientId: null, suggestedClientId: 1 },
-    )).toEqual({ clientId: null, suggestedClientId: null });
+    )).toEqual({ clientId: null, suggestedClientId: 1 });
   });
 
   it("leaves a forwarded ticket unassociated when neither sender has an explicit match", () => {
@@ -153,6 +153,13 @@ describe("email client association", () => {
     const originalSender = resolve("andrea@caffeaurora.it");
     expect(chooseForwardedEmailAssociation(outerSender, originalSender))
       .toEqual({ clientId: null, suggestedClientId: null });
+  });
+
+  it("does not use the forwarding account's client when the original sender is unmatched", () => {
+    const outerSender = { clientId: 1, suggestedClientId: null, matchType: "profile_contact" as const };
+    const originalSender = { clientId: null, suggestedClientId: null };
+    expect(chooseForwardedEmailAssociation(outerSender, originalSender))
+      .toEqual(originalSender);
   });
 
   it("uses a unique original-sender match when the forwarding account is ambiguous", () => {

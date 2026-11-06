@@ -363,7 +363,7 @@ describe("forwarded inbound ticket creation", () => {
     });
   });
 
-  it("still associates a forwarded ticket when the outer sender is an explicit client contact", async () => {
+  it("leaves a forwarded ticket unassociated when only the outer sender is a client contact", async () => {
     mocks.clients = [mocks.clients[0]];
 
     await createTicketFromEmail(baseInput);
@@ -371,7 +371,9 @@ describe("forwarded inbound ticket creation", () => {
     const ticket = mocks.inserts.find(({ table }) => table === mocks.tables.ticketsTable)?.values;
     expect(ticket).toMatchObject({
       resource: "forwarder@forwarding.example",
-      clientId: 21,
+      clientId: null,
+      emailClientAssociationReason: "no_match",
+      emailClientAssociationSource: null,
     });
   });
 });
