@@ -449,23 +449,64 @@ describe("Microsoft OneDrive OAuth callback", () => {
   });
 
   it("returns reconnect guidance instead of a server error for expired organization-share grants", async () => {
+    mocks.previousConnection = {
+      id: 31,
+      userId: 7,
+      organizationId: 11,
+      microsoftEmail: "person@example.test",
+      organizationShareUrl: "https://onedrive.example.test/folder",
+      encryptedRefreshToken: "encrypted-token",
+    };
     mocks.revokeOrganizationRootInvitations.mockRejectedValue(new OneDriveAccessRevocationError(true));
+    mocks.refreshConnection.mockRejectedValue(
+      new OneDriveBrowseError("Reconnect your OneDrive account to continue.", 401),
+    );
 
     const response = await fetch(`${baseUrl}/api/onedrive/organization-shares`);
 
     expect(response.status).toBe(409);
     expect(await response.json()).toEqual({ code: "ONEDRIVE_RECONNECT_REQUIRED" });
     expect(mocks.db.select).not.toHaveBeenCalled();
+
+    const connectionResponse = await fetch(`${baseUrl}/api/onedrive/connection`);
+    expect(connectionResponse.status).toBe(200);
+    expect(await connectionResponse.json()).toEqual({
+      connected: true,
+      microsoftEmail: "person@example.test",
+      organizationShareUrl: "https://onedrive.example.test/folder",
+      reconnectRequired: true,
+    });
+    expect(mocks.disconnectOneDriveUser).not.toHaveBeenCalled();
   });
 
   it("explains that reauthorization is needed when token renewal blocks safe disconnection", async () => {
+    mocks.previousConnection = {
+      id: 31,
+      userId: 7,
+      organizationId: 11,
+      microsoftEmail: "person@example.test",
+      organizationShareUrl: "https://onedrive.example.test/folder",
+      encryptedRefreshToken: "encrypted-token",
+    };
     mocks.disconnectOneDriveUser.mockRejectedValue(new OneDriveAccessRevocationError(true));
+    mocks.refreshConnection.mockRejectedValue(
+      new OneDriveBrowseError("Reconnect your OneDrive account to continue.", 401),
+    );
 
     const response = await fetch(`${baseUrl}/api/onedrive/connection`, { method: "DELETE" });
 
     expect(response.status).toBe(409);
     expect(await response.json()).toEqual({ code: "ONEDRIVE_RECONNECT_REQUIRED" });
     expect(mocks.disconnectOneDriveUser).toHaveBeenCalledWith(7, 11);
+
+    const connectionResponse = await fetch(`${baseUrl}/api/onedrive/connection`);
+    expect(connectionResponse.status).toBe(200);
+    expect(await connectionResponse.json()).toEqual({
+      connected: true,
+      microsoftEmail: "person@example.test",
+      organizationShareUrl: "https://onedrive.example.test/folder",
+      reconnectRequired: true,
+    });
   });
 
   it("keeps the local connection and gives retry guidance when Microsoft revocation fails", async () => {
