@@ -167,7 +167,18 @@ export default function OneDrivePage() {
           setSharedFolders([]);
           return;
         }
-        if (!shareResponse.ok) throw new Error(copy.loadSharesError);
+        if (!shareResponse.ok) {
+          const shareError = await shareResponse.json().catch(() => ({}));
+          if (shareResponse.status === 409 && shareError.code === "ONEDRIVE_RECONNECT_REQUIRED") {
+            if (!active) return;
+            setConnected(true);
+            setReconnectRequired(true);
+            setShares([]);
+            setSharedFolders([]);
+            return;
+          }
+          throw new Error(copy.loadSharesError);
+        }
         const [shareData, sharedFoldersData, archiveResponse, backfillResponse] = await Promise.all([
           shareResponse.json() as Promise<OrganizationShare[]>,
           listOneDriveSharedWithMe({ credentials: "include", cache: "no-store" }),
@@ -236,7 +247,8 @@ export default function OneDrivePage() {
 
   const connect = () => {
     const returnTo = `${window.location.pathname}${window.location.search}`;
-    const popup = window.open(`/api/onedrive/connect?returnTo=${encodeURIComponent(returnTo)}`, "_blank");
+    const reauthQuery = reconnectRequired ? "&forceReauth=true" : "";
+    const popup = window.open(`/api/onedrive/connect?returnTo=${encodeURIComponent(returnTo)}${reauthQuery}`, "_blank");
     if (!popup) {
       setOauthStatus("popup_blocked");
       return;

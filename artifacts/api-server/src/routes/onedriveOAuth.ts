@@ -92,7 +92,7 @@ function sessionCookie(sessionId: string, expiresAt: Date): string {
   return `session_id=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`;
 }
 
-router.get("/onedrive/connect", requireAuth, (req, res): void => {
+router.get("/onedrive/connect", requireAuth, async (req, res): Promise<void> => {
   const user = (req as any).currentUser as { id: number; organizationId: number | null };
   if (!user.organizationId) {
     res.status(400).json({ error: "An organization account is required." });
@@ -118,6 +118,15 @@ router.get("/onedrive/connect", requireAuth, (req, res): void => {
     res.status(401).json({ error: "Sign in to TaskDesk before connecting OneDrive." });
     return;
   }
+  const forceReauth = req.query.forceReauth === "true";
+  const [existingConnection] = forceReauth
+    ? await db.select({
+        microsoftEmail: oneDriveConnectionsTable.microsoftEmail,
+      }).from(oneDriveConnectionsTable).where(and(
+        eq(oneDriveConnectionsTable.userId, user.id),
+        eq(oneDriveConnectionsTable.organizationId, user.organizationId),
+      )).limit(1)
+    : [];
   const state = randomBytes(24).toString("base64url");
   const verifier = randomBytes(32).toString("base64url");
   const challenge = createHash("sha256").update(verifier).digest("base64url");
@@ -135,8 +144,11 @@ router.get("/onedrive/connect", requireAuth, (req, res): void => {
     state,
     code_challenge: challenge,
     code_challenge_method: "S256",
-    prompt: "select_account",
+    prompt: forceReauth ? "consent" : "select_account",
   });
+  if (forceReauth && existingConnection?.microsoftEmail) {
+    params.set("login_hint", existingConnection.microsoftEmail);
+  }
   const target = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${params}`;
   res.setHeader("Set-Cookie", stateCookie(state));
   res.status(200).send(`<!doctype html><meta http-equiv="refresh" content="0;url=${target}"><script>location.replace(${JSON.stringify(target)})</script>`);
@@ -183,18 +195,26 @@ router.get("/onedrive/callback", async (req, res): Promise<void> => {
       throw new Error("This Microsoft account belongs to a different organization tenant.");
     }
     const microsoftUser = await getMicrosoftUser(tokens.accessToken);
-    const folders = await createDefaultFolders(tokens.accessToken, user.name || microsoftUser.displayName);
     const microsoftEmail = microsoftUser.mail || microsoftUser.userPrincipalName || tokens.email;
     const [previousConnection] = await db.select().from(oneDriveConnectionsTable)
       .where(eq(oneDriveConnectionsTable.userId, user.id))
       .limit(1);
+    const isSameExistingAccount = Boolean(
+      previousConnection &&
+      previousConnection.organizationId === user.organizationId &&
+      previousConnection.tenantId === tokens.tenantId &&
+      previousConnection.microsoftEmail.toLocaleLowerCase() === microsoftEmail.toLocaleLowerCase(),
+    );
+    const folders = isSameExistingAccount
+      ? {
+          rootFolderId: previousConnection!.rootFolderId,
+          operatorFolderId: previousConnection!.operatorFolderId,
+          shareUrl: previousConnection!.organizationShareUrl,
+        }
+      : await createDefaultFolders(tokens.accessToken, user.name || microsoftUser.displayName);
     if (
       previousConnection &&
-      (
-        previousConnection.organizationId !== user.organizationId ||
-        previousConnection.microsoftEmail.toLocaleLowerCase() !== microsoftEmail.toLocaleLowerCase() ||
-        previousConnection.rootFolderId !== folders.rootFolderId
-      )
+      !isSameExistingAccount
     ) {
       await disconnectOneDriveUser(user.id, previousConnection.organizationId);
     }

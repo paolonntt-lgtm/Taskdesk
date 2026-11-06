@@ -118,7 +118,8 @@ export default function OneDriveConnectionSettings() {
 
   const startConnect = () => {
     const returnTo = `${window.location.pathname}${window.location.search}`;
-    const popup = window.open(`/api/onedrive/connect?returnTo=${encodeURIComponent(returnTo)}`, "_blank");
+    const reauthQuery = reconnectRequired ? "&forceReauth=true" : "";
+    const popup = window.open(`/api/onedrive/connect?returnTo=${encodeURIComponent(returnTo)}${reauthQuery}`, "_blank");
     if (!popup) {
       setNotice({ severity: "error", text: copy.oneDrivePopupBlocked });
       return;
