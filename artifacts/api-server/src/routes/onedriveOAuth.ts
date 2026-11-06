@@ -1,6 +1,6 @@
 import express, { Router } from "express";
 import { and, eq } from "drizzle-orm";
-import { createHash, randomBytes } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 import { db, oneDriveConnectionsTable, oneDriveClientArchiveTable, usersTable } from "@workspace/db";
 import { getSession, getSessionId } from "../lib/session";
 import { microsoftOneDriveCallbackUri } from "../lib/appUrl";
@@ -46,6 +46,7 @@ import { requireAuth } from "../middlewares/auth";
 const router = Router();
 const STATE_COOKIE = "taskdesk_onedrive_state";
 const STATE_TTL = 10 * 60_000;
+const STATE_VERSION = "v1";
 type Pending = {
   userId: number;
   sessionId: string;
@@ -54,7 +55,69 @@ type Pending = {
   returnTo: string;
   createdAt: number;
 };
-const pending = new Map<string, Pending>();
+
+function stateEncryptionKey(): Buffer {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret) throw new Error("SESSION_SECRET is required for OneDrive OAuth state.");
+  return createHash("sha256").update("taskdesk-onedrive-oauth-state-v1\0").update(secret).digest();
+}
+
+function sealState(state: Pending): string {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", stateEncryptionKey(), iv);
+  cipher.setAAD(Buffer.from(STATE_VERSION));
+  const ciphertext = Buffer.concat([
+    cipher.update(JSON.stringify(state), "utf8"),
+    cipher.final(),
+  ]);
+  return [
+    iv.toString("base64url"),
+    ciphertext.toString("base64url"),
+    cipher.getAuthTag().toString("base64url"),
+  ].join(".");
+}
+
+function openState(value: unknown): Pending | undefined {
+  if (typeof value !== "string" || value.length > 4096) return undefined;
+  const parts = value.split(".");
+  if (
+    parts.length !== 3 ||
+    parts.some((part) => !/^[A-Za-z0-9_-]+$/.test(part))
+  ) return undefined;
+
+  try {
+    const [encodedIv, encodedCiphertext, encodedTag] = parts;
+    const iv = Buffer.from(encodedIv, "base64url");
+    const ciphertext = Buffer.from(encodedCiphertext, "base64url");
+    const tag = Buffer.from(encodedTag, "base64url");
+    if (iv.length !== 12 || ciphertext.length === 0 || tag.length !== 16) return undefined;
+
+    const decipher = createDecipheriv("aes-256-gcm", stateEncryptionKey(), iv);
+    decipher.setAAD(Buffer.from(STATE_VERSION));
+    decipher.setAuthTag(tag);
+    const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString("utf8");
+    const pending = JSON.parse(plaintext) as Partial<Pending>;
+    const age = Date.now() - Number(pending.createdAt);
+    if (
+      !Number.isSafeInteger(pending.userId) ||
+      typeof pending.sessionId !== "string" ||
+      !/^[A-Za-z0-9_-]{1,128}$/.test(pending.sessionId) ||
+      typeof pending.verifier !== "string" ||
+      !/^[A-Za-z0-9_-]{43,128}$/.test(pending.verifier) ||
+      typeof pending.redirectUri !== "string" ||
+      typeof pending.returnTo !== "string" ||
+      !pending.returnTo.startsWith("/app/") ||
+      pending.returnTo.startsWith("//") ||
+      pending.returnTo.includes("\\") ||
+      !Number.isFinite(age) ||
+      age < 0 ||
+      age > STATE_TTL
+    ) return undefined;
+    return pending as Pending;
+  } catch {
+    return undefined;
+  }
+}
 
 function stateCookie(state: string): string {
   const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
@@ -103,6 +166,10 @@ router.get("/onedrive/connect", requireAuth, async (req, res): Promise<void> => 
     res.status(503).json({ error: "Microsoft OneDrive OAuth is not configured." });
     return;
   }
+  if (!process.env.SESSION_SECRET) {
+    res.status(503).json({ error: "SESSION_SECRET is required for OneDrive OAuth state." });
+    return;
+  }
   let redirectUri: string;
   try {
     redirectUri = microsoftOneDriveCallbackUri();
@@ -112,7 +179,6 @@ router.get("/onedrive/connect", requireAuth, async (req, res): Promise<void> => 
     });
     return;
   }
-  for (const [key, value] of pending) if (Date.now() - value.createdAt > STATE_TTL) pending.delete(key);
   const sessionId = getSessionId(req);
   if (!sessionId) {
     res.status(401).json({ error: "Sign in to TaskDesk before connecting OneDrive." });
@@ -127,14 +193,13 @@ router.get("/onedrive/connect", requireAuth, async (req, res): Promise<void> => 
         eq(oneDriveConnectionsTable.organizationId, user.organizationId),
       )).limit(1)
     : [];
-  const state = randomBytes(24).toString("base64url");
   const verifier = randomBytes(32).toString("base64url");
   const challenge = createHash("sha256").update(verifier).digest("base64url");
   const rawReturnTo = typeof req.query.returnTo === "string" ? req.query.returnTo : "";
   const returnTo = rawReturnTo.startsWith("/app/") && !rawReturnTo.startsWith("//") && !rawReturnTo.includes("\\")
     ? rawReturnTo
     : "/app/";
-  pending.set(state, { userId: user.id, sessionId, verifier, redirectUri, returnTo, createdAt: Date.now() });
+  const state = sealState({ userId: user.id, sessionId, verifier, redirectUri, returnTo, createdAt: Date.now() });
   const params = new URLSearchParams({
     client_id: clientId,
     response_type: "code",
@@ -156,14 +221,12 @@ router.get("/onedrive/connect", requireAuth, async (req, res): Promise<void> => 
 
 router.get("/onedrive/callback", async (req, res): Promise<void> => {
   const state = typeof req.query.state === "string" ? req.query.state : "";
-  const current = state ? pending.get(state) : undefined;
   const stateCookieValue = cookieValue(req, STATE_COOKIE);
-  if (!current || (stateCookieValue && stateCookieValue !== state) || Date.now() - current.createdAt > STATE_TTL) {
-    if (state) pending.delete(state);
-    finish(res, "invalid_state", current?.returnTo);
+  const current = state && stateCookieValue === state ? openState(state) : undefined;
+  if (!current) {
+    finish(res, "invalid_state");
     return;
   }
-  pending.delete(state);
   const sessionId = getSessionId(req);
   const session = await getSession(current.sessionId);
   if (

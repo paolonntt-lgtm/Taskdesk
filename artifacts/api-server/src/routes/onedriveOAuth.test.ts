@@ -128,6 +128,7 @@ describe("Microsoft OneDrive OAuth callback", () => {
         : undefined);
     vi.stubEnv("VITE_MICROSOFT_CLIENT_ID", "test-microsoft-client");
     vi.stubEnv("MICROSOFT_ONEDRIVE_REDIRECT_URI", CALLBACK_URI);
+    vi.stubEnv("SESSION_SECRET", "test-session-secret");
     mocks.exchangeMicrosoftCode.mockResolvedValue({
       accessToken: "access-token",
       refreshToken: "refresh-token",
@@ -231,7 +232,71 @@ describe("Microsoft OneDrive OAuth callback", () => {
     );
   });
 
-  it("completes OAuth and restores the session when the callback omits its cookies", async () => {
+  it("completes OAuth on a separate API instance using the encrypted state", async () => {
+    const connectResponse = await fetch(`${baseUrl}/api/onedrive/connect`, {
+      headers: { Cookie: "session_id=test-session" },
+    });
+    const html = await connectResponse.text();
+    const locationMatch = html.match(/location\.replace\((.*)\)<\/script>/);
+    const authorizationUrl = new URL(JSON.parse(locationMatch![1]) as string);
+    const state = authorizationUrl.searchParams.get("state")!;
+    const stateCookie = connectResponse.headers.get("set-cookie")?.match(/taskdesk_onedrive_state=([^;]+)/)?.[1];
+    expect(stateCookie).toBe(state);
+
+    vi.resetModules();
+    const { default: separateRouter } = await import("./onedriveOAuth");
+    const separateApp = express();
+    separateApp.use("/api", separateRouter);
+    const separateServer = createServer(separateApp);
+    await new Promise<void>((resolve, reject) => {
+      separateServer.once("error", reject);
+      separateServer.listen(0, "127.0.0.1", resolve);
+    });
+    const separateUrl = `http://127.0.0.1:${(separateServer.address() as AddressInfo).port}`;
+    try {
+      const callbackResponse = await fetch(
+        `${separateUrl}/api/onedrive/callback?${new URLSearchParams({ code: "authorization-code", state })}`,
+        { headers: { Cookie: `taskdesk_onedrive_state=${stateCookie}` } },
+      );
+
+      expect(callbackResponse.status).toBe(200);
+      expect(await callbackResponse.text()).toContain("onedrive=connected");
+      expect(mocks.exchangeMicrosoftCode).toHaveBeenCalledWith(
+        "authorization-code",
+        CALLBACK_URI,
+        expect.any(String),
+      );
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        separateServer.close((error) => (error ? reject(error) : resolve()));
+      });
+    }
+  });
+
+  it("rejects tampered state and state not bound to the browser cookie", async () => {
+    const connectResponse = await fetch(`${baseUrl}/api/onedrive/connect`, {
+      headers: { Cookie: "session_id=test-session" },
+    });
+    const html = await connectResponse.text();
+    const locationMatch = html.match(/location\.replace\((.*)\)<\/script>/);
+    const authorizationUrl = new URL(JSON.parse(locationMatch![1]) as string);
+    const state = authorizationUrl.searchParams.get("state")!;
+    const tamperedState = `${state.slice(0, -1)}${state.endsWith("A") ? "B" : "A"}`;
+
+    const tamperedResponse = await fetch(
+      `${baseUrl}/api/onedrive/callback?${new URLSearchParams({ code: "authorization-code", state: tamperedState })}`,
+      { headers: { Cookie: `taskdesk_onedrive_state=${tamperedState}` } },
+    );
+    expect(await tamperedResponse.text()).toContain("onedrive=invalid_state");
+
+    const unboundResponse = await fetch(
+      `${baseUrl}/api/onedrive/callback?${new URLSearchParams({ code: "authorization-code", state })}`,
+    );
+    expect(await unboundResponse.text()).toContain("onedrive=invalid_state");
+    expect(mocks.exchangeMicrosoftCode).not.toHaveBeenCalled();
+  });
+
+  it("completes OAuth and restores the session when the session cookie is omitted", async () => {
     const connectResponse = await fetch(`${baseUrl}/api/onedrive/connect`, {
       headers: { Cookie: "session_id=test-session" },
     });
@@ -242,6 +307,7 @@ describe("Microsoft OneDrive OAuth callback", () => {
 
     const callbackResponse = await fetch(
       `${baseUrl}/api/onedrive/callback?${new URLSearchParams({ code: "authorization-code", state })}`,
+      { headers: { Cookie: `taskdesk_onedrive_state=${state}` } },
     );
 
     expect(callbackResponse.status).toBe(200);
@@ -265,6 +331,7 @@ describe("Microsoft OneDrive OAuth callback", () => {
 
     const callbackResponse = await fetch(
       `${baseUrl}/api/onedrive/callback?${new URLSearchParams({ code: "authorization-code", state })}`,
+      { headers: { Cookie: `taskdesk_onedrive_state=${state}` } },
     );
     const htmlResult = await callbackResponse.text();
 
