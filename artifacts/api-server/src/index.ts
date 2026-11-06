@@ -10,6 +10,7 @@ import { startTicketDueNotifier } from "./lib/ticketDueNotifier";
 import { startAppointmentReminderJob } from "./lib/appointmentReminderJob";
 import { startTicketRecurrenceJob } from "./lib/ticketRecurrenceJob";
 import { startTrialReminderJob } from "./lib/trialReminderJob";
+import { startSubscriptionExpiryReminderJob } from "./lib/subscriptionExpiryReminderJob";
 import { startTicketTrashCleanupJob } from "./lib/ticketTrash";
 import { startReferralAttributionRetryJob } from "./lib/referralAttributionRetryJob";
 import { startOneDriveClientArchiveBackfillJob } from "./lib/oneDriveClientArchiveBackfill";
@@ -67,6 +68,7 @@ runAppMigrations()
   .then(() => startAppointmentReminderJob())
   .then(() => startTicketRecurrenceJob())
   .then(() => startTrialReminderJob())
+  .then(() => startSubscriptionExpiryReminderJob())
   .then(() => startTicketTrashCleanupJob())
   .then(() => startReferralAttributionRetryJob())
   .then(() => startOneDriveClientArchiveBackfillJob())

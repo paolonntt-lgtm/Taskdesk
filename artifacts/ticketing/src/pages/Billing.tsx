@@ -85,7 +85,7 @@ function isStripeUnavailableResponse(value: unknown): boolean {
 }
 
 export default function Billing() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const b = t.billing;
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -501,10 +501,17 @@ export default function Billing() {
                   )}
                 </>
               )}
-              {subscription?.current_period_end && (
+              {(subscription?.cancel_at || subscription?.current_period_end) && (
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
-                  {b.renewsOn}: <strong>{new Date(subscription.current_period_end * 1000).toLocaleDateString('it-IT')}</strong>
+                  {subscription.cancel_at || subscription.cancel_at_period_end
+                    ? b.subscriptionEndsOn
+                    : b.renewsOn}: <strong>{new Date((subscription.cancel_at || subscription.current_period_end) * 1000).toLocaleDateString(lang === 'it' ? 'it-IT' : 'en-GB')}</strong>
                 </Typography>
+              )}
+              {(subscription?.cancel_at || subscription?.cancel_at_period_end) && (
+                <Alert severity="warning" sx={{ mt: 2, borderRadius: '10px' }}>
+                  {b.subscriptionEndingNotice(new Date((subscription.cancel_at || subscription.current_period_end) * 1000).toLocaleDateString(lang === 'it' ? 'it-IT' : 'en-GB'))}
+                </Alert>
               )}
             </Box>
           )}

@@ -70,7 +70,9 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     if (trialStatus?.isExpired && !billingPath) {
       res.status(402).json({
         error: "TRIAL_EXPIRED",
-        message: "Il periodo di prova dell'organizzazione è scaduto. Contatta l'amministratore per attivare un abbonamento.",
+        message: trialStatus.expirationType === "subscription"
+          ? "L'abbonamento dell'organizzazione è terminato. Contatta l'amministratore per riattivare il servizio."
+          : "Il periodo di prova dell'organizzazione è scaduto. Contatta l'amministratore per attivare un abbonamento.",
       });
       return;
     }

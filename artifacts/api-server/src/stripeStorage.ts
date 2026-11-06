@@ -63,6 +63,25 @@ export class StripeStorage {
     return result.rows[0] || null;
   }
 
+  async getSubscriptions(subscriptionIds: string[]): Promise<Array<{
+    id: string;
+    status: string;
+    cancel_at: number | string | null;
+    current_period_end: number | string | null;
+  }>> {
+    if (subscriptionIds.length === 0) return [];
+    const ids = sql.join(subscriptionIds.map((id) => sql`${id}`), sql`, `);
+    const result = await db.execute(
+      sql`SELECT id, status, cancel_at, current_period_end FROM stripe.subscriptions WHERE id IN (${ids})`
+    );
+    return result.rows as Array<{
+      id: string;
+      status: string;
+      cancel_at: number | string | null;
+      current_period_end: number | string | null;
+    }>;
+  }
+
   async getUser(id: number) {
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id));
     return user;

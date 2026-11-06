@@ -2,6 +2,7 @@ export interface TrialStatus {
   isInTrial: boolean;
   isExpired: boolean;
   daysLeft: number;
+  expirationType?: "trial" | "subscription";
 }
 
 export const FREE_TRIAL_DURATION_MS = 7 * 24 * 60 * 60 * 1000;

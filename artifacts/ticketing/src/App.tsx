@@ -106,6 +106,7 @@ function AuthenticatedApp({ user, onTourDone }: { user: User; onTourDone: () => 
   const [, setLocation] = useLocation();
   const isSuperAdmin = !!(user as any).isSuperAdmin;
   const isTrialExpired = !isSuperAdmin && (user as any).trialStatus?.isExpired === true;
+  const expiryType = (user as any).trialStatus?.expirationType;
 
   const showTour = !!(user as any).registeredViaInvite && !(user as any).tourDone;
 
@@ -119,7 +120,7 @@ function AuthenticatedApp({ user, onTourDone }: { user: User; onTourDone: () => 
       </Layout>
     );
   }
-  if (isTrialExpired) return <TrialExpiredNotice />;
+  if (isTrialExpired) return <TrialExpiredNotice subscriptionExpired={expiryType === 'subscription'} />;
 
   return (
     <>

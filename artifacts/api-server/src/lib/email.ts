@@ -681,6 +681,43 @@ export function buildTrialReminderEmail(args: {
   return { subject, html, text };
 }
 
+export function buildSubscriptionEndingReminderEmail(args: {
+  adminName: string;
+  orgName: string;
+  endsAt: Date;
+  billingUrl: string;
+  language?: string | null;
+}): { subject: string; html: string; text: string } {
+  const isEnglish = args.language?.toLowerCase().startsWith("en") ?? false;
+  const dateLabel = args.endsAt.toLocaleDateString(isEnglish ? "en-GB" : "it-IT", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "Europe/Rome",
+  });
+  const subject = isEnglish
+    ? `TaskDesk — your subscription ends on ${dateLabel}`
+    : `TaskDesk — il tuo abbonamento termina il ${dateLabel}`;
+  const body = isEnglish
+    ? `The subscription for <strong>${escapeHtml(args.orgName)}</strong> is scheduled to end on <strong>${escapeHtml(dateLabel)}</strong>. Access remains available until then. Reactivate it from Billing to keep using TaskDesk without interruption.`
+    : `L’abbonamento di <strong>${escapeHtml(args.orgName)}</strong> terminerà il <strong>${escapeHtml(dateLabel)}</strong>. L’accesso resterà disponibile fino a quella data. Riattivalo dalla sezione Fatturazione per continuare a usare TaskDesk senza interruzioni.`;
+  const text = isEnglish
+    ? `Hi ${args.adminName},\n\nThe subscription for "${args.orgName}" is scheduled to end on ${dateLabel}. Access remains available until then. Reactivate it from Billing to keep using TaskDesk without interruption.\n\nManage subscription: ${args.billingUrl}\n\n— The TaskDesk team`
+    : `Ciao ${args.adminName},\n\nL’abbonamento di "${args.orgName}" terminerà il ${dateLabel}. L’accesso resterà disponibile fino a quella data. Riattivalo dalla sezione Fatturazione per continuare a usare TaskDesk senza interruzioni.\n\nGestisci abbonamento: ${args.billingUrl}\n\n— Il team di TaskDesk`;
+  const html = `
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#111827">
+      <div style="margin-bottom:24px"><img src="https://www.taskdesk.it/taskdesk-logo.png" alt="TaskDesk" width="130" style="display:block;height:auto" /></div>
+      <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:20px 24px;margin-bottom:24px">
+        <p style="margin:0;font-size:22px;font-weight:700;color:#92400e">${isEnglish ? "Subscription ending soon" : "Abbonamento in scadenza"}</p>
+      </div>
+      <p style="font-size:15px;line-height:1.6;color:#374151">${isEnglish ? "Hi" : "Ciao"} <strong>${escapeHtml(args.adminName)}</strong>,</p>
+      <p style="font-size:15px;line-height:1.6;color:#374151">${body}</p>
+      <a href="${escapeHtml(args.billingUrl)}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:12px 24px;border-radius:10px;font-weight:600;font-size:14px">${isEnglish ? "Manage subscription" : "Gestisci abbonamento"} →</a>
+    </div>
+  `;
+  return { subject, html, text };
+}
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")

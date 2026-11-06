@@ -1020,6 +1020,8 @@ const it = {
     noSubscriptionNote: 'Stai usando la prova gratuita. Sottoscrivi un piano per continuare.',
     activeUsers: 'Utenti attivi',
     renewsOn: 'Rinnovo il',
+    subscriptionEndsOn: 'Abbonamento valido fino al',
+    subscriptionEndingNotice: (date: string) => `La disdetta è programmata: l’accesso all’organizzazione terminerà il ${date}. Puoi riattivare l’abbonamento dal portale di fatturazione.`,
     billingInfo: 'Informazioni fatturazione',
     billingNote: '',
     manageSubscription: 'Gestisci abbonamento',
@@ -1093,6 +1095,8 @@ const it = {
   trialExpiredAccess: {
     title: 'La prova gratuita è scaduta',
     message: 'L’accesso a TaskDesk è sospeso per tutta l’organizzazione. Chiedi all’amministratore di attivare un abbonamento per riprendere il lavoro.',
+    subscriptionTitle: 'L’abbonamento è terminato',
+    subscriptionMessage: 'L’accesso a TaskDesk è sospeso per tutta l’organizzazione. Un amministratore può riattivare un piano dalla sezione Fatturazione.',
   },
   availability: {
     available: 'Disponibile',
@@ -3274,6 +3278,8 @@ const en: typeof it = {
     noSubscriptionNote: 'You are on the free trial. Subscribe to a plan to continue.',
     activeUsers: 'Active users',
     renewsOn: 'Renews on',
+    subscriptionEndsOn: 'Subscription active until',
+    subscriptionEndingNotice: (date: string) => `Cancellation is scheduled. Organization access will end on ${date}. You can reactivate the subscription from billing.`,
     billingInfo: 'Billing information',
     billingNote: '',
     manageSubscription: 'Manage subscription',
@@ -3347,6 +3353,8 @@ const en: typeof it = {
   trialExpiredAccess: {
     title: 'The free trial has expired',
     message: 'TaskDesk access is paused for the entire organization. Ask your administrator to activate a subscription to resume work.',
+    subscriptionTitle: 'The subscription has ended',
+    subscriptionMessage: 'TaskDesk access is paused for the entire organization. An administrator can reactivate a plan from Billing.',
   },
   availability: {
     available: 'Available',

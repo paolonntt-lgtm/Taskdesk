@@ -411,6 +411,8 @@ export async function runAppMigrations(): Promise<void> {
     await client.query(`
       ALTER TABLE organizations ADD COLUMN IF NOT EXISTS trial_reminder_sent_at TIMESTAMPTZ;
       ALTER TABLE organizations ADD COLUMN IF NOT EXISTS trial_expired_reminder_sent_at TIMESTAMPTZ;
+      ALTER TABLE organizations ADD COLUMN IF NOT EXISTS subscription_expiry_reminder_key TEXT;
+      ALTER TABLE organizations ADD COLUMN IF NOT EXISTS subscription_expiry_reminder_sent_at TIMESTAMPTZ;
     `);
 
     // Backfill: orgs whose trial is already expired (and no subscription) should have
