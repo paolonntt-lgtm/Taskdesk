@@ -1,8 +1,11 @@
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
+  esbuild: {
+    jsx: "automatic",
+  },
   test: {
     environment: "node",
-    include: ["src/**/*.test.ts", "server.test.mjs"],
+    include: ["src/**/*.test.ts", "src/**/*.test.tsx", "server.test.mjs"],
   },
 });
