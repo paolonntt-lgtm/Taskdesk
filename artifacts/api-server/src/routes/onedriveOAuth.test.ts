@@ -408,7 +408,7 @@ describe("Microsoft OneDrive OAuth callback", () => {
     });
   });
 
-  it("reauthorizes the same Microsoft account without replacing its TaskDesk folders", async () => {
+  it("reauthorizes the same Microsoft account and restores a usable saved connection", async () => {
     mocks.previousConnection = {
       id: 31,
       userId: 7,
@@ -419,6 +419,17 @@ describe("Microsoft OneDrive OAuth callback", () => {
       operatorFolderId: "existing-operator-folder",
       organizationShareUrl: "https://onedrive.example.test/existing-folder",
     };
+    mocks.refreshConnection.mockRejectedValueOnce(
+      new OneDriveBrowseError("Reconnect your OneDrive account to continue.", 401),
+    );
+
+    const reconnectRequiredResponse = await fetch(`${baseUrl}/api/onedrive/connection`);
+    expect(reconnectRequiredResponse.status).toBe(200);
+    expect(await reconnectRequiredResponse.json()).toMatchObject({
+      connected: true,
+      microsoftEmail: "person@example.test",
+      reconnectRequired: true,
+    });
 
     const connectResponse = await fetch(`${baseUrl}/api/onedrive/connect?forceReauth=true`, {
       headers: { Cookie: "session_id=test-session" },
@@ -442,10 +453,21 @@ describe("Microsoft OneDrive OAuth callback", () => {
     expect(mocks.insertedValues).toMatchObject({
       userId: 7,
       organizationId: 11,
+      microsoftEmail: "person@example.test",
       rootFolderId: "existing-root",
       operatorFolderId: "existing-operator-folder",
       organizationShareUrl: "https://onedrive.example.test/existing-folder",
     });
+
+    const usableConnectionResponse = await fetch(`${baseUrl}/api/onedrive/connection`);
+    expect(usableConnectionResponse.status).toBe(200);
+    expect(await usableConnectionResponse.json()).toEqual({
+      connected: true,
+      microsoftEmail: "person@example.test",
+      organizationShareUrl: "https://onedrive.example.test/existing-folder",
+      reconnectRequired: false,
+    });
+    expect(mocks.refreshConnection).toHaveBeenLastCalledWith(mocks.previousConnection);
   });
 
   it("returns reconnect guidance instead of a server error for expired organization-share grants", async () => {
