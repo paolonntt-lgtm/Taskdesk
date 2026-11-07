@@ -279,7 +279,11 @@ router.get("/onedrive/callback", async (req, res): Promise<void> => {
       previousConnection &&
       !isSameExistingAccount
     ) {
-      await disconnectOneDriveUser(user.id, previousConnection.organizationId);
+      // Keep the saved record until the replacement upsert succeeds. A later
+      // save failure must leave the old account usable with its latest token.
+      await disconnectOneDriveUser(user.id, previousConnection.organizationId, {
+        keepConnectionRecord: true,
+      });
     }
     const shareUrl = folders.shareUrl;
     await db.insert(oneDriveConnectionsTable).values({

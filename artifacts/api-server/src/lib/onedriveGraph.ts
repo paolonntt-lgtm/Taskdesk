@@ -1064,7 +1064,11 @@ export class OneDriveAccessRevocationError extends Error {
  * is disconnected or deactivated. Keep the connection row if any Microsoft
  * permission could not be removed so the operation can be retried safely.
  */
-export async function disconnectOneDriveUser(userId: number, organizationId: number): Promise<void> {
+export async function disconnectOneDriveUser(
+  userId: number,
+  organizationId: number,
+  options: { keepConnectionRecord?: boolean } = {},
+): Promise<void> {
   const [target] = await db.select().from(oneDriveConnectionsTable).where(and(
     eq(oneDriveConnectionsTable.userId, userId),
     eq(oneDriveConnectionsTable.organizationId, organizationId),
@@ -1146,6 +1150,7 @@ export async function disconnectOneDriveUser(userId: number, organizationId: num
   }
 
   if (failed) throw new OneDriveAccessRevocationError(requiresReconnect);
+  if (options.keepConnectionRecord) return;
   await db.delete(oneDriveConnectionsTable).where(eq(oneDriveConnectionsTable.id, target.id));
   invalidateOneDriveAccessToken(target.id);
 }

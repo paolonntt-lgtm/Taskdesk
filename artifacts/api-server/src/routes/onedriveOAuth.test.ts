@@ -24,12 +24,15 @@ const mocks = vi.hoisted(() => {
     refreshConnection: vi.fn(),
     getMicrosoftUser: vi.fn(),
     createDefaultFolders: vi.fn(),
+    listSharedOneDriveFolderItems: vi.fn(),
     listOneDriveItemsSharedWithMe: vi.fn(),
     revokeOrganizationRootInvitations: vi.fn(),
     syncPendingOneDriveAttachments: vi.fn(),
     shareOneDriveClientFoldersWithUser: vi.fn(),
     disconnectOneDriveUser: vi.fn(),
     getSession: vi.fn(),
+    failReplacementInsert: false,
+    connectionInsertValues: [] as Record<string, unknown>[],
   };
 });
 
@@ -67,10 +70,10 @@ vi.mock("../lib/onedriveGraph", () => ({
   exchangeMicrosoftCode: mocks.exchangeMicrosoftCode,
   refreshConnection: mocks.refreshConnection,
   getMicrosoftUser: mocks.getMicrosoftUser,
+  listSharedOneDriveFolderItems: mocks.listSharedOneDriveFolderItems,
   listOneDriveItemsSharedWithMe: mocks.listOneDriveItemsSharedWithMe,
   revokeOrganizationRootInvitations: mocks.revokeOrganizationRootInvitations,
   invalidateOneDriveAccessToken: vi.fn(),
-  listSharedOneDriveFolderItems: vi.fn(),
   OneDriveBrowseError: class extends Error {
     constructor(message: string, readonly statusCode: number) {
       super(message);
@@ -122,6 +125,8 @@ describe("Microsoft OneDrive OAuth callback", () => {
     vi.clearAllMocks();
     mocks.previousConnection = null;
     mocks.insertedValues = null;
+    mocks.failReplacementInsert = false;
+    mocks.connectionInsertValues = [];
     mocks.getSession.mockImplementation(async (sessionId: string) =>
       sessionId === "test-session"
         ? { userId: 7, expiresAt: new Date(Date.now() + 60_000) }
@@ -146,6 +151,7 @@ describe("Microsoft OneDrive OAuth callback", () => {
       operatorFolderId: "operator-folder",
       shareUrl: "https://onedrive.example.test/folder",
     });
+    mocks.listSharedOneDriveFolderItems.mockResolvedValue({ folderName: "Test folder", items: [] });
     mocks.listOneDriveItemsSharedWithMe.mockResolvedValue([]);
     mocks.revokeOrganizationRootInvitations.mockResolvedValue(undefined);
     mocks.syncPendingOneDriveAttachments.mockResolvedValue(undefined);
@@ -179,9 +185,17 @@ describe("Microsoft OneDrive OAuth callback", () => {
       const query: Record<string, ReturnType<typeof vi.fn>> = {};
       query.values = vi.fn((values: Record<string, unknown>) => {
         mocks.insertedValues = values;
+        mocks.connectionInsertValues.push(values);
+        query.onConflictDoUpdate = vi.fn(async () => {
+          if (mocks.failReplacementInsert && values.microsoftEmail === "new@example.test") {
+            throw new Error("Could not save the replacement OneDrive connection.");
+          }
+          if (values.microsoftEmail === "old@example.test") {
+            mocks.previousConnection = values;
+          }
+        });
         return query;
       });
-      query.onConflictDoUpdate = vi.fn(async () => undefined);
       return query;
     });
   });
@@ -281,7 +295,7 @@ describe("Microsoft OneDrive OAuth callback", () => {
     const locationMatch = html.match(/location\.replace\((.*)\)<\/script>/);
     const authorizationUrl = new URL(JSON.parse(locationMatch![1]) as string);
     const state = authorizationUrl.searchParams.get("state")!;
-    const tamperedState = `${state.slice(0, -1)}${state.endsWith("A") ? "B" : "A"}`;
+    const tamperedState = `${state.startsWith("A") ? "B" : "A"}${state.slice(1)}`;
 
     const tamperedResponse = await fetch(
       `${baseUrl}/api/onedrive/callback?${new URLSearchParams({ code: "authorization-code", state: tamperedState })}`,
@@ -587,7 +601,71 @@ describe("Microsoft OneDrive OAuth callback", () => {
 
     const callbackHtml = await callbackResponse.text();
     expect(callbackHtml).toContain("onedrive=revocation_failed");
-    expect(mocks.disconnectOneDriveUser).toHaveBeenCalledWith(7, 11);
+    expect(mocks.disconnectOneDriveUser).toHaveBeenCalledWith(7, 11, { keepConnectionRecord: true });
     expect(mocks.db.insert).not.toHaveBeenCalled();
+  });
+
+  it("keeps the previous connection and folder access when saving a replacement fails", async () => {
+    mocks.previousConnection = {
+      id: 31,
+      userId: 7,
+      organizationId: 11,
+      tenantId: "tenant-1",
+      microsoftEmail: "old@example.test",
+      encryptedRefreshToken: "old-encrypted-refresh-token",
+      rootFolderId: "old-root",
+      operatorFolderId: "old-operator",
+      organizationShareUrl: "https://onedrive.example.test/old-folder",
+      updatedAt: new Date("2025-01-01T00:00:00.000Z"),
+    };
+    mocks.getMicrosoftUser.mockResolvedValue({
+      displayName: "New Person",
+      mail: "new@example.test",
+      userPrincipalName: "new@example.test",
+    });
+    mocks.createDefaultFolders.mockResolvedValue({
+      rootFolderId: "new-root",
+      operatorFolderId: "new-operator",
+      shareUrl: "https://onedrive.example.test/new-folder",
+    });
+    mocks.disconnectOneDriveUser.mockResolvedValue(undefined);
+    mocks.failReplacementInsert = true;
+
+    const connectResponse = await fetch(`${baseUrl}/api/onedrive/connect`, {
+      headers: { Cookie: "session_id=test-session" },
+    });
+    const html = await connectResponse.text();
+    const locationMatch = html.match(/location\.replace\((.*)\)<\/script>/);
+    const authorizationUrl = new URL(JSON.parse(locationMatch![1]) as string);
+    const state = authorizationUrl.searchParams.get("state")!;
+    const callbackResponse = await fetch(
+      `${baseUrl}/api/onedrive/callback?${new URLSearchParams({ code: "authorization-code", state })}`,
+      { headers: { Cookie: `session_id=test-session; taskdesk_onedrive_state=${state}` } },
+    );
+
+    expect(callbackResponse.status).toBe(200);
+    expect(await callbackResponse.text()).toContain("onedrive=connect_error");
+    expect(mocks.disconnectOneDriveUser).toHaveBeenCalledWith(7, 11, { keepConnectionRecord: true });
+    expect(mocks.connectionInsertValues).toHaveLength(1);
+    expect(mocks.connectionInsertValues[0]).toMatchObject({ microsoftEmail: "new@example.test" });
+    expect(mocks.previousConnection).toMatchObject({
+      microsoftEmail: "old@example.test",
+      rootFolderId: "old-root",
+      operatorFolderId: "old-operator",
+      organizationShareUrl: "https://onedrive.example.test/old-folder",
+    });
+
+    const connectionResponse = await fetch(`${baseUrl}/api/onedrive/connection`);
+    expect(await connectionResponse.json()).toEqual({
+      connected: true,
+      microsoftEmail: "old@example.test",
+      organizationShareUrl: "https://onedrive.example.test/old-folder",
+      reconnectRequired: false,
+    });
+
+    const foldersResponse = await fetch(`${baseUrl}/api/onedrive/folders/7/items`);
+    expect(foldersResponse.status).toBe(200);
+    expect(await foldersResponse.json()).toEqual({ folderName: "Test folder", items: [] });
+    expect(mocks.listSharedOneDriveFolderItems).toHaveBeenCalledWith(7, 11, 7, undefined);
   });
 });

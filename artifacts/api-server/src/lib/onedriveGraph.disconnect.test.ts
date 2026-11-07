@@ -144,6 +144,19 @@ describe("OneDrive disconnection after Microsoft revocation", () => {
     expect(mocks.removeWhere).toHaveBeenCalled();
   });
 
+  it("keeps the local connection when revoking access for an account replacement", async () => {
+    globalThis.fetch = vi.fn(async (input: string | URL) => {
+      if (String(input).includes("/oauth2/v2.0/token")) {
+        return new Response(JSON.stringify({ access_token: "access-token" }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ value: [] }), { status: 200 });
+    }) as typeof fetch;
+
+    await expect(disconnectOneDriveUser(7, 11, { keepConnectionRecord: true })).resolves.toBeUndefined();
+
+    expect(mocks.remove).not.toHaveBeenCalled();
+  });
+
   it("revokes only the disconnected collaborator's folders in their organization", async () => {
     Object.assign(mocks.targetConnection, {
       id: 31,
