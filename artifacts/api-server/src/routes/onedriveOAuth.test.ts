@@ -484,6 +484,59 @@ describe("Microsoft OneDrive OAuth callback", () => {
     expect(mocks.refreshConnection).toHaveBeenLastCalledWith(mocks.previousConnection);
   });
 
+  it("keeps reconnect required when Microsoft rejects the reauthorization code", async () => {
+    const savedConnection = {
+      id: 31,
+      userId: 7,
+      organizationId: 11,
+      tenantId: "tenant-1",
+      microsoftEmail: "person@example.test",
+      rootFolderId: "existing-root",
+      operatorFolderId: "existing-operator-folder",
+      organizationShareUrl: "https://onedrive.example.test/existing-folder",
+      encryptedRefreshToken: "encrypted-token",
+    };
+    mocks.previousConnection = savedConnection;
+    mocks.refreshConnection.mockRejectedValue(
+      new OneDriveBrowseError("Reconnect your OneDrive account to continue.", 401),
+    );
+    mocks.exchangeMicrosoftCode.mockRejectedValue(new Error("Microsoft rejected the authorization code."));
+
+    const connectResponse = await fetch(`${baseUrl}/api/onedrive/connect?forceReauth=true`, {
+      headers: { Cookie: "session_id=test-session" },
+    });
+    const html = await connectResponse.text();
+    const locationMatch = html.match(/location\.replace\((.*)\)<\/script>/);
+    const authorizationUrl = new URL(JSON.parse(locationMatch![1]) as string);
+    const state = authorizationUrl.searchParams.get("state")!;
+
+    const callbackResponse = await fetch(
+      `${baseUrl}/api/onedrive/callback?${new URLSearchParams({ code: "rejected-code", state })}`,
+      { headers: { Cookie: `session_id=test-session; taskdesk_onedrive_state=${state}` } },
+    );
+
+    expect(callbackResponse.status).toBe(200);
+    expect(await callbackResponse.text()).toContain("onedrive=connect_error");
+    expect(mocks.exchangeMicrosoftCode).toHaveBeenCalledWith(
+      "rejected-code",
+      CALLBACK_URI,
+      expect.any(String),
+    );
+    expect(mocks.db.insert).not.toHaveBeenCalled();
+    expect(mocks.previousConnection).toBe(savedConnection);
+
+    const statusResponse = await fetch(`${baseUrl}/api/onedrive/connection`);
+
+    expect(statusResponse.status).toBe(200);
+    expect(await statusResponse.json()).toEqual({
+      connected: true,
+      microsoftEmail: "person@example.test",
+      organizationShareUrl: "https://onedrive.example.test/existing-folder",
+      reconnectRequired: true,
+    });
+    expect(mocks.refreshConnection).toHaveBeenCalledWith(savedConnection);
+  });
+
   it("returns reconnect guidance instead of a server error for expired organization-share grants", async () => {
     mocks.previousConnection = {
       id: 31,
