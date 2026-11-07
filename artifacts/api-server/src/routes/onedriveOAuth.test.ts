@@ -537,6 +537,65 @@ describe("Microsoft OneDrive OAuth callback", () => {
     expect(mocks.refreshConnection).toHaveBeenCalledWith(savedConnection);
   });
 
+  it("keeps the saved connection and reconnect guidance when Microsoft consent is cancelled", async () => {
+    const savedConnection = {
+      id: 31,
+      userId: 7,
+      organizationId: 11,
+      tenantId: "tenant-1",
+      microsoftEmail: "person@example.test",
+      rootFolderId: "existing-root",
+      operatorFolderId: "existing-operator-folder",
+      organizationShareUrl: "https://onedrive.example.test/existing-folder",
+      encryptedRefreshToken: "encrypted-token",
+    };
+    mocks.previousConnection = savedConnection;
+    mocks.refreshConnection.mockRejectedValue(
+      new OneDriveBrowseError("Reconnect your OneDrive account to continue.", 401),
+    );
+
+    const initialStatusResponse = await fetch(`${baseUrl}/api/onedrive/connection`);
+    expect(initialStatusResponse.status).toBe(200);
+    expect(await initialStatusResponse.json()).toEqual({
+      connected: true,
+      microsoftEmail: "person@example.test",
+      organizationShareUrl: "https://onedrive.example.test/existing-folder",
+      reconnectRequired: true,
+    });
+
+    const connectResponse = await fetch(`${baseUrl}/api/onedrive/connect?forceReauth=true`, {
+      headers: { Cookie: "session_id=test-session" },
+    });
+    const html = await connectResponse.text();
+    const locationMatch = html.match(/location\.replace\((.*)\)<\/script>/);
+    const authorizationUrl = new URL(JSON.parse(locationMatch![1]) as string);
+    expect(authorizationUrl.searchParams.get("prompt")).toBe("consent");
+    expect(authorizationUrl.searchParams.get("login_hint")).toBe("person@example.test");
+    const state = authorizationUrl.searchParams.get("state")!;
+
+    const callbackResponse = await fetch(
+      `${baseUrl}/api/onedrive/callback?${new URLSearchParams({ error: "access_denied", state })}`,
+      { headers: { Cookie: `session_id=test-session; taskdesk_onedrive_state=${state}` } },
+    );
+
+    expect(callbackResponse.status).toBe(200);
+    expect(await callbackResponse.text()).toContain("onedrive=cancelled");
+    expect(mocks.exchangeMicrosoftCode).not.toHaveBeenCalled();
+    expect(mocks.db.insert).not.toHaveBeenCalled();
+    expect(mocks.disconnectOneDriveUser).not.toHaveBeenCalled();
+    expect(mocks.previousConnection).toBe(savedConnection);
+
+    const statusResponse = await fetch(`${baseUrl}/api/onedrive/connection`);
+    expect(statusResponse.status).toBe(200);
+    expect(await statusResponse.json()).toEqual({
+      connected: true,
+      microsoftEmail: "person@example.test",
+      organizationShareUrl: "https://onedrive.example.test/existing-folder",
+      reconnectRequired: true,
+    });
+    expect(mocks.refreshConnection).toHaveBeenCalledWith(savedConnection);
+  });
+
   it("keeps the saved connection and reconnect requirement when Microsoft profile verification fails", async () => {
     const savedConnection = {
       id: 31,
