@@ -23,6 +23,15 @@ const CreateBody = z.object({
   occurredAt: z.string().datetime({ offset: true }).optional(),
 });
 
+const EventParams = z.object({
+  id: z.coerce.number().int().positive(),
+});
+
+const UpdateBody = z.object({
+  clientId: z.number().int().positive(),
+  occurredAt: z.string().datetime({ offset: true }),
+});
+
 async function isGymOrganization(organizationId: number): Promise<boolean> {
   const [organization] = await db.select({ profession: organizationsTable.profession })
     .from(organizationsTable)
@@ -126,6 +135,94 @@ router.post("/gym-access", requireAuth, requireAdmin, async (req, res): Promise<
     createdAt: gymAccessEventsTable.createdAt,
   });
   res.status(201).json(event);
+});
+
+router.patch("/gym-access/:id", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const organizationId = currentUser.organizationId;
+  if (organizationId == null) {
+    res.status(403).json({ error: "Account has no organization" });
+    return;
+  }
+  if (!await isGymOrganization(organizationId)) {
+    res.status(403).json({ error: "Gym access records are only available to gym organizations" });
+    return;
+  }
+
+  const parsedParams = EventParams.safeParse(req.params);
+  if (!parsedParams.success) {
+    res.status(400).json({ error: "Invalid event ID", message: parsedParams.error.message });
+    return;
+  }
+  const parsedBody = UpdateBody.safeParse(req.body);
+  if (!parsedBody.success) {
+    res.status(400).json({ error: "Invalid request", message: parsedBody.error.message });
+    return;
+  }
+
+  const [client] = await db.select({ name: clientsTable.name })
+    .from(clientsTable)
+    .where(and(
+      eq(clientsTable.id, parsedBody.data.clientId),
+      eq(clientsTable.organizationId, organizationId),
+    ))
+    .limit(1);
+  if (!client) {
+    res.status(404).json({ error: "Client not found" });
+    return;
+  }
+
+  const [event] = await db.update(gymAccessEventsTable)
+    .set({
+      personName: client.name,
+      occurredAt: new Date(parsedBody.data.occurredAt),
+    })
+    .where(and(
+      eq(gymAccessEventsTable.id, parsedParams.data.id),
+      eq(gymAccessEventsTable.organizationId, organizationId),
+    ))
+    .returning({
+      id: gymAccessEventsTable.id,
+      personName: gymAccessEventsTable.personName,
+      occurredAt: gymAccessEventsTable.occurredAt,
+      createdAt: gymAccessEventsTable.createdAt,
+    });
+  if (!event) {
+    res.status(404).json({ error: "Gym access event not found" });
+    return;
+  }
+  res.json(event);
+});
+
+router.delete("/gym-access/:id", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const organizationId = currentUser.organizationId;
+  if (organizationId == null) {
+    res.status(403).json({ error: "Account has no organization" });
+    return;
+  }
+  if (!await isGymOrganization(organizationId)) {
+    res.status(403).json({ error: "Gym access records are only available to gym organizations" });
+    return;
+  }
+
+  const parsedParams = EventParams.safeParse(req.params);
+  if (!parsedParams.success) {
+    res.status(400).json({ error: "Invalid event ID", message: parsedParams.error.message });
+    return;
+  }
+
+  const [event] = await db.delete(gymAccessEventsTable)
+    .where(and(
+      eq(gymAccessEventsTable.id, parsedParams.data.id),
+      eq(gymAccessEventsTable.organizationId, organizationId),
+    ))
+    .returning({ id: gymAccessEventsTable.id });
+  if (!event) {
+    res.status(404).json({ error: "Gym access event not found" });
+    return;
+  }
+  res.sendStatus(204);
 });
 
 export default router;

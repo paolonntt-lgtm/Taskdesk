@@ -8,13 +8,22 @@ import {
   CardContent,
   Chip,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   MenuItem,
   Paper,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
-import { Add as AddIcon, FitnessCenter as FitnessCenterIcon } from "@mui/icons-material";
+import {
+  Add as AddIcon,
+  DeleteOutline as DeleteOutlineIcon,
+  EditOutlined as EditOutlinedIcon,
+  FitnessCenter as FitnessCenterIcon,
+} from "@mui/icons-material";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "../contexts/LanguageContext";
 import { getGymAccessPeriodRange, type GymAccessPeriod } from "../lib/gymAccessPeriods";
@@ -49,6 +58,11 @@ export default function GymAccessPage() {
   const [clientSearch, setClientSearch] = useState("");
   const [occurredAt, setOccurredAt] = useState(() => localDateTimeValue(new Date()));
   const [formError, setFormError] = useState("");
+  const [editingEvent, setEditingEvent] = useState<GymAccessEvent | null>(null);
+  const [editClient, setEditClient] = useState<GymAccessClient | null>(null);
+  const [editClientSearch, setEditClientSearch] = useState("");
+  const [editOccurredAt, setEditOccurredAt] = useState("");
+  const [deletingEventId, setDeletingEventId] = useState<number | null>(null);
   const queryClient = useQueryClient();
   const range = useMemo(() => getGymAccessPeriodRange(period), [period]);
   const query = useQuery<GymAccessEvent[]>({
@@ -72,6 +86,17 @@ export default function GymAccessPage() {
       return response.json();
     },
     enabled: clientSearch.trim().length >= 2,
+    retry: false,
+  });
+  const editClientSearchQuery = useQuery<GymAccessClient[]>({
+    queryKey: ["gym-access-edit-client-search", editClientSearch],
+    queryFn: async () => {
+      const params = new URLSearchParams({ search: editClientSearch.trim(), limit: "20" });
+      const response = await fetch(`/api/clients?${params}`, { credentials: "include" });
+      if (!response.ok) throw new Error(labels.clientLookupError);
+      return response.json();
+    },
+    enabled: editClientSearch.trim().length >= 2,
     retry: false,
   });
   const createEvent = useMutation({
@@ -101,6 +126,46 @@ export default function GymAccessPage() {
     },
     onError: (error: Error) => setFormError(error.message),
   });
+  const updateEvent = useMutation({
+    mutationFn: async (input: { id: number; clientId: number; occurredAt: string }) => {
+      const response = await fetch(`/api/gym-access/${input.id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientId: input.clientId,
+          occurredAt: new Date(input.occurredAt).toISOString(),
+        }),
+      });
+      if (!response.ok) {
+        const details = await response.json().catch(() => null);
+        throw new Error(details?.message ?? labels.updateError);
+      }
+      return response.json() as Promise<GymAccessEvent>;
+    },
+    onSuccess: () => {
+      setEditingEvent(null);
+      setEditClient(null);
+      setEditClientSearch("");
+      void queryClient.invalidateQueries({ queryKey: ["gym-access"] });
+    },
+  });
+  const deleteEvent = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await fetch(`/api/gym-access/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!response.ok) {
+        const details = await response.json().catch(() => null);
+        throw new Error(details?.message ?? labels.deleteError);
+      }
+    },
+    onSuccess: () => {
+      setDeletingEventId(null);
+      void queryClient.invalidateQueries({ queryKey: ["gym-access"] });
+    },
+  });
 
   const events = query.data ?? [];
   const distinctPeople = countDistinctPeople(events);
@@ -113,6 +178,11 @@ export default function GymAccessPage() {
     minute: "2-digit",
   });
   const canSave = selectedClient !== null && Number.isFinite(new Date(occurredAt).getTime());
+  const canSaveEdit = Boolean(
+    editingEvent
+    && editClient
+    && Number.isFinite(new Date(editOccurredAt).getTime()),
+  );
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
@@ -219,14 +289,147 @@ export default function GymAccessPage() {
         <Stack spacing={1}>
           {[...events].sort((a, b) => b.occurredAt.localeCompare(a.occurredAt)).map((event) => (
             <Paper key={event.id} variant="outlined" sx={{ p: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}>
-              <Typography fontWeight={600} sx={{ overflowWrap: "anywhere" }}>{event.personName}</Typography>
-              <Typography variant="body2" color="text.secondary" textAlign="right" sx={{ flexShrink: 0 }}>
-                {formatEventDate(event.occurredAt)}
-              </Typography>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography fontWeight={600} sx={{ overflowWrap: "anywhere" }}>{event.personName}</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {formatEventDate(event.occurredAt)}
+                </Typography>
+              </Box>
+              <Stack direction="row" spacing={0.5} sx={{ flexShrink: 0 }}>
+                <Button
+                  size="small"
+                  aria-label={`${labels.editEntry}: ${event.personName}`}
+                  title={labels.editEntry}
+                  onClick={() => {
+                    setEditingEvent(event);
+                    setEditClient(null);
+                    setEditClientSearch(event.personName);
+                    setEditOccurredAt(localDateTimeValue(new Date(event.occurredAt)));
+                    updateEvent.reset();
+                  }}
+                >
+                  <EditOutlinedIcon fontSize="small" />
+                </Button>
+                <Button
+                  size="small"
+                  color="error"
+                  aria-label={`${labels.removeEntry}: ${event.personName}`}
+                  title={labels.removeEntry}
+                  onClick={() => {
+                    setDeletingEventId(event.id);
+                    deleteEvent.reset();
+                  }}
+                >
+                  <DeleteOutlineIcon fontSize="small" />
+                </Button>
+              </Stack>
             </Paper>
           ))}
         </Stack>
       )}
+
+      <Dialog
+        open={editingEvent !== null}
+        onClose={() => !updateEvent.isPending && setEditingEvent(null)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>{labels.editTitle}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <Autocomplete
+              options={editClientSearchQuery.data ?? []}
+              value={editClient}
+              loading={editClientSearch.trim().length >= 2 && editClientSearchQuery.isFetching}
+              getOptionLabel={(client) => client.membershipNumber
+                ? `${client.name} · ${client.membershipNumber}`
+                : client.name}
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+              filterOptions={(options) => options}
+              noOptionsText={editClientSearch.trim().length < 2 ? labels.clientSearchPrompt : labels.noClientsFound}
+              onChange={(_, client) => setEditClient(client)}
+              onInputChange={(_, value, reason) => {
+                if (reason === "input" || reason === "clear") {
+                  setEditClientSearch(value);
+                  if (reason === "input") setEditClient(null);
+                }
+              }}
+              disabled={updateEvent.isPending}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label={labels.client}
+                  placeholder={labels.clientSearchPrompt}
+                  required
+                  error={editClientSearchQuery.isError}
+                  helperText={editClientSearchQuery.isError ? labels.clientLookupError : undefined}
+                />
+              )}
+            />
+            <TextField
+              label={labels.dateTime}
+              type="datetime-local"
+              value={editOccurredAt}
+              onChange={(event) => setEditOccurredAt(event.target.value)}
+              required
+              InputLabelProps={{ shrink: true }}
+              disabled={updateEvent.isPending}
+            />
+            {updateEvent.isError && (
+              <Alert severity="error">{updateEvent.error.message || labels.updateError}</Alert>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditingEvent(null)} disabled={updateEvent.isPending}>
+            {labels.cancel}
+          </Button>
+          <Button
+            variant="contained"
+            disabled={!canSaveEdit || updateEvent.isPending}
+            startIcon={updateEvent.isPending ? <CircularProgress size={16} color="inherit" /> : undefined}
+            onClick={() => {
+              if (!editingEvent || !editClient || !Number.isFinite(new Date(editOccurredAt).getTime())) return;
+              updateEvent.mutate({
+                id: editingEvent.id,
+                clientId: editClient.id,
+                occurredAt: editOccurredAt,
+              });
+            }}
+          >
+            {updateEvent.isPending ? labels.savingChanges : labels.saveChanges}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={deletingEventId !== null}
+        onClose={() => !deleteEvent.isPending && setDeletingEventId(null)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>{labels.removeTitle}</DialogTitle>
+        <DialogContent>
+          <Typography>{labels.removeConfirmation}</Typography>
+          {deleteEvent.isError && (
+            <Alert severity="error" sx={{ mt: 2 }}>{deleteEvent.error.message || labels.deleteError}</Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeletingEventId(null)} disabled={deleteEvent.isPending}>
+            {labels.cancel}
+          </Button>
+          <Button
+            color="error"
+            variant="contained"
+            disabled={deletingEventId === null || deleteEvent.isPending}
+            startIcon={deleteEvent.isPending ? <CircularProgress size={16} color="inherit" /> : <DeleteOutlineIcon />}
+            onClick={() => deletingEventId !== null && deleteEvent.mutate(deletingEventId)}
+          >
+            {labels.removeEntry}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
