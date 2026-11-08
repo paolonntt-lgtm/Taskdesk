@@ -20,6 +20,35 @@ function GoogleLogo() {
   );
 }
 
+type ProfessionVisual = { glyph: string; color: string; background: string; logoUrl?: string };
+
+function ProfessionMark({ visual, size }: { visual: ProfessionVisual; size: number }) {
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        display: 'grid',
+        placeItems: 'center',
+        flex: `0 0 ${size}px`,
+        width: size,
+        height: size,
+        overflow: 'hidden',
+        boxSizing: 'border-box',
+        borderRadius: size === 36 ? 11 : 10,
+        border: visual.logoUrl ? '1px solid #e8edf5' : undefined,
+        color: visual.color,
+        background: visual.logoUrl ? '#fff' : visual.background,
+        fontWeight: 800,
+        fontSize: size === 36 ? 13 : 12,
+      }}
+    >
+      {visual.logoUrl ? (
+        <img src={visual.logoUrl} alt="" style={{ display: 'block', width: '100%', height: '100%', padding: 2, boxSizing: 'border-box', objectFit: 'contain' }} />
+      ) : visual.glyph}
+    </span>
+  );
+}
+
 const s = {
   root: {
     minHeight: '100vh',
@@ -69,10 +98,10 @@ const s = {
   row: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
 };
 
-const professionVisuals: Record<string, { glyph: string; color: string; background: string }> = {
-  commercialisti: { glyph: 'C', color: '#2563eb', background: '#eff6ff' },
-  avvocati: { glyph: '§', color: '#7c3aed', background: '#f5f3ff' },
-  'consulenti-del-lavoro': { glyph: 'L', color: '#0891b2', background: '#ecfeff' },
+const professionVisuals: Record<string, ProfessionVisual> = {
+  commercialisti: { glyph: 'C', color: '#2563eb', background: '#eff6ff', logoUrl: `${import.meta.env.BASE_URL}professione-commercialista.jpg` },
+  avvocati: { glyph: '§', color: '#7c3aed', background: '#f5f3ff', logoUrl: `${import.meta.env.BASE_URL}professione-avvocato.jpg` },
+  'consulenti-del-lavoro': { glyph: 'L', color: '#0891b2', background: '#ecfeff', logoUrl: `${import.meta.env.BASE_URL}professione-consulente-lavoro.jpg` },
   notai: { glyph: 'N', color: '#be123c', background: '#fff1f2' },
   commercio: { glyph: 'B', color: '#15803d', background: '#f0fdf4' },
   agenzie: { glyph: 'A', color: '#c2410c', background: '#fff7ed' },
@@ -468,7 +497,7 @@ export default function Login() {
                       const visual = professionVisuals[selected] ?? { glyph: selected.slice(0, 1).toUpperCase(), color: '#2563eb', background: '#eff6ff' };
                       return (
                         <span style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-                          <span style={{ display: 'grid', placeItems: 'center', width: 36, height: 36, borderRadius: 11, color: visual.color, background: visual.background, fontWeight: 800, fontSize: 13 }}>{visual.glyph}</span>
+                          <ProfessionMark visual={visual} size={36} />
                           <span style={{ color: '#25344c', fontSize: 13, fontWeight: 700 }}>{t.onboarding.types[selected].label}</span>
                         </span>
                       );
@@ -517,7 +546,7 @@ export default function Login() {
                             '&:hover': { backgroundColor: '#f6f8fc' },
                           }}
                         >
-                          <span style={{ display: 'grid', placeItems: 'center', flex: '0 0 34px', width: 34, height: 34, borderRadius: 10, color: visual.color, background: visual.background, fontWeight: 800, fontSize: 12 }}>{visual.glyph}</span>
+                          <ProfessionMark visual={visual} size={34} />
                           <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1, gap: 3 }}>
                             <span style={{ color: '#25344c', fontSize: 13, fontWeight: 700 }}>{t.onboarding.types[value].label}</span>
                             <span style={{ color: '#8793a6', fontSize: 10, lineHeight: 1.35, whiteSpace: 'normal' }}>{t.onboarding.types[value].description}</span>
