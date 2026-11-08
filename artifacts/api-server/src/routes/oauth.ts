@@ -38,6 +38,7 @@ type PendingOAuthState = {
   nonce: string;
   professionalAttribution: ProfessionalTrialAttribution | null;
   registrationProfession: OrganizationProfession | null;
+  registrationOrganizationName: string | null;
   referralCode: string | null;
   referralAttempted: boolean;
   utmAttribution: UTMAttribution;
@@ -105,6 +106,12 @@ function parseRegistrationProfession(query: import("express").Request["query"]):
   if (isOrganizationProfession(query.profession)) return query.profession;
   const attribution = parseProfessionalTrialAttribution(query);
   return attribution?.profession ?? null;
+}
+
+function parseRegistrationOrganizationName(query: import("express").Request["query"]): string | null {
+  if (typeof query.organizationName !== "string") return null;
+  const name = query.organizationName.trim();
+  return name.length >= 2 && name.length <= 160 ? name : null;
 }
 
 function parseUtmAttribution(query: import("express").Request["query"]): UTMAttribution {
@@ -249,13 +256,19 @@ router.get("/auth/google", (req, res) => {
   }
 
   const registrationProfession = parseRegistrationProfession(req.query);
+  const registrationOrganizationName = parseRegistrationOrganizationName(req.query);
   if (req.query.mode === "register" && !registrationProfession) {
     res.status(400).send("Seleziona una professione prima di registrarti.");
+    return;
+  }
+  if (req.query.mode === "register" && !registrationOrganizationName) {
+    res.status(400).send("Inserisci il nome dell'organizzazione prima di registrarti.");
     return;
   }
   const state = createOAuthState({
     professionalAttribution: parseProfessionalTrialAttribution(req.query),
     registrationProfession,
+    registrationOrganizationName,
     referralCode: typeof req.query.ref === "string" && /^[A-Za-z0-9_-]{8,40}$/.test(req.query.ref)
       ? req.query.ref
       : null,
@@ -382,7 +395,7 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
         return;
       }
       const [org] = await db.insert(organizationsTable).values({
-        name,
+        name: pendingState.registrationOrganizationName ?? name,
         onboardingDone: false,
         profession: pendingState.registrationProfession,
         businessType: getOrganizationBusinessType(pendingState.registrationProfession),

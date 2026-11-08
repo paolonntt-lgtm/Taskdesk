@@ -271,6 +271,7 @@ describe("Google OAuth callback", () => {
     const { state, nonceCookie } = await startOAuth({
       mode: "register",
       profession: "commercio",
+      organizationName: "Studio Test",
       ref: "ReferralCode_123",
       utm_source: "instance-switch",
     });
@@ -280,7 +281,7 @@ describe("Google OAuth callback", () => {
     vi.resetModules();
     const { default: callbackRouter } = await import("./oauth");
     const { usersTable, organizationsTable } = await import("@workspace/db");
-    const registeredOrganization = { id: 42, name: "New OAuth Registration" };
+    const registeredOrganization = { id: 42, name: "Studio Test" };
     const registeredUser = {
       ...oauthUser,
       id: 42,
@@ -343,6 +344,7 @@ describe("Google OAuth callback", () => {
         expect.stringContaining("session_id=test-session-id"),
       );
       expect(insertedValues.find((entry) => entry.table === organizationsTable)?.values).toMatchObject({
+        name: "Studio Test",
         profession: "commercio",
         utmSource: "instance-switch",
       });
@@ -407,8 +409,18 @@ describe("Google OAuth callback", () => {
     expect(response.status).toBe(400);
   });
 
+  it("requires an organization name before starting Google registration", async () => {
+    const response = await fetch(`${baseUrl}/api/auth/google?mode=register&profession=commercio`);
+    expect(response.status).toBe(400);
+  });
+
   it("starts preview-host Google registration on the canonical callback host", async () => {
-    const query = "mode=register&profession=commercio&ref=ReferralCode_123";
+    const query = new URLSearchParams({
+      mode: "register",
+      profession: "commercio",
+      organizationName: "Studio Example",
+      ref: "ReferralCode_123",
+    }).toString();
     const previewResponse = await fetch(`${baseUrl}/api/auth/google?${query}`, {
       headers: { "x-forwarded-host": "preview.example.test" },
       redirect: "manual",
@@ -658,6 +670,7 @@ describe("Google OAuth callback", () => {
     const { state, nonceCookie } = await startOAuth({
       mode: "register",
       profession: "commercio",
+      organizationName: "Studio Test",
     });
     const privateProviderDescription = "provider details must not appear in the redirect";
 
@@ -684,6 +697,7 @@ describe("Google OAuth callback", () => {
     const { state, nonceCookie } = await startOAuth({
       mode: "register",
       profession: "commercio",
+      organizationName: "Studio Test",
     });
     const privateProviderDescription = "private-provider-error-description";
     globalThis.fetch = vi.fn(async (input: string | URL, init?: RequestInit) => {
