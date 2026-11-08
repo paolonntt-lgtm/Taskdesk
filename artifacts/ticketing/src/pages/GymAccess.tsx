@@ -1,6 +1,7 @@
 import { useMemo, useState, type FormEvent } from "react";
 import {
   Alert,
+  Autocomplete,
   Box,
   Button,
   Card,
@@ -25,6 +26,12 @@ type GymAccessEvent = {
   createdAt: string;
 };
 
+type GymAccessClient = {
+  id: number;
+  name: string;
+  membershipNumber?: string | null;
+};
+
 function localDateTimeValue(date: Date): string {
   const pad = (value: number) => String(value).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
@@ -38,7 +45,8 @@ export default function GymAccessPage() {
   const { t, lang } = useLanguage();
   const labels = t.gymAccess;
   const [period, setPeriod] = useState<GymAccessPeriod>("last7");
-  const [personName, setPersonName] = useState("");
+  const [selectedClient, setSelectedClient] = useState<GymAccessClient | null>(null);
+  const [clientSearch, setClientSearch] = useState("");
   const [occurredAt, setOccurredAt] = useState(() => localDateTimeValue(new Date()));
   const [formError, setFormError] = useState("");
   const queryClient = useQueryClient();
@@ -55,6 +63,17 @@ export default function GymAccessPage() {
     refetchInterval: 60_000,
     refetchOnWindowFocus: true,
   });
+  const clientSearchQuery = useQuery<GymAccessClient[]>({
+    queryKey: ["gym-access-client-search", clientSearch],
+    queryFn: async () => {
+      const params = new URLSearchParams({ search: clientSearch.trim(), limit: "20" });
+      const response = await fetch(`/api/clients?${params}`, { credentials: "include" });
+      if (!response.ok) throw new Error(labels.clientLookupError);
+      return response.json();
+    },
+    enabled: clientSearch.trim().length >= 2,
+    retry: false,
+  });
   const createEvent = useMutation({
     mutationFn: async () => {
       const response = await fetch("/api/gym-access", {
@@ -62,7 +81,7 @@ export default function GymAccessPage() {
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          personName: personName.trim(),
+          clientId: selectedClient?.id,
           occurredAt: new Date(occurredAt).toISOString(),
         }),
       });
@@ -74,7 +93,8 @@ export default function GymAccessPage() {
     },
     onSuccess: () => {
       setFormError("");
-      setPersonName("");
+      setSelectedClient(null);
+      setClientSearch("");
       const now = new Date();
       setOccurredAt(localDateTimeValue(now));
       void queryClient.invalidateQueries({ queryKey: ["gym-access"] });
@@ -92,7 +112,7 @@ export default function GymAccessPage() {
     hour: "2-digit",
     minute: "2-digit",
   });
-  const canSave = personName.trim().length > 0 && Number.isFinite(new Date(occurredAt).getTime());
+  const canSave = selectedClient !== null && Number.isFinite(new Date(occurredAt).getTime());
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
@@ -113,13 +133,35 @@ export default function GymAccessPage() {
         <CardContent>
           <Typography variant="h6" fontWeight={700} mb={2}>{labels.addTitle}</Typography>
           <Box component="form" onSubmit={handleSubmit} display="flex" gap={2} flexWrap="wrap" alignItems="flex-start">
-            <TextField
-              label={labels.personName}
-              value={personName}
-              onChange={(event) => setPersonName(event.target.value)}
-              required
-              inputProps={{ maxLength: 120 }}
-              sx={{ flex: "1 1 220px" }}
+            <Autocomplete
+              options={clientSearchQuery.data ?? []}
+              value={selectedClient}
+              loading={clientSearch.trim().length >= 2 && clientSearchQuery.isFetching}
+              getOptionLabel={(client) => client.membershipNumber
+                ? `${client.name} · ${client.membershipNumber}`
+                : client.name}
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+              filterOptions={(options) => options}
+              noOptionsText={clientSearch.trim().length < 2 ? labels.clientSearchPrompt : labels.noClientsFound}
+              onChange={(_, client) => setSelectedClient(client)}
+              onInputChange={(_, value, reason) => {
+                if (reason === "input" || reason === "clear") {
+                  setClientSearch(value);
+                  if (reason === "input") setSelectedClient(null);
+                }
+              }}
+              disabled={createEvent.isPending}
+              sx={{ flex: "1 1 260px" }}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label={labels.client}
+                  placeholder={labels.clientSearchPrompt}
+                  required
+                  error={clientSearchQuery.isError}
+                  helperText={clientSearchQuery.isError ? labels.clientLookupError : undefined}
+                />
+              )}
             />
             <TextField
               label={labels.dateTime}

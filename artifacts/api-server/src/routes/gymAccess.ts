@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { and, eq, gte, lt } from "drizzle-orm";
-import { db, gymAccessEventsTable, organizationsTable } from "@workspace/db";
+import { db, clientsTable, gymAccessEventsTable, organizationsTable } from "@workspace/db";
 import { requireAdmin, requireAuth } from "../middlewares/auth";
 import { z } from "zod";
 
@@ -18,7 +18,7 @@ const ListQuery = z.object({
 });
 
 const CreateBody = z.object({
-  personName: z.string().trim().min(1).max(120),
+  clientId: z.number().int().positive(),
   occurredAt: z.string().datetime({ offset: true }).optional(),
 });
 
@@ -82,9 +82,21 @@ router.post("/gym-access", requireAuth, requireAdmin, async (req, res): Promise<
     return;
   }
 
+  const [client] = await db.select({ name: clientsTable.name })
+    .from(clientsTable)
+    .where(and(
+      eq(clientsTable.id, parsed.data.clientId),
+      eq(clientsTable.organizationId, organizationId),
+    ))
+    .limit(1);
+  if (!client) {
+    res.status(404).json({ error: "Client not found" });
+    return;
+  }
+
   const [event] = await db.insert(gymAccessEventsTable).values({
     organizationId,
-    personName: parsed.data.personName,
+    personName: client.name,
     occurredAt: parsed.data.occurredAt ? new Date(parsed.data.occurredAt) : new Date(),
     createdBy: currentUser.id,
   }).returning({
