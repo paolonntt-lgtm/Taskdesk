@@ -686,13 +686,18 @@ export async function runAppMigrations(): Promise<void> {
       CREATE TABLE IF NOT EXISTS gym_access_events (
         id SERIAL PRIMARY KEY,
         organization_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL,
         person_name TEXT NOT NULL,
         occurred_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         created_by INTEGER NOT NULL REFERENCES users(id),
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+      ALTER TABLE gym_access_events
+        ADD COLUMN IF NOT EXISTS client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL;
       CREATE INDEX IF NOT EXISTS gym_access_events_org_occurred_idx
         ON gym_access_events (organization_id, occurred_at);
+      CREATE INDEX IF NOT EXISTS gym_access_events_org_client_occurred_idx
+        ON gym_access_events (organization_id, client_id, occurred_at);
       CREATE INDEX IF NOT EXISTS gym_access_events_org_person_idx
         ON gym_access_events (organization_id, person_name);
     `);

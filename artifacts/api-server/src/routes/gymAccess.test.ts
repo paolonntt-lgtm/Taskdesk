@@ -111,6 +111,7 @@ describe("gym access route", () => {
 
     expect(response.status).toBe(201);
     expect(response.body).toMatchObject({
+      clientId,
       personName: "Registered Gym Member",
       occurredAt,
     });
@@ -122,6 +123,34 @@ describe("gym access route", () => {
         eq(gymAccessEventsTable.personName, "Registered Gym Member"),
       ));
     expect(event?.personName).toBe("Registered Gym Member");
+
+    const historyParams = new URLSearchParams({
+      clientId: String(clientId),
+      from: "2026-11-08T00:00:00.000Z",
+      to: "2026-11-09T00:00:00.000Z",
+    });
+    const history = await request(`/api/gym-access?${historyParams}`);
+    expect(history.status).toBe(200);
+    expect(history.body).toContainEqual(expect.objectContaining({
+      clientId,
+      personName: "Registered Gym Member",
+    }));
+
+    await db.insert(gymAccessEventsTable).values({
+      organizationId,
+      personName: "Legacy Name-Only Entry",
+      occurredAt: new Date(occurredAt),
+      createdBy: adminId,
+    });
+    const allEntries = await request(`/api/gym-access?${new URLSearchParams({
+      from: "2026-11-08T00:00:00.000Z",
+      to: "2026-11-09T00:00:00.000Z",
+    })}`);
+    expect(allEntries.status).toBe(200);
+    expect(allEntries.body).toContainEqual(expect.objectContaining({
+      clientId: null,
+      personName: "Legacy Name-Only Entry",
+    }));
   });
 
   it("rejects a client from another organization without recording an entry", async () => {
@@ -132,11 +161,18 @@ describe("gym access route", () => {
       method: "POST",
       body: JSON.stringify({ clientId: otherClientId }),
     });
+    const historyParams = new URLSearchParams({
+      clientId: String(otherClientId),
+      from: "2026-11-08T00:00:00.000Z",
+      to: "2026-11-09T00:00:00.000Z",
+    });
+    const foreignHistory = await request(`/api/gym-access?${historyParams}`);
     const after = await db.select({ id: gymAccessEventsTable.id })
       .from(gymAccessEventsTable)
       .where(eq(gymAccessEventsTable.organizationId, organizationId));
 
     expect(response.status).toBe(404);
+    expect(foreignHistory.status).toBe(404);
     expect(after.map((event) => event.id)).toEqual(before.map((event) => event.id));
   });
 });

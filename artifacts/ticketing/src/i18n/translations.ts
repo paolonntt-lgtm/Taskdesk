@@ -496,6 +496,7 @@ const it = {
     saving: 'Salvataggio…',
     saveError: 'Impossibile registrare l’accesso.',
     history: 'Storico ingressi',
+    clientHistory: 'Storico accessi del cliente',
     period: 'Periodo',
     periods: {
       today: 'Oggi',
@@ -2833,6 +2834,7 @@ const en: typeof it = {
     saving: 'Saving…',
     saveError: 'Could not record the entry.',
     history: 'Entry history',
+    clientHistory: 'Client entry history',
     period: 'Period',
     periods: {
       today: 'Today',

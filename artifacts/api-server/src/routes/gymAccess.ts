@@ -9,6 +9,7 @@ const router: IRouter = Router();
 const ListQuery = z.object({
   from: z.string().datetime({ offset: true }),
   to: z.string().datetime({ offset: true }),
+  clientId: z.coerce.number().int().positive().optional(),
 }).superRefine((query, ctx) => {
   if (new Date(query.from) >= new Date(query.to)) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["to"], message: "End must be after start" });
@@ -48,8 +49,22 @@ router.get("/gym-access", requireAuth, requireAdmin, async (req, res): Promise<v
   }
   const from = new Date(parsedQuery.data.from);
   const to = new Date(parsedQuery.data.to);
+  if (parsedQuery.data.clientId !== undefined) {
+    const [client] = await db.select({ id: clientsTable.id })
+      .from(clientsTable)
+      .where(and(
+        eq(clientsTable.id, parsedQuery.data.clientId),
+        eq(clientsTable.organizationId, organizationId),
+      ))
+      .limit(1);
+    if (!client) {
+      res.status(404).json({ error: "Client not found" });
+      return;
+    }
+  }
   const events = await db.select({
     id: gymAccessEventsTable.id,
+    clientId: gymAccessEventsTable.clientId,
     personName: gymAccessEventsTable.personName,
     occurredAt: gymAccessEventsTable.occurredAt,
     createdAt: gymAccessEventsTable.createdAt,
@@ -58,6 +73,9 @@ router.get("/gym-access", requireAuth, requireAdmin, async (req, res): Promise<v
       eq(gymAccessEventsTable.organizationId, organizationId),
       gte(gymAccessEventsTable.occurredAt, from),
       lt(gymAccessEventsTable.occurredAt, to),
+      parsedQuery.data.clientId !== undefined
+        ? eq(gymAccessEventsTable.clientId, parsedQuery.data.clientId)
+        : undefined,
     ))
     .orderBy(gymAccessEventsTable.occurredAt);
 
@@ -82,7 +100,7 @@ router.post("/gym-access", requireAuth, requireAdmin, async (req, res): Promise<
     return;
   }
 
-  const [client] = await db.select({ name: clientsTable.name })
+  const [client] = await db.select({ id: clientsTable.id, name: clientsTable.name })
     .from(clientsTable)
     .where(and(
       eq(clientsTable.id, parsed.data.clientId),
@@ -96,11 +114,13 @@ router.post("/gym-access", requireAuth, requireAdmin, async (req, res): Promise<
 
   const [event] = await db.insert(gymAccessEventsTable).values({
     organizationId,
+    clientId: client.id,
     personName: client.name,
     occurredAt: parsed.data.occurredAt ? new Date(parsed.data.occurredAt) : new Date(),
     createdBy: currentUser.id,
   }).returning({
     id: gymAccessEventsTable.id,
+    clientId: gymAccessEventsTable.clientId,
     personName: gymAccessEventsTable.personName,
     occurredAt: gymAccessEventsTable.occurredAt,
     createdAt: gymAccessEventsTable.createdAt,

@@ -27,6 +27,7 @@ import {
 import type { ClientInput } from '@workspace/api-client-react';
 import ClientEmailAddressFields, { getClientEmailAddressConflicts, parseClientEmailAddresses } from '../components/ClientEmailAddressFields';
 import ClientNotesBlock from '../components/ClientNotesBlock';
+import GymAccessClientHistory from '../components/GymAccessClientHistory';
 import ClientUnbilledWorkSection from '../components/ClientUnbilledWorkSection';
 import FixedNotesBlock from '../components/FixedNotesBlock';
 import WorkedHoursReport from '../components/WorkedHoursReport';
@@ -1347,6 +1348,7 @@ export default function ClientDetail() {
       )}
 
       <Box mb={3}>
+        {!editMode && isAdmin && isGym && <GymAccessClientHistory clientId={clientId} />}
         {canViewWorkedHours && (
           <WorkedHoursReport clientId={clientId} tickets={tickets} isAdmin={isAdmin} />
         )}
