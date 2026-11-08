@@ -9,7 +9,9 @@ describe("organization profession presets", () => {
   it("provides non-empty category lists and the matching business type for every profession", () => {
     for (const profession of ORGANIZATION_PROFESSIONS) {
       expect(getDefaultCategoriesForProfession(profession).length).toBeGreaterThan(0);
-      expect(getDefaultCategoriesForProfession(profession)).toContain("Other");
+      expect(getDefaultCategoriesForProfession(profession)).toContain(
+        profession === "palestre" ? "Altro" : "Other",
+      );
       expect(getOrganizationBusinessType(profession)).toMatch(
         /^(it_support|professional_studio|agency|other)$/,
       );

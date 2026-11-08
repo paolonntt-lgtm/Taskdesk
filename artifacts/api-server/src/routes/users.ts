@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, or, notLike, and, inArray } from "drizzle-orm";
+import { eq, or, notLike, and, inArray, count } from "drizzle-orm";
 import {
   db,
   usersTable,
@@ -183,6 +183,99 @@ router.post("/users", requireAuth, requireAdmin, async (req, res): Promise<void>
   }).returning(userFields);
 
   res.status(201).json(trackingEnabled ? user : { ...user, hourlyCompensated: undefined });
+});
+
+router.delete("/users/me", requireAuth, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const userId = currentUser.id as number;
+  const [account] = await db
+    .select({
+      id: usersTable.id,
+      organizationId: usersTable.organizationId,
+      role: usersTable.role,
+      isSystem: usersTable.isSystem,
+      isSuperAdmin: usersTable.isSuperAdmin,
+    })
+    .from(usersTable)
+    .where(eq(usersTable.id, userId));
+
+  if (!account || account.isSystem || account.isSuperAdmin) {
+    res.status(403).json({ error: "Account cannot be deleted" });
+    return;
+  }
+
+  if (account.organizationId != null && account.role === "admin") {
+    const [adminCount] = await db
+      .select({ total: count() })
+      .from(usersTable)
+      .where(and(
+        eq(usersTable.organizationId, account.organizationId),
+        eq(usersTable.role, "admin"),
+        eq(usersTable.isActive, true),
+      ));
+    if (Number(adminCount?.total ?? 0) <= 1) {
+      res.status(409).json({ error: "last_admin" });
+      return;
+    }
+  }
+
+  const adminWorkspaces = await db
+    .select({ organizationId: workspaceMembershipsTable.workspaceOrganizationId })
+    .from(workspaceMembershipsTable)
+    .where(and(
+      eq(workspaceMembershipsTable.userId, userId),
+      eq(workspaceMembershipsTable.role, "admin"),
+    ));
+  for (const { organizationId } of adminWorkspaces) {
+    const [workspaceAdminCount] = await db
+      .select({ total: count() })
+      .from(workspaceMembershipsTable)
+      .innerJoin(usersTable, eq(usersTable.id, workspaceMembershipsTable.userId))
+      .where(and(
+        eq(workspaceMembershipsTable.workspaceOrganizationId, organizationId),
+        eq(workspaceMembershipsTable.role, "admin"),
+        eq(usersTable.isActive, true),
+      ));
+    if (Number(workspaceAdminCount?.total ?? 0) <= 1) {
+      res.status(409).json({ error: "last_admin" });
+      return;
+    }
+  }
+
+  if (account.organizationId != null) {
+    try {
+      await disconnectOneDriveUser(userId, account.organizationId);
+    } catch (error) {
+      req.log.error({ err: error, userId }, "Could not revoke OneDrive access before account deletion");
+      res.status(502).json({ error: "OneDrive access could not be revoked. The account was not deleted; please retry." });
+      return;
+    }
+  }
+
+  await destroySessionsForUser(userId);
+  await db.transaction(async (tx) => {
+    await tx.update(ticketsTable).set({ assignedTo: null }).where(eq(ticketsTable.assignedTo, userId));
+    await tx.delete(notificationsTable).where(eq(notificationsTable.userId, userId));
+    await tx.delete(inviteTokensTable).where(
+      or(eq(inviteTokensTable.adminId, userId), eq(inviteTokensTable.usedById, userId))!,
+    );
+    await tx.update(usersTable).set({
+      name: "Utente eliminato",
+      email: `deleted-${userId}-${Date.now()}@deleted.local`,
+      passwordHash: randomBytes(32).toString("hex"),
+      mainLocation: null,
+      group: null,
+      groups: null,
+      permissionOverrides: "{}",
+      avatarUrl: null,
+      phone: null,
+      isActive: false,
+      isAvailable: false,
+    }).where(eq(usersTable.id, userId));
+  });
+
+  res.setHeader("Set-Cookie", "session_id=; Path=/; HttpOnly; Max-Age=0");
+  res.status(204).end();
 });
 
 router.get("/users/:id", requireAuth, async (req, res): Promise<void> => {

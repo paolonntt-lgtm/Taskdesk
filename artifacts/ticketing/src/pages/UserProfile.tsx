@@ -270,6 +270,7 @@ export default function UserProfile() {
           </Box>
         </Card>
       )}
+
     </Box>
   );
 }

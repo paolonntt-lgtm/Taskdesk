@@ -802,7 +802,7 @@ function BackupSection() {
 }
 
 export default function Settings() {
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, logout } = useAuth();
   const queryClient = useQueryClient();
   const { t, lang } = useLanguage();
   const theme = useTheme();
@@ -833,6 +833,10 @@ export default function Settings() {
   const [avatarUrl, setAvatarUrl] = useState<string>((user as any)?.avatarUrl ?? '');
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMsg, setProfileMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [deleteAccountDialogOpen, setDeleteAccountDialogOpen] = useState(false);
+  const [deleteAccountConfirmation, setDeleteAccountConfirmation] = useState('');
+  const [deleteAccountError, setDeleteAccountError] = useState('');
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [currentPassword, setCurrentPassword] = useState('');
@@ -1059,6 +1063,29 @@ export default function Settings() {
       setProfileMsg({ type: 'error', text: 'Errore di rete. Riprova.' });
     } finally {
       setProfileSaving(false);
+    }
+  };
+
+  const deleteOwnAccount = async () => {
+    if (!user || deleteAccountConfirmation.trim().toLowerCase() !== user.email.toLowerCase()) return;
+    setDeletingAccount(true);
+    setDeleteAccountError('');
+    try {
+      const response = await fetch('/api/users/me', {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (response.status === 409) {
+        setDeleteAccountError(t.userProfile.deleteAccountLastAdmin);
+        return;
+      }
+      if (!response.ok) throw new Error('account_deletion_failed');
+      await logout();
+      navigate('/login');
+    } catch {
+      setDeleteAccountError(t.userProfile.deleteAccountError);
+    } finally {
+      setDeletingAccount(false);
     }
   };
 
@@ -1391,6 +1418,61 @@ export default function Settings() {
                   </Box>
                 </Box>
               </Section>
+
+              {!(user as any)?.isSystem && !(user as any)?.isSuperAdmin && (
+                <Section title={t.userProfile.deleteAccountTitle} icon={<Delete color="error" />}>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    {t.userProfile.deleteAccountWarning}
+                  </Typography>
+                  <Button
+                    color="error"
+                    variant="outlined"
+                    onClick={() => {
+                      setDeleteAccountConfirmation('');
+                      setDeleteAccountError('');
+                      setDeleteAccountDialogOpen(true);
+                    }}
+                  >
+                    {t.userProfile.deleteAccountButton}
+                  </Button>
+                </Section>
+              )}
+
+              <Dialog
+                open={deleteAccountDialogOpen}
+                onClose={() => !deletingAccount && setDeleteAccountDialogOpen(false)}
+                maxWidth="sm"
+                fullWidth
+              >
+                <DialogTitle>{t.userProfile.deleteAccountConfirmTitle}</DialogTitle>
+                <DialogContent>
+                  <Stack spacing={2} pt={1}>
+                    <Alert severity="warning">{t.userProfile.deleteAccountWarning}</Alert>
+                    {deleteAccountError && <Alert severity="error">{deleteAccountError}</Alert>}
+                    <TextField
+                      autoFocus
+                      fullWidth
+                      label={t.userProfile.deleteAccountTypeEmail}
+                      value={deleteAccountConfirmation}
+                      onChange={(event) => setDeleteAccountConfirmation(event.target.value)}
+                      autoComplete="off"
+                    />
+                  </Stack>
+                </DialogContent>
+                <DialogActions>
+                  <Button onClick={() => setDeleteAccountDialogOpen(false)} disabled={deletingAccount}>
+                    {t.userProfile.cancel}
+                  </Button>
+                  <Button
+                    color="error"
+                    variant="contained"
+                    onClick={() => void deleteOwnAccount()}
+                    disabled={deletingAccount || deleteAccountConfirmation.trim().toLowerCase() !== user?.email?.toLowerCase()}
+                  >
+                    {deletingAccount ? t.userProfile.deletingAccount : t.userProfile.deleteAccountButton}
+                  </Button>
+                </DialogActions>
+              </Dialog>
             </>
           )}
 
@@ -1443,16 +1525,18 @@ export default function Settings() {
                   </TextField>
                 </Box>
                 <Box sx={{ maxWidth: 340 }}>
-                  <TextField
-                    select size="small" fullWidth label={t.settings.orgBusinessTypeLabel}
-                    value={orgBusinessType} onChange={(e) => setOrgBusinessType(e.target.value)}
-                    disabled={orgSaving || Boolean(orgProfession)} helperText={t.settings.orgBusinessTypeHint}
-                  >
-                    <MenuItem value="">{t.settings.orgBusinessTypeNone}</MenuItem>
-                    {(t.settings.orgBusinessTypeOptions as { value: string; label: string }[]).map((opt) => (
-                      <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
-                    ))}
-                  </TextField>
+                  {!orgProfession && (
+                    <TextField
+                      select size="small" fullWidth label={t.settings.orgBusinessTypeLabel}
+                      value={orgBusinessType} onChange={(e) => setOrgBusinessType(e.target.value)}
+                      disabled={orgSaving} helperText={t.settings.orgBusinessTypeHint}
+                    >
+                      <MenuItem value="">{t.settings.orgBusinessTypeNone}</MenuItem>
+                      {(t.settings.orgBusinessTypeOptions as { value: string; label: string }[]).map((opt) => (
+                        <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+                      ))}
+                    </TextField>
+                  )}
                   {orgBusinessType && orgBusinessType !== '' && (() => {
                     const st = t.settings as any;
                     const suggestions: string[] = st.orgEntitySuggestionsMap?.[orgBusinessType] ?? [];

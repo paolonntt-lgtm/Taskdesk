@@ -620,6 +620,12 @@ export const CreateUserResponse = zod.object({
 
 
 /**
+ * @summary Delete the authenticated user's account
+ */
+export const DeleteMyAccountResponse = zod.void()
+
+
+/**
  * @summary Get user by ID
  */
 export const GetUserParams = zod.object({

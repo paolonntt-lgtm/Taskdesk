@@ -7,6 +7,8 @@ Every new organization must have a valid profession selected during account regi
 
 Keep one canonical profile-ID list for both registration and onboarding. UI labels remain in the bilingual translations, while onboarding-only icons and colors stay in its presentation map.
 
-**Why:** The user explicitly changed the product requirement from selecting profession only in onboarding to requiring it during registration, while preserving the decision not to infer/backfill existing organizations.
+In Settings → General, hide the redundant business-type selector when a profession is selected; keep it available for existing organizations without a profession. The profession determines the business type, while custom ticket terminology remains editable.
 
-**How to apply:** Any account-creation path that creates an organization must validate and save a profession server-side. Login to an existing account and invite-based member registration are not organization-creation flows.
+**Why:** The user confirmed that profession already determines activity type, so showing the disabled selector is redundant. Existing unclassified organizations still need a way to keep or choose their activity type.
+
+**How to apply:** Any account-creation path that creates an organization must validate and save a profession server-side. In settings, hide only the activity-type selector when profession is set; preserve custom terminology controls and the selector for legacy organizations without a profession.
