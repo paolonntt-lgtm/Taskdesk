@@ -3,8 +3,8 @@ name: Profession mark presentation
 description: Visual consistency rules for profession logos and icons in the TaskDesk landing.
 ---
 
-Use a consistent white tile and preserve each mark's aspect ratio. The profession chooser uses its standard tile size; the main landing uses larger tiles arranged in two rows. Do not use different tile backgrounds for individual professions.
+Use generic, internationally recognizable pictograms for profession categories; do not use logos of professional associations or local orders. Keep a consistent tile treatment across professions.
 
-**Why:** The user asked to remove the profession-link heading and enlarge the tiles into two rows. The profession chooser should keep its roomier standard layout.
+**Why:** The app serves users outside Italy, who may not recognize local professional bodies. Category visuals should communicate the type of work, not membership in a specific association.
 
-**How to apply:** Reuse the shared profession-mark component in the main landing's two-row layout. Center marks and labels, keep tile backgrounds consistent, and preserve uploaded logos' proportions.
+**How to apply:** Use familiar generic pictograms in profession selectors and category tiles. Keep their colors and sizing consistent; never substitute an official association logo.

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Alert, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Select } from '@mui/material';
-import { CheckCircle } from '@mui/icons-material';
+import { Calculate, Campaign, CheckCircle, Draw, Gavel, Groups, Storefront } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import type { Lang } from '../i18n/translations';
@@ -20,9 +20,10 @@ function GoogleLogo() {
   );
 }
 
-type ProfessionVisual = { glyph: string; color: string; background: string; logoUrl?: string };
+type ProfessionVisual = { Icon: React.ElementType; color: string; background: string };
 
 function ProfessionMark({ visual, size }: { visual: ProfessionVisual; size: number }) {
+  const Icon = visual.Icon;
   return (
     <span
       aria-hidden="true"
@@ -32,19 +33,11 @@ function ProfessionMark({ visual, size }: { visual: ProfessionVisual; size: numb
         flex: `0 0 ${size}px`,
         width: size,
         height: size,
-        overflow: 'hidden',
-        boxSizing: 'border-box',
         borderRadius: size === 36 ? 11 : 10,
-        border: visual.logoUrl ? '1px solid #e8edf5' : undefined,
-        color: visual.color,
-        background: visual.logoUrl ? '#fff' : visual.background,
-        fontWeight: 800,
-        fontSize: size === 36 ? 13 : 12,
+        background: visual.background,
       }}
     >
-      {visual.logoUrl ? (
-        <img src={visual.logoUrl} alt="" style={{ display: 'block', width: '100%', height: '100%', padding: 2, boxSizing: 'border-box', objectFit: 'contain' }} />
-      ) : visual.glyph}
+      <Icon sx={{ color: visual.color, fontSize: size * 0.58 }} />
     </span>
   );
 }
@@ -99,12 +92,12 @@ const s = {
 };
 
 const professionVisuals: Record<string, ProfessionVisual> = {
-  commercialisti: { glyph: 'C', color: '#2563eb', background: '#eff6ff', logoUrl: `${import.meta.env.BASE_URL}professione-commercialista.jpg` },
-  avvocati: { glyph: '§', color: '#7c3aed', background: '#f5f3ff', logoUrl: `${import.meta.env.BASE_URL}professione-avvocato.jpg` },
-  'consulenti-del-lavoro': { glyph: 'L', color: '#0891b2', background: '#ecfeff', logoUrl: `${import.meta.env.BASE_URL}professione-consulente-lavoro.jpg` },
-  notai: { glyph: 'N', color: '#be123c', background: '#fff1f2' },
-  commercio: { glyph: 'B', color: '#15803d', background: '#f0fdf4' },
-  agenzie: { glyph: 'A', color: '#c2410c', background: '#fff7ed' },
+  commercialisti: { Icon: Calculate, color: '#2563eb', background: '#eff6ff' },
+  avvocati: { Icon: Gavel, color: '#7c3aed', background: '#f5f3ff' },
+  'consulenti-del-lavoro': { Icon: Groups, color: '#0891b2', background: '#ecfeff' },
+  notai: { Icon: Draw, color: '#be123c', background: '#fff1f2' },
+  commercio: { Icon: Storefront, color: '#15803d', background: '#f0fdf4' },
+  agenzie: { Icon: Campaign, color: '#c2410c', background: '#fff7ed' },
 };
 
 export default function Login() {
