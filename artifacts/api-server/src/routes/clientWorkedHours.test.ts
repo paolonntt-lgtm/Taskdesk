@@ -106,6 +106,8 @@ describe("client worked-hours report", () => {
         organizationId: foreignOrganizationId,
         name: "Foreign Organization Client",
         alias: `Shared Search Alias ${runId}`,
+        email: `worked-hours-client-${runId}@example.test`,
+        phone: `+1555${runId.replaceAll("-", "").slice(0, 7)}`,
         membershipNumber: `GYM-${runId}`,
         slug: `foreign-client-${runId}`,
       })
@@ -412,6 +414,14 @@ describe("client worked-hours report", () => {
       `/api/search?q=${encodeURIComponent(`Shared Search Alias ${runId}`)}`,
       userSessionId,
     );
+    const globalEmailSearch = await request(
+      `/api/search?q=${encodeURIComponent(`worked-hours-client-${runId}`)}`,
+      userSessionId,
+    );
+    const globalPhoneSearch = await request(
+      `/api/search?q=${encodeURIComponent(runId.replaceAll("-", "").slice(0, 7))}`,
+      userSessionId,
+    );
 
     expect(fullMembershipNumberSearch.status).toBe(200);
     expect(fullMembershipNumberSearch.body.map((client: any) => client.id)).toContain(clientId);
@@ -423,6 +433,12 @@ describe("client worked-hours report", () => {
     expect(globalMembershipSearch.body.clients.map((client: any) => client.id)).not.toContain(foreignClientId);
     expect(globalAliasSearch.body.clients.map((client: any) => client.id)).toContain(clientId);
     expect(globalAliasSearch.body.clients.map((client: any) => client.id)).not.toContain(foreignClientId);
+    expect(globalEmailSearch.status).toBe(200);
+    expect(globalEmailSearch.body.clients.map((client: any) => client.id)).toContain(clientId);
+    expect(globalEmailSearch.body.clients.map((client: any) => client.id)).not.toContain(foreignClientId);
+    expect(globalPhoneSearch.status).toBe(200);
+    expect(globalPhoneSearch.body.clients.map((client: any) => client.id)).toContain(clientId);
+    expect(globalPhoneSearch.body.clients.map((client: any) => client.id)).not.toContain(foreignClientId);
 
     const companyVatSearch = await request(
       `/api/clients?search=${encodeURIComponent(`VAT-${runId}`)}`,
