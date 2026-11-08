@@ -20,6 +20,34 @@ describe("getGymAccessDateRange", () => {
     expect(getGymAccessDateRange("2026-01-01", "2026-02-02")).toBeNull();
     expect(getGymAccessDateRange("", "2026-02-02")).toBeNull();
   });
+
+  it("uses local midnight boundaries across both Europe/Rome clock changes", () => {
+    const previousTz = process.env.TZ;
+    process.env.TZ = "Europe/Rome";
+    try {
+      const spring = getGymAccessDateRange("2026-03-29", "2026-03-29");
+      expect(spring).toEqual({
+        from: "2026-03-28T23:00:00.000Z",
+        to: "2026-03-29T22:00:00.000Z",
+      });
+      expect(new Date(spring!.to).getTime() - new Date(spring!.from).getTime())
+        .toBe(23 * 60 * 60 * 1000);
+
+      const autumn = getGymAccessDateRange("2026-10-25", "2026-10-25");
+      expect(autumn).toEqual({
+        from: "2026-10-24T22:00:00.000Z",
+        to: "2026-10-25T23:00:00.000Z",
+      });
+      expect(new Date(autumn!.to).getTime() - new Date(autumn!.from).getTime())
+        .toBe(25 * 60 * 60 * 1000);
+
+      expect(getGymAccessDateRange("2026-02-28", "2026-03-31")).not.toBeNull();
+      expect(getGymAccessDateRange("2026-09-25", "2026-10-25")).not.toBeNull();
+    } finally {
+      if (previousTz === undefined) delete process.env.TZ;
+      else process.env.TZ = previousTz;
+    }
+  });
 });
 
 describe("getLocalDateInputValue", () => {

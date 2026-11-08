@@ -291,6 +291,65 @@ describe("gym access route", () => {
     });
   });
 
+  it("includes local DST date boundaries without exceeding the API range limit", async () => {
+    const cases = [
+      {
+        from: "2026-03-28T23:00:00.000Z",
+        to: "2026-03-29T22:00:00.000Z",
+        times: [
+          "2026-03-28T22:59:59.999Z",
+          "2026-03-28T23:00:00.000Z",
+          "2026-03-29T21:59:59.999Z",
+          "2026-03-29T22:00:00.000Z",
+        ],
+      },
+      {
+        from: "2026-10-24T22:00:00.000Z",
+        to: "2026-10-25T23:00:00.000Z",
+        times: [
+          "2026-10-24T21:59:59.999Z",
+          "2026-10-24T22:00:00.000Z",
+          "2026-10-25T22:59:59.999Z",
+          "2026-10-25T23:00:00.000Z",
+        ],
+      },
+    ];
+
+    for (const [index, item] of cases.entries()) {
+      const entries = await db.insert(gymAccessEventsTable).values(
+        item.times.map((time, timeIndex) => ({
+          organizationId,
+          personName: `DST ${index}-${timeIndex}`,
+          occurredAt: new Date(time),
+          createdBy: adminId,
+        })),
+      ).returning({ id: gymAccessEventsTable.id, personName: gymAccessEventsTable.personName });
+      const response = await request(`/api/gym-access?${new URLSearchParams({
+        from: item.from,
+        to: item.to,
+      })}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual(expect.arrayContaining([
+        expect.objectContaining({ id: entries[1].id }),
+        expect.objectContaining({ id: entries[2].id }),
+      ]));
+      expect(response.body).not.toContainEqual(expect.objectContaining({ id: entries[0].id }));
+      expect(response.body).not.toContainEqual(expect.objectContaining({ id: entries[3].id }));
+    }
+
+    const springMaxRange = await request(`/api/gym-access?${new URLSearchParams({
+      from: "2026-02-27T23:00:00.000Z",
+      to: "2026-03-31T22:00:00.000Z",
+    })}`);
+    const autumnMaxRange = await request(`/api/gym-access?${new URLSearchParams({
+      from: "2026-09-24T22:00:00.000Z",
+      to: "2026-10-25T23:00:00.000Z",
+    })}`);
+    expect(springMaxRange.status).toBe(200);
+    expect(autumnMaxRange.status).toBe(200);
+  });
+
   it("lets an admin update the member and time of an entry in their organization", async () => {
     const occurredAt = "2026-11-08T14:30:00.000Z";
     const response = await request(`/api/gym-access/${createdEventId}`, {
