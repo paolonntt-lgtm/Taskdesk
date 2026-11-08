@@ -11,10 +11,12 @@ let baseUrl: string;
 let organizationId: number;
 let adminId: number;
 let adminSessionId: string;
+let collaboratorId: number;
+let collaboratorSessionId: string;
 
-async function request(path: string, init: RequestInit = {}) {
+async function request(path: string, init: RequestInit = {}, sessionId = adminSessionId) {
   const headers = new Headers(init.headers);
-  headers.set("Cookie", `session_id=${adminSessionId}`);
+  headers.set("Cookie", `session_id=${sessionId}`);
   if (init.body !== undefined) headers.set("Content-Type", "application/json");
   const response = await fetch(`${baseUrl}${path}`, { ...init, headers });
   const text = await response.text();
@@ -40,6 +42,16 @@ describe("client import route", () => {
     adminId = admin.id;
     adminSessionId = await createSession(adminId);
 
+    const [collaborator] = await db.insert(usersTable).values({
+      name: "Client Import Test Collaborator",
+      email: `client-import-collaborator-${runId}@example.test`,
+      passwordHash: "not-used-in-test",
+      role: "user",
+      organizationId,
+    }).returning({ id: usersTable.id });
+    collaboratorId = collaborator.id;
+    collaboratorSessionId = await createSession(collaboratorId);
+
     server = createServer(app);
     await new Promise<void>((resolve, reject) => {
       server.once("error", reject);
@@ -62,7 +74,11 @@ describe("client import route", () => {
     if (adminSessionId) {
       await db.delete(sessionsTable).where(eq(sessionsTable.sessionId, adminSessionId));
     }
+    if (collaboratorSessionId) {
+      await db.delete(sessionsTable).where(eq(sessionsTable.sessionId, collaboratorSessionId));
+    }
     if (adminId) await db.delete(usersTable).where(eq(usersTable.id, adminId));
+    if (collaboratorId) await db.delete(usersTable).where(eq(usersTable.id, collaboratorId));
     if (organizationId) await db.delete(organizationsTable).where(eq(organizationsTable.id, organizationId));
     await pool.end();
   });
@@ -169,5 +185,31 @@ describe("client import route", () => {
       phone: "0212345678",
       pec: `studio-${runId}@pec.example.test`,
     });
+  });
+
+  it("denies bulk imports to collaborators without creating client records", async () => {
+    const collaboratorEmail = `unauthorized-import-${runId}@example.test`;
+    const response = await request("/api/clients/import", {
+      method: "POST",
+      body: JSON.stringify({
+        rows: [{
+          firstName: "Unauthorized",
+          lastName: "Member",
+          email: collaboratorEmail,
+          membershipNumber: `UNAUTHORIZED-${runId}`,
+        }],
+      }),
+    }, collaboratorSessionId);
+
+    expect(response.status).toBe(403);
+    expect(response.body).toMatchObject({ error: "Admin access required" });
+
+    const createdClients = await db.select({ id: clientsTable.id })
+      .from(clientsTable)
+      .where(and(
+        eq(clientsTable.organizationId, organizationId),
+        eq(clientsTable.email, collaboratorEmail),
+      ));
+    expect(createdClients).toHaveLength(0);
   });
 });
