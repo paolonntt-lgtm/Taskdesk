@@ -5588,6 +5588,19 @@ components:
           nullable: true
         name:
           type: string
+        firstName:
+          type: string
+          nullable: true
+        lastName:
+          type: string
+          nullable: true
+        dateOfBirth:
+          type: string
+          format: date
+          nullable: true
+        membershipNumber:
+          type: string
+          nullable: true
         alias:
           type: string
           nullable: true
@@ -5649,6 +5662,19 @@ components:
         name:
           type: string
           minLength: 1
+        firstName:
+          type: string
+          nullable: true
+        lastName:
+          type: string
+          nullable: true
+        dateOfBirth:
+          type: string
+          format: date
+          nullable: true
+        membershipNumber:
+          type: string
+          nullable: true
         alias:
           type: string
           nullable: true

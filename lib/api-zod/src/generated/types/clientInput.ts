@@ -9,6 +9,10 @@
 export interface ClientInput {
   /** @minLength 1 */
   name: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  dateOfBirth?: Date | null;
+  membershipNumber?: string | null;
   alias?: string | null;
   /** One or more email addresses separated by semicolons. */
   email?: string | null;

@@ -1149,6 +1149,10 @@ export interface Client {
   id: number;
   organizationId?: number | null;
   name: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  dateOfBirth?: string | null;
+  membershipNumber?: string | null;
   alias?: string | null;
   slug?: string | null;
   email?: string | null;
@@ -1167,6 +1171,10 @@ export interface Client {
 export interface ClientInput {
   /** @minLength 1 */
   name: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  dateOfBirth?: string | null;
+  membershipNumber?: string | null;
   alias?: string | null;
   /** One or more email addresses separated by semicolons. */
   email?: string | null;

@@ -11,6 +11,10 @@ export interface Client {
   id: number;
   organizationId?: number | null;
   name: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  dateOfBirth?: Date | null;
+  membershipNumber?: string | null;
   alias?: string | null;
   slug?: string | null;
   email?: string | null;

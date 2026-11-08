@@ -67,8 +67,9 @@ router.post("/onboarding/complete", requireAuth, requireAdmin, async (req, res):
         ? getDefaultCategoriesForProfession(existingOrganization.profession)
         : CATEGORIES_BY_TYPE[existingOrganization.businessType ?? ""];
       replaceExistingDefault = !existingOrganization.onboardingDone
-        && !!previousDefaults
-        && sameCategories(parsedCategories, previousDefaults);
+        && (!!previousDefaults && sameCategories(parsedCategories, previousDefaults)
+          || existingOrganization.profession === "palestre"
+            && sameCategories(parsedCategories, ["Memberships", "Classes", "Facilities", "Equipment", "Other"]));
       if (!replaceExistingDefault && Array.isArray(parsedCategories)
         && parsedCategories.every((value) => typeof value === "string")) {
         savedCategories = parsedCategories;

@@ -5,7 +5,7 @@ import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { stripeService } from "../stripeService";
 import { type SmtpConfig } from "../lib/email";
 import { validateSmtpHost } from "../lib/smtpHostValidator";
-import { getOrganizationBusinessType, isOrganizationProfession } from "../lib/organizationProfession";
+import { getDefaultCategoriesForProfession, getOrganizationBusinessType, isOrganizationProfession } from "../lib/organizationProfession";
 
 const router: IRouter = Router();
 
@@ -207,7 +207,26 @@ router.get("/settings/locations", requireAuth, async (req, res): Promise<void> =
 router.get("/settings/categories", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const key = orgKey(currentUser.organizationId, "categories");
-  const value = await getSetting(key, DEFAULT_CATEGORIES);
+  const [organization] = currentUser.organizationId == null ? [] : await db
+    .select({ profession: organizationsTable.profession })
+    .from(organizationsTable)
+    .where(eq(organizationsTable.id, currentUser.organizationId));
+  const isGym = organization?.profession === "palestre";
+  const value = await getSetting(
+    key,
+    isOrganizationProfession(organization?.profession)
+      ? getDefaultCategoriesForProfession(organization.profession)
+      : DEFAULT_CATEGORIES,
+  );
+  const legacyGymCategories = ["Memberships", "Classes", "Facilities", "Equipment", "Other"];
+  if (isGym && value.length === legacyGymCategories.length
+    && legacyGymCategories.every((category) => value.includes(category))) {
+    const migratedCategories = getDefaultCategoriesForProfession("palestre");
+    await db.update(settingsTable)
+      .set({ value: JSON.stringify(migratedCategories) })
+      .where(eq(settingsTable.key, key));
+    value.splice(0, value.length, ...migratedCategories);
+  }
   const sorted = [...value].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
   res.json({ value: sorted });
 });

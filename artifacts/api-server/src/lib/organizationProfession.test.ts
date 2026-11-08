@@ -36,11 +36,11 @@ describe("organization profession presets", () => {
   it("sets up gym-specific categories under the general business type", () => {
     expect(getOrganizationBusinessType("palestre")).toBe("other");
     expect(getDefaultCategoriesForProfession("palestre")).toEqual([
-      "Memberships",
-      "Classes",
-      "Facilities",
-      "Equipment",
-      "Other",
+      "Accessi e iscrizioni",
+      "Abbonamenti e pagamenti",
+      "Corsi e prenotazioni",
+      "Attrezzature e struttura",
+      "Altro",
     ]);
   });
 

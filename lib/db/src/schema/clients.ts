@@ -1,10 +1,14 @@
-import { pgTable, serial, text, integer, timestamp, index, jsonb, unique } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, timestamp, index, jsonb, unique, date } from "drizzle-orm/pg-core";
 import { organizationsTable } from "./organizations";
 
 export const clientsTable = pgTable("clients", {
   id: serial("id").primaryKey(),
   organizationId: integer("organization_id").references(() => organizationsTable.id),
   name: text("name").notNull(),
+  firstName: text("first_name"),
+  lastName: text("last_name"),
+  dateOfBirth: date("date_of_birth", { mode: "string" }),
+  membershipNumber: text("membership_number"),
   alias: text("alias"),
   slug: text("slug"),
   email: text("email"),

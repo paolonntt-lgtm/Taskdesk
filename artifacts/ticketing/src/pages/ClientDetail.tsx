@@ -51,6 +51,11 @@ const PRIORITY_COLORS: Record<string, 'default' | 'warning' | 'error' | 'info'> 
   urgent: 'error',
 };
 
+function splitClientName(name: string): { firstName: string; lastName: string } {
+  const parts = name.trim().split(/\s+/);
+  return { firstName: parts.shift() ?? '', lastName: parts.join(' ') };
+}
+
 type ClientTicketSortColumn = 'number' | 'title' | 'status' | 'priority' | 'assignee';
 type SortDirection = 'asc' | 'desc';
 
@@ -314,6 +319,7 @@ export default function ClientDetail() {
   const clientId = parseInt(params.id ?? '', 10);
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
+  const isGym = (user as any)?.profession === 'palestre';
   const userGroupPerms: string[] = ((user as any)?.groupPermissions as string[] | undefined) ?? [];
   const canViewWorkedHours = isAdmin || userGroupPerms.includes('view_worked_hours');
   const canManageSections = isAdmin || userGroupPerms.includes('manage_client_sections');
@@ -346,7 +352,7 @@ export default function ClientDetail() {
 
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [form, setForm] = useState<ClientInput & Record<string, any>>({
-    name: '', email: null, phone: null, vatNumber: null,
+    name: '', firstName: null, lastName: null, dateOfBirth: null, membershipNumber: null, email: null, phone: null, vatNumber: null,
     taxCode: null, address: null, pec: null, contactPerson: null, notes: null,
   });
   const [emailAddresses, setEmailAddresses] = useState<string[]>(['']);
@@ -632,8 +638,13 @@ export default function ClientDetail() {
   const openEditDialog = useCallback(() => {
     if (!data) return;
     const client = data as any;
+    const legacyName = splitClientName(client.name ?? '');
     setForm({
       name: client.name ?? '',
+      firstName: client.firstName ?? legacyName.firstName,
+      lastName: client.lastName ?? legacyName.lastName,
+      dateOfBirth: client.dateOfBirth ?? null,
+      membershipNumber: client.membershipNumber ?? null,
       email: client.email ?? null,
       phone: client.phone ?? null,
       vatNumber: client.vatNumber ?? null,
@@ -649,7 +660,9 @@ export default function ClientDetail() {
   }, [data]);
 
   const handleSaveClient = async () => {
-    if (!form.name?.trim() || !form.vatNumber?.trim()) {
+    const firstName = form.firstName?.trim() ?? '';
+    const lastName = form.lastName?.trim() ?? '';
+    if (isGym ? (!firstName || !lastName) : (!form.name?.trim() || !form.vatNumber?.trim())) {
       setFormError(tc.errorRequired);
       return;
     }
@@ -657,7 +670,11 @@ export default function ClientDetail() {
     setFormError('');
     try {
       const payload = {
-        name: form.name.trim(),
+        name: isGym ? `${firstName} ${lastName}` : form.name.trim(),
+        firstName: isGym ? firstName : (form.firstName?.trim() || null),
+        lastName: isGym ? lastName : (form.lastName?.trim() || null),
+        dateOfBirth: form.dateOfBirth || null,
+        membershipNumber: form.membershipNumber?.trim() || null,
         email: emailAddresses.map((address) => address.trim()).filter(Boolean).join('; ') || null,
         phone: form.phone?.trim() || null,
         vatNumber: form.vatNumber?.trim() || null,
@@ -870,16 +887,18 @@ export default function ClientDetail() {
             </Box>
             <Grid container spacing={2}>
               <Grid item xs={12} sm={6}>
-                <InfoRow label={tc.alias} value={client.alias} />
-                <InfoRow label={tc.vatNumber} value={client.vatNumber} />
+                {!isGym && <InfoRow label={tc.alias} value={client.alias} />}
+                {!isGym && <InfoRow label={tc.vatNumber} value={client.vatNumber} />}
                 <InfoRow label={tc.taxCode} value={client.taxCode} />
                 <InfoRow label={tc.address} value={client.address} />
-                <InfoRow label={tc.pec} value={client.pec} />
+                {isGym && <InfoRow label={lang === 'it' ? 'Data di nascita' : 'Date of birth'} value={client.dateOfBirth} />}
+                {isGym && <InfoRow label={lang === 'it' ? 'Matricola' : 'Membership number'} value={client.membershipNumber} />}
+                {!isGym && <InfoRow label={tc.pec} value={client.pec} />}
               </Grid>
               <Grid item xs={12} sm={6}>
-                <InfoRow label={tc.contactPerson} value={client.contactPerson} />
+                {!isGym && <InfoRow label={tc.contactPerson} value={client.contactPerson} />}
                 <InfoRow label={tc.email} value={client.email} />
-                <InfoRow label={tc.phone} value={client.phone} />
+                <InfoRow label={isGym ? (lang === 'it' ? 'Cellulare' : 'Mobile phone') : tc.phone} value={client.phone} />
               </Grid>
             </Grid>
             {sharedClientContacts.length > 0 && (
@@ -1397,19 +1416,52 @@ export default function ClientDetail() {
         <DialogContent>
           <Box display="flex" flexDirection="column" gap={2} pt={1}>
             {formError && <Alert severity="error">{formError}</Alert>}
-            <TextField
+            {isGym ? (
+              <>
+                <TextField
+                  label={lang === 'it' ? 'Nome' : 'First name'}
+                  required
+                  fullWidth
+                  value={form.firstName ?? ''}
+                  onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))}
+                />
+                <TextField
+                  label={lang === 'it' ? 'Cognome' : 'Last name'}
+                  required
+                  fullWidth
+                  value={form.lastName ?? ''}
+                  onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))}
+                />
+                <TextField
+                  label={lang === 'it' ? 'Data di nascita' : 'Date of birth'}
+                  type="date"
+                  fullWidth
+                  InputLabelProps={{ shrink: true }}
+                  value={form.dateOfBirth ?? ''}
+                  onChange={(e) => setForm((f) => ({ ...f, dateOfBirth: e.target.value || null }))}
+                />
+                <TextField
+                  label={lang === 'it' ? 'Matricola' : 'Membership number'}
+                  fullWidth
+                  value={form.membershipNumber ?? ''}
+                  onChange={(e) => setForm((f) => ({ ...f, membershipNumber: e.target.value || null }))}
+                />
+              </>
+            ) : (
+              <TextField
               label={tc.name}
               required
               fullWidth
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
             />
-            <TextField
+            )}
+            {!isGym && <TextField
               label={tc.vatNumber}
               fullWidth
               value={form.vatNumber ?? ''}
               onChange={(e) => setForm((f) => ({ ...f, vatNumber: e.target.value || null }))}
-            />
+            />}
             <TextField
               label={tc.taxCode}
               fullWidth
@@ -1422,24 +1474,24 @@ export default function ClientDetail() {
               value={form.address ?? ''}
               onChange={(e) => setForm((f) => ({ ...f, address: e.target.value || null }))}
             />
-            <TextField
+            {!isGym && <TextField
               label={tc.pec}
               fullWidth
               value={form.pec ?? ''}
               onChange={(e) => setForm((f) => ({ ...f, pec: e.target.value || null }))}
-            />
-            {pecConflicts.length > 0 && (
+            />}
+            {!isGym && pecConflicts.length > 0 && (
               <Alert severity="info">
                 {tc.emailAddressConflict}{' '}
                 {[...new Set(pecConflicts.map((item) => item.clientName))].join(', ')}
               </Alert>
             )}
-            <TextField
+            {!isGym && <TextField
               label={tc.contactPerson}
               fullWidth
               value={form.contactPerson ?? ''}
               onChange={(e) => setForm((f) => ({ ...f, contactPerson: e.target.value || null }))}
-            />
+            />}
             <ClientEmailAddressFields
               addresses={emailAddresses}
               onChange={setEmailAddresses}
@@ -1457,19 +1509,19 @@ export default function ClientDetail() {
               wildcardExample="*@azienda.it"
             />
             <TextField
-              label={tc.phone}
+              label={isGym ? (lang === 'it' ? 'Cellulare' : 'Mobile phone') : tc.phone}
               fullWidth
               value={form.phone ?? ''}
               onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value || null }))}
             />
-            <TextField
+            {!isGym && <TextField
               label={tc.notes}
               fullWidth
               multiline
               rows={3}
               value={form.notes ?? ''}
               onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value || null }))}
-            />
+            />}
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>

@@ -31,6 +31,10 @@ import ClientEmailAddressFields, { getClientEmailAddressConflicts, parseClientEm
 
 const emptyForm: ClientInput = {
   name: '',
+  firstName: null,
+  lastName: null,
+  dateOfBirth: null,
+  membershipNumber: null,
   alias: null,
   email: null,
   phone: null,
@@ -41,6 +45,11 @@ const emptyForm: ClientInput = {
   contactPerson: null,
   notes: null,
 };
+
+function splitClientName(name: string): { firstName: string; lastName: string } {
+  const parts = name.trim().split(/\s+/);
+  return { firstName: parts.shift() ?? '', lastName: parts.join(' ') };
+}
 
 interface ParsedRow {
   rowIndex: number;
@@ -237,6 +246,7 @@ export default function Clients() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
+  const isGym = (user as any)?.profession === 'palestre';
   const userGroupPermissions: string[] = ((user as any)?.groupPermissions as string[] | undefined) ?? [];
   const canViewWorkedHours = isAdmin || userGroupPermissions.includes('view_worked_hours');
 
@@ -334,8 +344,13 @@ export default function Clients() {
 
   const openEdit = useCallback((client: Client) => {
     setEditingClient(client);
+    const legacyName = splitClientName(client.name);
     setForm({
       name: client.name,
+      firstName: client.firstName ?? legacyName.firstName,
+      lastName: client.lastName ?? legacyName.lastName,
+      dateOfBirth: client.dateOfBirth ?? null,
+      membershipNumber: client.membershipNumber ?? null,
       alias: (client as any).alias ?? null,
       email: client.email ?? null,
       phone: client.phone ?? null,
@@ -352,12 +367,21 @@ export default function Clients() {
   }, []);
 
   const handleSave = async () => {
-    if (!form.name?.trim()) { setFormError(tc.errorRequired); return; }
+    const firstName = form.firstName?.trim() ?? '';
+    const lastName = form.lastName?.trim() ?? '';
+    if (isGym ? (!firstName || !lastName) : !form.name?.trim()) {
+      setFormError(tc.errorRequired);
+      return;
+    }
     setSaving(true);
     setFormError('');
     try {
       const payload = {
-        name: form.name.trim(),
+        name: isGym ? `${firstName} ${lastName}` : form.name.trim(),
+        firstName: isGym ? firstName : (form.firstName?.trim() || null),
+        lastName: isGym ? lastName : (form.lastName?.trim() || null),
+        dateOfBirth: form.dateOfBirth || null,
+        membershipNumber: form.membershipNumber?.trim() || null,
         alias: (form as any).alias?.trim() || null,
         email: emailAddresses.map((address) => address.trim()).filter(Boolean).join('; ') || null,
         phone: form.phone?.trim() || null,
@@ -853,27 +877,60 @@ export default function Clients() {
         <DialogContent>
           <Box display="flex" flexDirection="column" gap={2} pt={1}>
             {formError && <Alert severity="error">{formError}</Alert>}
-            <TextField
-              label={tc.name}
-              required
-              fullWidth
-              value={form.name}
-              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-            />
-            <TextField
+            {isGym ? (
+              <>
+                <TextField
+                  label={lang === 'it' ? 'Nome' : 'First name'}
+                  required
+                  fullWidth
+                  value={form.firstName ?? ''}
+                  onChange={e => setForm(f => ({ ...f, firstName: e.target.value }))}
+                />
+                <TextField
+                  label={lang === 'it' ? 'Cognome' : 'Last name'}
+                  required
+                  fullWidth
+                  value={form.lastName ?? ''}
+                  onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))}
+                />
+                <TextField
+                  label={lang === 'it' ? 'Data di nascita' : 'Date of birth'}
+                  type="date"
+                  fullWidth
+                  InputLabelProps={{ shrink: true }}
+                  value={form.dateOfBirth ?? ''}
+                  onChange={e => setForm(f => ({ ...f, dateOfBirth: e.target.value || null }))}
+                />
+                <TextField
+                  label={lang === 'it' ? 'Matricola' : 'Membership number'}
+                  fullWidth
+                  value={form.membershipNumber ?? ''}
+                  onChange={e => setForm(f => ({ ...f, membershipNumber: e.target.value || null }))}
+                />
+              </>
+            ) : (
+              <TextField
+                label={tc.name}
+                required
+                fullWidth
+                value={form.name}
+                onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+              />
+            )}
+            {!isGym && <TextField
               label={tc.alias}
               fullWidth
               value={(form as any).alias ?? ''}
               onChange={e => setForm(f => ({ ...f, alias: e.target.value || null } as any))}
               placeholder={tc.aliasPlaceholder}
               helperText={tc.aliasPlaceholder}
-            />
-            <TextField
+            />}
+            {!isGym && <TextField
               label={tc.vatNumber}
               fullWidth
               value={(form as any).vatNumber ?? ''}
               onChange={e => setForm(f => ({ ...f, vatNumber: e.target.value || null } as any))}
-            />
+            />}
             <TextField
               label={tc.taxCode}
               fullWidth
@@ -886,24 +943,24 @@ export default function Clients() {
               value={(form as any).address ?? ''}
               onChange={e => setForm(f => ({ ...f, address: e.target.value || null } as any))}
             />
-            <TextField
+            {!isGym && <TextField
               label={tc.pec}
               fullWidth
               value={(form as any).pec ?? ''}
               onChange={e => setForm(f => ({ ...f, pec: e.target.value || null } as any))}
-            />
-            {pecConflicts.length > 0 && (
+            />}
+            {!isGym && pecConflicts.length > 0 && (
               <Alert severity="info">
                 {tc.emailAddressConflict}{' '}
                 {[...new Set(pecConflicts.map((item) => item.clientName))].join(', ')}
               </Alert>
             )}
-            <TextField
+            {!isGym && <TextField
               label={tc.contactPerson}
               fullWidth
               value={(form as any).contactPerson ?? ''}
               onChange={e => setForm(f => ({ ...f, contactPerson: e.target.value || null } as any))}
-            />
+            />}
               <ClientEmailAddressFields
                 addresses={emailAddresses}
                 onChange={setEmailAddresses}
@@ -921,19 +978,19 @@ export default function Clients() {
               wildcardExample="*@azienda.it"
               />
             <TextField
-              label={tc.phone}
+              label={isGym ? (lang === 'it' ? 'Cellulare' : 'Mobile phone') : tc.phone}
               fullWidth
               value={form.phone ?? ''}
               onChange={e => setForm(f => ({ ...f, phone: e.target.value || null }))}
             />
-            <TextField
+            {!isGym && <TextField
               label={tc.notes}
               fullWidth
               multiline
               rows={3}
               value={form.notes ?? ''}
               onChange={e => setForm(f => ({ ...f, notes: e.target.value || null }))}
-            />
+            />}
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>

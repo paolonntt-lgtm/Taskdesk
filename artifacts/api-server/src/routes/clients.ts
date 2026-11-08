@@ -163,6 +163,10 @@ const ClientEmailField = z.string().nullable().optional().superRefine((value, ct
 
 const ClientBody = z.object({
   name: z.string().min(1),
+  firstName: z.string().optional().nullable(),
+  lastName: z.string().optional().nullable(),
+  dateOfBirth: z.string().date().optional().nullable(),
+  membershipNumber: z.string().optional().nullable(),
   alias: z.string().optional().nullable(),
   email: ClientEmailField,
   phone: z.string().optional().nullable(),

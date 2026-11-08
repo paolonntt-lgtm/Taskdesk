@@ -31,7 +31,7 @@ const INITIAL_CATEGORIES_BY_PROFESSION: Record<OrganizationProfession, string[]>
   notai: ["Real Estate", "Succession", "Corporate Acts", "Powers of Attorney", "Contracts", "Other"],
   commercio: ["Orders", "Sales", "Inventory", "Customers", "Suppliers", "Other"],
   agenzie: ["Design", "Development", "Marketing", "Project Management", "Client Request", "Other"],
-  palestre: ["Memberships", "Classes", "Facilities", "Equipment", "Other"],
+  palestre: ["Accessi e iscrizioni", "Abbonamenti e pagamenti", "Corsi e prenotazioni", "Attrezzature e struttura", "Altro"],
   it_support: ["PC", "Printer", "Internet / Network", "Software", "Telephony", "Cash register / ERP", "Other"],
   other: ["General", "IT", "Administrative", "Operations", "Other"],
 };
