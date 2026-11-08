@@ -111,8 +111,8 @@ export default function CookieConsentBanner() {
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem', lineHeight: 1.5 }}>
             {isItalian
-              ? 'Usiamo il cookie tecnico di sessione per mantenere il login. Con il tuo consenso possiamo usare Google Analytics per capire come viene utilizzata la piattaforma.'
-              : 'We use a technical session cookie to keep you signed in. With your consent, we may use Google Analytics to understand how the platform is used.'}
+              ? 'Il cookie tecnico mantiene attivo il login. Google Analytics ci aiuta a capire quali funzioni sono utili e a migliorare TaskDesk; si attiva solo se lo accetti. Se rifiuti, restano attivi solo i cookie necessari.'
+              : 'The technical cookie keeps you signed in. Google Analytics helps us understand which features are useful and improve TaskDesk; it runs only if you accept. If you reject, only essential cookies remain active.'}
           </Typography>
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75 }}>
             <a href={privacyHref}>{isItalian ? 'Privacy policy' : 'Privacy policy'}</a>
@@ -122,10 +122,10 @@ export default function CookieConsentBanner() {
         </Box>
         <Box sx={{ display: 'flex', gap: 1, flexShrink: 0, flexWrap: 'wrap', justifyContent: { xs: 'flex-end', sm: 'initial' } }}>
           <Button size="small" variant="outlined" onClick={() => saveConsent('rejected')}>
-            {isItalian ? 'Rifiuta' : 'Reject'}
+            {isItalian ? 'Rifiuta Analytics' : 'Reject analytics'}
           </Button>
           <Button size="small" variant="contained" onClick={() => saveConsent('accepted')}>
-            {isItalian ? 'Accetta' : 'Accept'}
+            {isItalian ? 'Accetta Analytics' : 'Accept analytics'}
           </Button>
         </Box>
       </Box>

@@ -108,8 +108,8 @@ export default function CookieConsentBanner() {
           </strong>
           <p style={{ margin: 0, color: "#4b5563", fontSize: 13, lineHeight: 1.5 }}>
             {isItalian
-              ? "Usiamo cookie tecnici per il funzionamento del sito. Con il tuo consenso possiamo usare Google Analytics per capire come viene utilizzato il sito."
-              : "We use technical cookies to operate the site. With your consent, we may use Google Analytics to understand how the site is used."}
+              ? "I cookie tecnici sono necessari per il funzionamento del sito. Google Analytics ci aiuta a capire quali contenuti sono utili e a migliorare TaskDesk; si attiva solo se lo accetti. Se rifiuti, restano attivi solo i cookie necessari."
+              : "Technical cookies are required for the site to work. Google Analytics helps us understand which content is useful and improve TaskDesk; it runs only if you accept. If you reject, only essential cookies remain active."}
           </p>
           <div style={{ marginTop: 7, fontSize: 12 }}>
             <a href={`${window.location.origin}/${isItalian ? "it" : "en"}/privacy-policy`} style={{ color: "#2563eb" }}>
@@ -127,14 +127,14 @@ export default function CookieConsentBanner() {
             onClick={() => saveConsent("rejected")}
             style={{ border: "1px solid #cbd5e1", background: "#fff", color: "#334155", borderRadius: 9, padding: "8px 13px", cursor: "pointer", fontWeight: 600 }}
           >
-            {isItalian ? "Rifiuta" : "Reject"}
+            {isItalian ? "Rifiuta Analytics" : "Reject analytics"}
           </button>
           <button
             type="button"
             onClick={() => saveConsent("accepted")}
             style={{ border: "1px solid #2563eb", background: "#2563eb", color: "#fff", borderRadius: 9, padding: "8px 13px", cursor: "pointer", fontWeight: 700 }}
           >
-            {isItalian ? "Accetta" : "Accept"}
+            {isItalian ? "Accetta Analytics" : "Accept analytics"}
           </button>
         </div>
       </div>
