@@ -446,6 +446,7 @@ router.get("/clients", requireClientFeature, async (req, res): Promise<void> => 
         ilike(clientsTable.address, searchPattern),
         ilike(clientsTable.vatNumber, searchPattern),
         ilike(clientsTable.taxCode, searchPattern),
+        ilike(clientsTable.membershipNumber, searchPattern),
       )
     );
   }

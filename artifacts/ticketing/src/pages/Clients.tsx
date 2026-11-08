@@ -671,7 +671,9 @@ export default function Clients() {
       <Box mb={2} display="flex" alignItems="center" gap={2} flexWrap="wrap">
         <TextField
           size="small"
-          placeholder={tc.searchPlaceholder}
+          placeholder={isGym
+            ? (lang === 'it' ? 'Cerca clienti o numero tessera...' : 'Search clients or membership number...')
+            : tc.searchPlaceholder}
           value={search}
           onChange={e => setSearch(e.target.value)}
           InputProps={{ startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment> }}

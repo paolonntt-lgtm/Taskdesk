@@ -2972,6 +2972,7 @@ paths:
         - name: search
           in: query
           required: false
+          description: Search client name, alias, email, phone, address, VAT number, tax code, and membership number within the current organization.
           schema:
             type: string
         - name: limit

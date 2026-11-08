@@ -90,6 +90,7 @@ describe("client worked-hours report", () => {
         alias: `Shared Search Alias ${runId}`,
         email: `worked-hours-client-${runId}@example.test`,
         phone: `+1555${runId.replaceAll("-", "").slice(0, 7)}`,
+        membershipNumber: `GYM-${runId}`,
         slug: `worked-hours-${runId}`,
       })
       .returning({ id: clientsTable.id });
@@ -104,6 +105,7 @@ describe("client worked-hours report", () => {
         organizationId: foreignOrganizationId,
         name: "Foreign Organization Client",
         alias: `Shared Search Alias ${runId}`,
+        membershipNumber: `GYM-${runId}`,
         slug: `foreign-client-${runId}`,
       })
       .returning({ id: clientsTable.id });
@@ -390,6 +392,17 @@ describe("client worked-hours report", () => {
 
     const foreignClientDetail = await request(`/api/clients/${foreignClientId}`, userSessionId);
     expect(foreignClientDetail.status).toBe(404);
+  });
+
+  it("finds clients by membership number without exposing another organization's client", async () => {
+    const membershipNumberSearch = await request(
+      `/api/clients?search=${encodeURIComponent(`GYM-${runId}`)}`,
+      userSessionId,
+    );
+
+    expect(membershipNumberSearch.status).toBe(200);
+    expect(membershipNumberSearch.body.map((client: any) => client.id)).toContain(clientId);
+    expect(membershipNumberSearch.body.map((client: any) => client.id)).not.toContain(foreignClientId);
   });
 
   it("treats SQL LIKE pattern characters as literal client-search text", async () => {

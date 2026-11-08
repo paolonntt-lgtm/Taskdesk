@@ -1862,6 +1862,9 @@ includeHidden?: boolean;
 };
 
 export type ListClientsParams = {
+/**
+ * Search client name, alias, email, phone, address, VAT number, tax code, and membership number within the current organization.
+ */
 search?: string;
 /**
  * Maximum number of clients to return; capped at 100.
