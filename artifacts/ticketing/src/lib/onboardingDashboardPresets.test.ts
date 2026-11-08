@@ -14,6 +14,7 @@ describe("profession-based onboarding presets", () => {
     "notai",
     "commercio",
     "agenzie",
+    "palestre",
   ];
 
   it("maps each supported profession to a business type and a non-empty widget selection", () => {
@@ -35,5 +36,11 @@ describe("profession-based onboarding presets", () => {
     expect(getOnboardingBusinessType("other")).toBe("other");
     expect(getOnboardingDashboardPreset("it_support")).toContain("chart-trend");
     expect(getOnboardingDashboardPreset("other")).toContain("feed-recent");
+  });
+
+  it("gives gyms the general business type with an operations dashboard", () => {
+    expect(getOnboardingBusinessType("palestre")).toBe("other");
+    expect(getOnboardingDashboardPreset("palestre")).toContain("feed-assigned");
+    expect(getOnboardingDashboardPreset("palestre")).toContain("chart-status");
   });
 });

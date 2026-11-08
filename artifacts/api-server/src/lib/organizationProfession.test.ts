@@ -16,7 +16,7 @@ describe("organization profession presets", () => {
     }
   });
 
-  it("uses distinct category presets for the six professional profiles", () => {
+  it("uses distinct category presets for all professional profiles", () => {
     const professionalProfiles = [
       "commercialisti",
       "avvocati",
@@ -24,12 +24,24 @@ describe("organization profession presets", () => {
       "notai",
       "commercio",
       "agenzie",
+      "palestre",
     ] as const;
     const presetSignatures = professionalProfiles.map((profession) =>
       getDefaultCategoriesForProfession(profession).join("|"),
     );
 
     expect(new Set(presetSignatures).size).toBe(professionalProfiles.length);
+  });
+
+  it("sets up gym-specific categories under the general business type", () => {
+    expect(getOrganizationBusinessType("palestre")).toBe("other");
+    expect(getDefaultCategoriesForProfession("palestre")).toEqual([
+      "Memberships",
+      "Classes",
+      "Facilities",
+      "Equipment",
+      "Other",
+    ]);
   });
 
   it("returns a fresh category list for callers", () => {

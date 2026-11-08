@@ -5,6 +5,7 @@ export const ORGANIZATION_PROFESSIONS = [
   "notai",
   "commercio",
   "agenzie",
+  "palestre",
   "it_support",
   "other",
 ] as const;
@@ -18,6 +19,7 @@ const BUSINESS_TYPE_BY_PROFESSION: Record<OrganizationProfession, string> = {
   notai: "professional_studio",
   commercio: "other",
   agenzie: "agency",
+  palestre: "other",
   it_support: "it_support",
   other: "other",
 };
@@ -29,6 +31,7 @@ const INITIAL_CATEGORIES_BY_PROFESSION: Record<OrganizationProfession, string[]>
   notai: ["Real Estate", "Succession", "Corporate Acts", "Powers of Attorney", "Contracts", "Other"],
   commercio: ["Orders", "Sales", "Inventory", "Customers", "Suppliers", "Other"],
   agenzie: ["Design", "Development", "Marketing", "Project Management", "Client Request", "Other"],
+  palestre: ["Memberships", "Classes", "Facilities", "Equipment", "Other"],
   it_support: ["PC", "Printer", "Internet / Network", "Software", "Telephony", "Cash register / ERP", "Other"],
   other: ["General", "IT", "Administrative", "Operations", "Other"],
 };

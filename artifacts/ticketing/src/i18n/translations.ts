@@ -1779,6 +1779,10 @@ const it = {
         label: 'Agenzia',
         description: 'Progetti, assegnazioni e consegne ai clienti.',
       },
+      palestre: {
+        label: 'Palestra',
+        description: 'Abbonamenti, corsi e attività quotidiane del centro fitness.',
+      },
       it_support: {
         label: 'Supporto IT',
         description: 'Help desk, assistenza hardware e software, reti aziendali, gestione dispositivi.',
@@ -4062,6 +4066,10 @@ const en: typeof it = {
       agenzie: {
         label: 'Agency',
         description: 'Projects, assignments, and client deliverables.',
+      },
+      palestre: {
+        label: 'Gym',
+        description: 'Memberships, classes, and day-to-day fitness center operations.',
       },
       it_support: {
         label: 'IT Support',

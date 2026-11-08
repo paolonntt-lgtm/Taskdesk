@@ -5,7 +5,8 @@ export type ProfessionalTrialAttribution = {
     | "consulenti-del-lavoro"
     | "agenzie"
     | "notai"
-    | "commercio";
+    | "commercio"
+    | "palestre";
   language: "it" | "en";
 };
 
@@ -16,6 +17,7 @@ const PROFESSIONS = new Set<ProfessionalTrialAttribution["profession"]>([
   "agenzie",
   "notai",
   "commercio",
+  "palestre",
 ]);
 const LANGUAGES = new Set<ProfessionalTrialAttribution["language"]>(["it", "en"]);
 

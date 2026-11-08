@@ -480,7 +480,7 @@ describe("Google OAuth callback", () => {
   });
 
   it.each(
-    ["notai", "commercio", "agenzie"].flatMap((profession) =>
+    ["notai", "commercio", "agenzie", "palestre"].flatMap((profession) =>
       [true, false].map((applied) => ({ profession, applied })),
     ),
   )("starts a seven-day trial for $profession when referral application is $applied", async ({ profession, applied }) => {
@@ -539,7 +539,7 @@ describe("Google OAuth callback", () => {
     expect(insertedUser?.values.trialEndsAt).toBeInstanceOf(Date);
     expect(insertedOrganization?.values).toMatchObject({
       profession,
-      businessType: profession === "commercio" ? "other" : profession === "agenzie" ? "agency" : "professional_studio",
+      businessType: profession === "commercio" || profession === "palestre" ? "other" : profession === "agenzie" ? "agency" : "professional_studio",
       utmSource: "partner",
       utmMedium: "email",
       utmCampaign: "autumn",

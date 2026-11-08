@@ -96,6 +96,7 @@ function parseProfessionalTrialAttribution(query: import("express").Request["que
     "agenzie",
     "notai",
     "commercio",
+    "palestre",
   ];
   if (typeof profession !== "string" || !allowedProfessions.includes(profession)) return null;
   if (language !== "it" && language !== "en") return null;

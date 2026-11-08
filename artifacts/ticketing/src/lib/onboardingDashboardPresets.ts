@@ -23,6 +23,10 @@ export const PROFESSIONAL_DASHBOARD_PRESETS = {
     businessType: "agency",
     visibleIds: ["stat-open", "stat-resolved", "stat-urgent", "feed-recent", "feed-assigned", "chart-trend", "chart-assignee"],
   },
+  palestre: {
+    businessType: "other",
+    visibleIds: ["stat-open", "stat-urgent", "stat-overdue", "feed-recent", "feed-assigned", "chart-trend", "chart-status"],
+  },
 } as const;
 
 export type ProfessionalDashboardPresetId = keyof typeof PROFESSIONAL_DASHBOARD_PRESETS;
@@ -33,6 +37,7 @@ export const ONBOARDING_PROFILE_IDS = [
   "notai",
   "commercio",
   "agenzie",
+  "palestre",
   "it_support",
   "other",
 ] as const;

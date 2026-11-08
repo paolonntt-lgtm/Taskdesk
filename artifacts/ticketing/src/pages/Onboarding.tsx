@@ -6,7 +6,7 @@ import {
 } from '@mui/material';
 import {
   Computer, Gavel, Campaign, Category, Add, Close, CheckCircle,
-  AccountBalance, WorkOutline, EditNote, Storefront,
+  AccountBalance, WorkOutline, EditNote, Storefront, FitnessCenter,
 } from '@mui/icons-material';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -46,6 +46,7 @@ const OPTION_PRESENTATION: Record<OnboardingProfileId, Omit<BusinessTypeOption, 
   notai: { icon: <EditNote sx={{ fontSize: 42 }} />, color: '#ad5b12' },
   commercio: { icon: <Storefront sx={{ fontSize: 42 }} />, color: '#00838f' },
   agenzie: { icon: <Campaign sx={{ fontSize: 42 }} />, color: '#6a1b9a' },
+  palestre: { icon: <FitnessCenter sx={{ fontSize: 42 }} />, color: '#d97706' },
   it_support: { icon: <Computer sx={{ fontSize: 42 }} />, color: '#1565c0' },
   other: { icon: <Category sx={{ fontSize: 42 }} />, color: '#e65100' },
 };
