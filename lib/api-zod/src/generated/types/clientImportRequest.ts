@@ -7,6 +7,6 @@
  */
 import type { ClientImportRow } from './clientImportRow';
 
-export type ImportClientsBody = {
+export interface ClientImportRequest {
   rows: ClientImportRow[];
-};
+}

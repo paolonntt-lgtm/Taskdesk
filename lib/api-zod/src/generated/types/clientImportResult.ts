@@ -10,5 +10,6 @@ import type { ClientImportResultErrorsItem } from './clientImportResultErrorsIte
 export interface ClientImportResult {
   imported: number;
   skipped: number;
+  duplicates?: number;
   errors: ClientImportResultErrorsItem[];
 }

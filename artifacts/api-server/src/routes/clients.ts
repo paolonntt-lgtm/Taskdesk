@@ -24,6 +24,7 @@ import {
   normalizeSenderEmail,
 } from "../lib/emailClientAssociation";
 import { normalizeClientNoteCategory } from "../lib/clientNoteCategory";
+import { prepareClientImportRow } from "../lib/clientImportValidation";
 
 const router: IRouter = Router();
 
@@ -177,18 +178,6 @@ const ClientBody = z.object({
   contactPerson: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
   notes2: z.string().optional().nullable(),
-});
-
-const ImportRow = z.object({
-  name: z.string(),
-  vatNumber: z.string().optional().nullable(),
-  taxCode: z.string().optional().nullable(),
-  address: z.string().optional().nullable(),
-  pec: z.string().optional().nullable(),
-  contactPerson: z.string().optional().nullable(),
-  email: z.string().optional().nullable(),
-  phone: z.string().optional().nullable(),
-  notes: z.string().optional().nullable(),
 });
 
 const ClientsQuerySchema = z.object({
@@ -750,6 +739,12 @@ router.post("/clients/import", requireClientFeature, requireAdmin, async (req, r
   }
 
   const { rows } = bodyParsed.data;
+  const [organization] = await db
+    .select({ profession: organizationsTable.profession })
+    .from(organizationsTable)
+    .where(eq(organizationsTable.id, currentUser.organizationId))
+    .limit(1);
+  const isGym = organization?.profession === "palestre";
   let imported = 0;
   let skipped = 0;
   let duplicates = 0;
@@ -764,30 +759,17 @@ router.post("/clients/import", requireClientFeature, requireAdmin, async (req, r
   );
 
   for (let i = 0; i < rows.length; i++) {
-    const rowParsed = ImportRow.safeParse(rows[i]);
-    if (!rowParsed.success) {
+    const prepared = prepareClientImportRow(rows[i], isGym);
+    if (!prepared.ok) {
       skipped++;
-      errors.push({ row: i + 1, reason: "Invalid row format" });
+      errors.push({ row: i + 1, name: prepared.name, reason: prepared.reason });
       continue;
     }
 
-    const row = rowParsed.data;
-    const name = row.name?.trim();
-    const vatNumber = row.vatNumber?.trim() || null;
+    const row = prepared.value;
+    const { name, vatNumber } = row;
 
-    if (!name) {
-      skipped++;
-      errors.push({ row: i + 1, name: null, reason: "Missing required Name" });
-      continue;
-    }
-
-    if (!vatNumber) {
-      skipped++;
-      errors.push({ row: i + 1, name, reason: "Missing required VAT Number" });
-      continue;
-    }
-
-    if (existingVats.has(vatNumber.toLowerCase())) {
+    if (vatNumber && existingVats.has(vatNumber.toLowerCase())) {
       duplicates++;
       skipped++;
       errors.push({ row: i + 1, name, reason: "Duplicate VAT Number" });
@@ -800,17 +782,21 @@ router.post("/clients/import", requireClientFeature, requireAdmin, async (req, r
       organizationId: currentUser.organizationId,
       name,
       slug,
+      firstName: row.firstName,
+      lastName: row.lastName,
+      dateOfBirth: row.dateOfBirth,
+      membershipNumber: row.membershipNumber,
       vatNumber,
-      taxCode: row.taxCode?.trim() || null,
-      address: row.address?.trim() || null,
-      pec: row.pec?.trim() || null,
-      contactPerson: row.contactPerson?.trim() || null,
-      email: row.email?.trim() || null,
-      phone: row.phone?.trim() || null,
-      notes: row.notes?.trim() || null,
+      taxCode: row.taxCode,
+      address: row.address,
+      pec: row.pec,
+      contactPerson: row.contactPerson,
+      email: row.email,
+      phone: row.phone,
+      notes: row.notes,
     });
 
-    existingVats.add(vatNumber.toLowerCase());
+    if (vatNumber) existingVats.add(vatNumber.toLowerCase());
     imported++;
   }
 

@@ -1229,14 +1229,23 @@ export interface ResolveClientEmailAddressAssociationBody {
 }
 
 export interface ClientImportRow {
-  name: string;
+  name?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
   vatNumber?: string | null;
   taxCode?: string | null;
+  dateOfBirth?: string | null;
+  membershipNumber?: string | null;
   address?: string | null;
   pec?: string | null;
   contactPerson?: string | null;
   email?: string | null;
   phone?: string | null;
+  notes?: string | null;
+}
+
+export interface ClientImportRequest {
+  rows: ClientImportRow[];
 }
 
 export type ClientImportResultErrorsItem = {
@@ -1248,6 +1257,7 @@ export type ClientImportResultErrorsItem = {
 export interface ClientImportResult {
   imported: number;
   skipped: number;
+  duplicates?: number;
   errors: ClientImportResultErrorsItem[];
 }
 
@@ -1871,10 +1881,6 @@ export type ResolveClientEmailAddressAssociation200 = {
 
 export type ReviewLegacyEmailRule200 = {
   success: boolean;
-};
-
-export type ImportClientsBody = {
-  rows: ClientImportRow[];
 };
 
 export type GetClient200TicketsItemWorkedBillingStatus = typeof GetClient200TicketsItemWorkedBillingStatus[keyof typeof GetClient200TicketsItemWorkedBillingStatus] | null;

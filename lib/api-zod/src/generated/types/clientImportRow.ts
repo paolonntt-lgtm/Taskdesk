@@ -7,12 +7,17 @@
  */
 
 export interface ClientImportRow {
-  name: string;
+  name?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
   vatNumber?: string | null;
   taxCode?: string | null;
+  dateOfBirth?: Date | null;
+  membershipNumber?: string | null;
   address?: string | null;
   pec?: string | null;
   contactPerson?: string | null;
   email?: string | null;
   phone?: string | null;
+  notes?: string | null;
 }

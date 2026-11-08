@@ -32,6 +32,7 @@ import type {
   ChecklistWithItems,
   Client,
   ClientEmailAddressAssociation,
+  ClientImportRequest,
   ClientImportResult,
   ClientInput,
   ClientNote,
@@ -70,7 +71,6 @@ import type {
   GroupMemberInput,
   GroupWithMembers,
   HealthStatus,
-  ImportClientsBody,
   KnowledgeArticle,
   KnowledgeArticleInput,
   LegacyEmailRule,
@@ -9479,7 +9479,7 @@ export const getImportClientsUrl = () => {
 /**
  * @summary Bulk import clients from parsed rows (admin only)
  */
-export const importClients = async (importClientsBody: ImportClientsBody, options?: Parameters<typeof customFetch>[1]): Promise<ClientImportResult> => {
+export const importClients = async (clientImportRequest: ClientImportRequest, options?: Parameters<typeof customFetch>[1]): Promise<ClientImportResult> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -9492,7 +9492,7 @@ return customFetch<ClientImportResult>(getImportClientsUrl(),
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(importClientsBody)
+    body: JSON.stringify(clientImportRequest)
   }
 );}
 
@@ -9530,9 +9530,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type ImportClientsMutationResult = NonNullable<Awaited<ReturnType<typeof importClients>>>
-    export type ImportClientsMutationBody = BodyType<ImportClientsBody>
+    export type ImportClientsMutationBody = BodyType<ClientImportRequest>
     export type ImportClientsMutationError = ErrorType<void>
-    export type ImportClientsMutationVariables = {data: BodyType<ImportClientsBody>}
+    export type ImportClientsMutationVariables = {data: BodyType<ClientImportRequest>}
 
     /**
  * @summary Bulk import clients from parsed rows (admin only)

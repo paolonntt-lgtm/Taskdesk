@@ -25,9 +25,21 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
-import { readSheet, type CellValue } from 'read-excel-file/browser';
+import { readSheet } from 'read-excel-file/browser';
 import { invalidateTicketDataAfterClientRename } from '../lib/clientNameCache';
 import ClientEmailAddressFields, { getClientEmailAddressConflicts, parseClientEmailAddresses } from '../components/ClientEmailAddressFields';
+import {
+  createDefaultHeaderlessMapping,
+  getHeaderlessFields,
+  mapHeaderlessRows,
+  parseCsvText,
+  parseTabularRows,
+  validateImportRows,
+  type HeaderlessMapping,
+  type ImportCell,
+  type ImportFieldKey,
+  type ParsedRow,
+} from '../lib/clientImport';
 
 const emptyForm: ClientInput = {
   name: '',
@@ -51,83 +63,6 @@ function splitClientName(name: string): { firstName: string; lastName: string } 
   return { firstName: parts.shift() ?? '', lastName: parts.join(' ') };
 }
 
-interface ParsedRow {
-  rowIndex: number;
-  name: string;
-  vatNumber: string;
-  taxCode: string;
-  address: string;
-  pec: string;
-  contactPerson: string;
-  email: string;
-  phone: string;
-  notes: string;
-  error?: string;
-}
-
-type ImportFieldKey = 'name' | 'vatNumber' | 'taxCode' | 'address' | 'pec' | 'contactPerson' | 'email' | 'phone' | 'notes';
-type HeaderlessMapping = Record<ImportFieldKey, number | null>;
-type ImportCell = CellValue | null;
-type ParsedXlsx = { rows: ParsedRow[]; headerlessRows?: ImportCell[][] };
-
-const HEADERLESS_FIELDS = [
-  { key: 'name', labelKey: 'name', required: true },
-  { key: 'vatNumber', labelKey: 'vatNumber', required: true },
-  { key: 'taxCode', labelKey: 'taxCode' },
-  { key: 'address', labelKey: 'address' },
-  { key: 'pec', labelKey: 'pec' },
-  { key: 'contactPerson', labelKey: 'contactPerson' },
-  { key: 'email', labelKey: 'email' },
-  { key: 'phone', labelKey: 'phone' },
-  { key: 'notes', labelKey: 'notes' },
-] as const;
-
-const KNOWN_XLSX_HEADERS = new Set([
-  'Denominazione', 'Nome', 'name',
-  'P.IVA/TAX ID', 'PartitaIVA', 'Partita IVA', 'vatNumber', 'PIVA',
-  'Codice Fiscale', 'CodiceFiscale', 'taxCode', 'CF',
-  'Indirizzo', 'address', 'Comune', 'CAP', 'Provincia',
-  'Indirizzo PEC', 'PEC', 'pec', 'Referente', 'contactPerson',
-  'Indirizzo e-mail', 'Email', 'email', 'Telefono', 'phone', 'Note', 'notes',
-]);
-
-function createDefaultHeaderlessMapping(): HeaderlessMapping {
-  return {
-    name: 0,
-    vatNumber: 1,
-    taxCode: null,
-    address: null,
-    pec: null,
-    contactPerson: null,
-    email: null,
-    phone: null,
-    notes: null,
-  };
-}
-
-function mapHeaderlessRows(rows: ImportCell[][], mapping: HeaderlessMapping): ParsedRow[] {
-  return rows
-    .filter((row) => row.some((value) => String(value ?? '').trim() !== ''))
-    .map((row, i) => {
-      const value = (key: ImportFieldKey) => {
-        const column = mapping[key];
-        return column === null ? '' : String(row[column] ?? '').trim();
-      };
-      return {
-        rowIndex: i + 1,
-        name: value('name'),
-        vatNumber: value('vatNumber'),
-        taxCode: value('taxCode'),
-        address: value('address'),
-        pec: value('pec'),
-        contactPerson: value('contactPerson'),
-        email: value('email'),
-        phone: value('phone'),
-        notes: value('notes'),
-      };
-    });
-}
-
 function excelColumnName(index: number): string {
   let value = index + 1;
   let label = '';
@@ -139,49 +74,7 @@ function excelColumnName(index: number): string {
   return label;
 }
 
-async function parseXlsx(file: File): Promise<ParsedXlsx> {
-  try {
-    const rawRows = await readSheet(file);
-    if (rawRows.length === 0) return { rows: [] };
-    const headers = rawRows[0].map((h: ImportCell) => String(h ?? '').trim());
-    if (!headers.some((header) => KNOWN_XLSX_HEADERS.has(header))) {
-      return { rows: [], headerlessRows: rawRows };
-    }
-    if (rawRows.length < 2) return { rows: [] };
-    const getCol = (row: ImportCell[], ...names: string[]): string => {
-      for (const name of names) {
-        const idx = headers.indexOf(name);
-        if (idx !== -1 && row[idx] != null) return String(row[idx]).trim();
-      }
-      return '';
-    };
-    const rows = rawRows.slice(1).map((row: ImportCell[], i: number) => {
-      const street   = getCol(row, 'Indirizzo', 'address');
-      const city     = getCol(row, 'Comune');
-      const cap      = getCol(row, 'CAP');
-      const prov     = getCol(row, 'Provincia');
-      const cityLine = [cap, city, prov ? `(${prov})` : ''].filter(Boolean).join(' ');
-      const address  = [street, cityLine].filter(Boolean).join(', ');
-      return {
-        rowIndex: i + 2,
-        name:          getCol(row, 'Denominazione', 'Nome', 'name'),
-        vatNumber:     getCol(row, 'P.IVA/TAX ID', 'PartitaIVA', 'Partita IVA', 'vatNumber', 'PIVA'),
-        taxCode:       getCol(row, 'Codice Fiscale', 'CodiceFiscale', 'taxCode', 'CF'),
-        address,
-        pec:           getCol(row, 'Indirizzo PEC', 'PEC', 'pec'),
-        contactPerson: getCol(row, 'Referente', 'contactPerson'),
-        email:         getCol(row, 'Indirizzo e-mail', 'Email', 'email'),
-        phone:         getCol(row, 'Telefono', 'phone'),
-        notes:         getCol(row, 'Note', 'notes'),
-      };
-    });
-    return { rows };
-  } catch {
-    throw new Error('parse_error');
-  }
-}
-
-function parseXml(file: File): Promise<ParsedRow[]> {
+function parseXml(file: File, isGym: boolean): Promise<ParsedRow[]> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -205,18 +98,28 @@ function parseXml(file: File): Promise<ParsedRow[]> {
           return '';
         };
 
-        const rows: ParsedRow[] = items.map((el, i) => ({
-          rowIndex: i + 1,
-          name: get(el, 'Denominazione', 'Nome', 'Name', 'nome', 'name'),
-          vatNumber: get(el, 'PartitaIVA', 'Partita_IVA', 'vatNumber', 'PIva', 'PIVA'),
-          taxCode: get(el, 'CodiceFiscale', 'Codice_Fiscale', 'taxCode', 'CF'),
-          address: get(el, 'Indirizzo', 'Address', 'indirizzo', 'address'),
-          pec: get(el, 'IndirizzoP_EC', 'PEC', 'pec'),
-          contactPerson: get(el, 'Referente', 'contactPerson', 'referente'),
-          email: get(el, 'IndirizzoEmail', 'Email', 'email', 'Mail', 'mail'),
-          phone: get(el, 'Telefono', 'Phone', 'telefono', 'phone', 'Tel'),
-          notes: get(el, 'Note', 'notes', 'note'),
-        }));
+        const rows: ParsedRow[] = items.map((el, i) => {
+          const firstName = isGym ? get(el, 'Nome', 'FirstName', 'firstName', 'nome') : '';
+          const lastName = isGym ? get(el, 'Cognome', 'LastName', 'lastName', 'cognome') : '';
+          return {
+            rowIndex: i + 1,
+            name: isGym
+              ? [firstName, lastName].filter(Boolean).join(' ')
+              : get(el, 'Denominazione', 'Nome', 'Name', 'nome', 'name'),
+            firstName,
+            lastName,
+            vatNumber: get(el, 'PartitaIVA', 'Partita_IVA', 'vatNumber', 'PIva', 'PIVA'),
+            taxCode: get(el, 'CodiceFiscale', 'Codice_Fiscale', 'taxCode', 'CF'),
+            dateOfBirth: get(el, 'DataDiNascita', 'Data_Nascita', 'dateOfBirth', 'birthDate'),
+            membershipNumber: get(el, 'NumeroTessera', 'MembershipNumber', 'membershipNumber', 'tessera'),
+            address: get(el, 'Indirizzo', 'Address', 'indirizzo', 'address'),
+            pec: get(el, 'IndirizzoP_EC', 'PEC', 'pec'),
+            contactPerson: get(el, 'Referente', 'contactPerson', 'referente'),
+            email: get(el, 'IndirizzoEmail', 'Email', 'email', 'Mail', 'mail'),
+            phone: get(el, 'Telefono', 'Phone', 'telefono', 'phone', 'Tel', 'Cellulare', 'Mobile'),
+            notes: get(el, 'Note', 'notes', 'note'),
+          };
+        });
         resolve(rows);
       } catch {
         reject(new Error('parse_error'));
@@ -224,18 +127,6 @@ function parseXml(file: File): Promise<ParsedRow[]> {
     };
     reader.onerror = () => reject(new Error('read_error'));
     reader.readAsText(file);
-  });
-}
-
-function validateRows(rows: ParsedRow[], existingVats: Set<string>): ParsedRow[] {
-  const seenVats = new Set<string>();
-  return rows.map((r) => {
-    if (!r.name) return { ...r, error: 'missingName' };
-    if (!r.vatNumber) return { ...r, error: 'missingVat' };
-    const vatLower = r.vatNumber.toLowerCase();
-    if (existingVats.has(vatLower) || seenVats.has(vatLower)) return { ...r, error: 'duplicateVat' };
-    seenVats.add(vatLower);
-    return r;
   });
 }
 
@@ -247,6 +138,7 @@ export default function Clients() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
   const isGym = (user as any)?.profession === 'palestre';
+  const importHeaderlessFields = getHeaderlessFields(isGym);
   const userGroupPermissions: string[] = ((user as any)?.groupPermissions as string[] | undefined) ?? [];
   const canViewWorkedHours = isAdmin || userGroupPermissions.includes('view_worked_hours');
 
@@ -497,22 +389,26 @@ export default function Clients() {
 
     try {
       let raw: ParsedRow[];
-      if (file.name.toLowerCase().endsWith('.xlsx')) {
-        const parsed = await parseXlsx(file);
+      const extension = file.name.toLowerCase().split('.').pop();
+      if (extension === 'xlsx' || (extension === 'csv' && isGym)) {
+        const rawRows = extension === 'xlsx'
+          ? await readSheet(file)
+          : parseCsvText(await file.text());
+        const parsed = parseTabularRows(rawRows as ImportCell[][], isGym);
         if (parsed.headerlessRows) {
           const columnCount = Math.max(0, ...parsed.headerlessRows.map((row) => row.length));
           const headerless = {
             rows: parsed.headerlessRows,
             columnCount,
-            mapping: createDefaultHeaderlessMapping(),
+            mapping: createDefaultHeaderlessMapping(isGym),
           };
           setHeaderlessImport(headerless);
-          raw = mapHeaderlessRows(headerless.rows, headerless.mapping);
+          raw = mapHeaderlessRows(headerless.rows, headerless.mapping, isGym);
         } else {
           raw = parsed.rows;
         }
-      } else if (file.name.toLowerCase().endsWith('.xml')) {
-        raw = await parseXml(file);
+      } else if (extension === 'xml' && !isGym) {
+        raw = await parseXml(file, isGym);
       } else {
         setImportParseError(tc.importErrorParse);
         return;
@@ -520,7 +416,7 @@ export default function Clients() {
       const existingVats = new Set(
         allClients.map((c) => ((c as any).vatNumber ?? '').toString().trim().toLowerCase()).filter(Boolean)
       );
-      setImportRows(validateRows(raw, existingVats));
+      setImportRows(validateImportRows(raw, existingVats, isGym));
     } catch {
       setImportParseError(tc.importErrorParse);
     }
@@ -535,7 +431,7 @@ export default function Clients() {
     const existingVats = new Set(
       allClients.map((c) => ((c as any).vatNumber ?? '').toString().trim().toLowerCase()).filter(Boolean)
     );
-    setImportRows(validateRows(mapHeaderlessRows(next.rows, mapping), existingVats));
+    setImportRows(validateImportRows(mapHeaderlessRows(next.rows, mapping, isGym), existingVats, isGym));
   };
 
   const handleImportConfirm = async () => {
@@ -552,8 +448,12 @@ export default function Clients() {
         body: JSON.stringify({
           rows: validRows.map((r) => ({
             name: r.name,
+            firstName: isGym ? r.firstName : null,
+            lastName: isGym ? r.lastName : null,
             vatNumber: r.vatNumber || null,
             taxCode: r.taxCode || null,
+            dateOfBirth: isGym ? r.dateOfBirth || null : null,
+            membershipNumber: isGym ? r.membershipNumber || null : null,
             address: r.address || null,
             pec: r.pec || null,
             contactPerson: r.contactPerson || null,
@@ -1051,16 +951,18 @@ export default function Clients() {
         <DialogTitle>{tc.importDialogTitle}</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" mb={2}>
-            {tc.importDialogSubtitle}
+            {isGym ? tc.importGymDialogSubtitle : tc.importDialogSubtitle}
           </Typography>
           <Box mb={2} display="flex" flexDirection="column" gap={1}>
-            <Typography variant="caption" color="text.secondary">{tc.importTemplateHint}</Typography>
-            <Typography variant="caption" color="text.secondary">{tc.importXmlHint}</Typography>
+            <Typography variant="caption" color="text.secondary">
+              {isGym ? tc.importGymTemplateHint : tc.importTemplateHint}
+            </Typography>
+            {!isGym && <Typography variant="caption" color="text.secondary">{tc.importXmlHint}</Typography>}
           </Box>
 
           <input
             type="file"
-            accept=".xlsx,.xml"
+            accept={isGym ? '.csv,.xlsx' : '.xlsx,.xml'}
             ref={fileInputRef}
             style={{ display: 'none' }}
             onChange={handleFileChange}
@@ -1071,7 +973,7 @@ export default function Clients() {
             onClick={() => fileInputRef.current?.click()}
             sx={{ mb: 2 }}
           >
-            {importFileName ? tc.importChangeFile : tc.importSelectFile}
+            {importFileName ? tc.importChangeFile : isGym ? tc.importGymSelectFile : tc.importSelectFile}
           </Button>
           {importFileName && (
             <Typography variant="body2" color="text.secondary" mb={1}>
@@ -1085,18 +987,18 @@ export default function Clients() {
             <Alert severity="info" sx={{ mb: 2 }}>
               <Typography variant="body2" mb={1}>{tc.importNoHeaders}</Typography>
               <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 1.5 }}>
-                {HEADERLESS_FIELDS.map((field) => (
+                {importHeaderlessFields.map((field) => (
                   <TextField
                     key={field.key}
                     select
                     size="small"
-                    label={`${tc[field.labelKey]}${'required' in field && field.required ? ' *' : ''}`}
+                    label={`${tc[field.labelKey]}${field.required ? ' *' : ''}`}
                     value={headerlessImport.mapping[field.key] ?? ''}
                     onChange={(event) => handleHeaderlessMappingChange(field.key, event.target.value)}
                   >
                     <MenuItem value="">{tc.importSkipColumn}</MenuItem>
                     {Array.from({ length: headerlessImport.columnCount }, (_, columnIndex) => {
-                      const usedByAnotherField = HEADERLESS_FIELDS.some(
+                      const usedByAnotherField = importHeaderlessFields.some(
                         (otherField) => otherField.key !== field.key
                           && headerlessImport.mapping[otherField.key] === columnIndex
                       );
@@ -1133,15 +1035,33 @@ export default function Clients() {
                   <TableHead>
                     <TableRow sx={{ bgcolor: 'grey.50' }}>
                       <TableCell sx={{ fontWeight: 600, minWidth: 40 }}>#</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>{tc.name}</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>{tc.vatNumber}</TableCell>
+                      {isGym ? (
+                        <>
+                          <TableCell sx={{ fontWeight: 600 }}>{tc.firstName}</TableCell>
+                          <TableCell sx={{ fontWeight: 600 }}>{tc.lastName}</TableCell>
+                        </>
+                      ) : (
+                        <>
+                          <TableCell sx={{ fontWeight: 600 }}>{tc.name}</TableCell>
+                          <TableCell sx={{ fontWeight: 600 }}>{tc.vatNumber}</TableCell>
+                        </>
+                      )}
                       <TableCell sx={{ fontWeight: 600 }}>{tc.taxCode}</TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>{tc.address}</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>{tc.pec}</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>{tc.contactPerson}</TableCell>
+                      {isGym ? (
+                        <>
+                          <TableCell sx={{ fontWeight: 600 }}>{tc.dateOfBirth}</TableCell>
+                          <TableCell sx={{ fontWeight: 600 }}>{tc.membershipNumber}</TableCell>
+                        </>
+                      ) : (
+                        <>
+                          <TableCell sx={{ fontWeight: 600 }}>{tc.pec}</TableCell>
+                          <TableCell sx={{ fontWeight: 600 }}>{tc.contactPerson}</TableCell>
+                        </>
+                      )}
                       <TableCell sx={{ fontWeight: 600 }}>{tc.email}</TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>{tc.phone}</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>{tc.notes}</TableCell>
+                      {!isGym && <TableCell sx={{ fontWeight: 600 }}>{tc.notes}</TableCell>}
                       <TableCell sx={{ fontWeight: 600 }}>{tc.importColError}</TableCell>
                     </TableRow>
                   </TableHead>
@@ -1158,19 +1078,39 @@ export default function Clients() {
                         }
                       >
                         <TableCell>{row.rowIndex}</TableCell>
-                        <TableCell>{row.name || '—'}</TableCell>
-                        <TableCell>{row.vatNumber || '—'}</TableCell>
+                        {isGym ? (
+                          <>
+                            <TableCell>{row.firstName || '—'}</TableCell>
+                            <TableCell>{row.lastName || '—'}</TableCell>
+                          </>
+                        ) : (
+                          <>
+                            <TableCell>{row.name || '—'}</TableCell>
+                            <TableCell>{row.vatNumber || '—'}</TableCell>
+                          </>
+                        )}
                         <TableCell>{row.taxCode || '—'}</TableCell>
                         <TableCell>{row.address || '—'}</TableCell>
-                        <TableCell>{row.pec || '—'}</TableCell>
-                        <TableCell>{row.contactPerson || '—'}</TableCell>
+                        {isGym ? (
+                          <>
+                            <TableCell>{row.dateOfBirth || '—'}</TableCell>
+                            <TableCell>{row.membershipNumber || '—'}</TableCell>
+                          </>
+                        ) : (
+                          <>
+                            <TableCell>{row.pec || '—'}</TableCell>
+                            <TableCell>{row.contactPerson || '—'}</TableCell>
+                          </>
+                        )}
                         <TableCell>{row.email || '—'}</TableCell>
                         <TableCell>{row.phone || '—'}</TableCell>
-                        <TableCell>{row.notes || '—'}</TableCell>
+                        {!isGym && <TableCell>{row.notes || '—'}</TableCell>}
                         <TableCell>
                           {row.error === 'missingName' && tc.importRowErrorMissingName}
                           {row.error === 'missingVat' && tc.importRowErrorMissingVat}
                           {row.error === 'duplicateVat' && tc.importRowErrorDuplicateVat}
+                          {row.error === 'missingMemberName' && tc.importRowErrorMissingMemberName}
+                          {row.error === 'invalidDateOfBirth' && tc.importRowErrorInvalidDateOfBirth}
                         </TableCell>
                       </TableRow>
                     ))}

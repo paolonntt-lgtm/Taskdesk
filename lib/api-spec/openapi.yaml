@@ -3166,14 +3166,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                rows:
-                  type: array
-                  items:
-                    $ref: "#/components/schemas/ClientImportRow"
-              required:
-                - rows
+              $ref: "#/components/schemas/ClientImportRequest"
       responses:
         "200":
           description: Import result
@@ -5779,15 +5772,38 @@ components:
           type: integer
       required: [address, keepClientId, removeClientId]
 
+    ClientImportRequest:
+      type: object
+      properties:
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClientImportRow"
+      required: [rows]
+
     ClientImportRow:
       type: object
       properties:
         name:
           type: string
+          nullable: true
+        firstName:
+          type: string
+          nullable: true
+        lastName:
+          type: string
+          nullable: true
         vatNumber:
           type: string
           nullable: true
         taxCode:
+          type: string
+          nullable: true
+        dateOfBirth:
+          type: string
+          format: date
+          nullable: true
+        membershipNumber:
           type: string
           nullable: true
         address:
@@ -5805,8 +5821,9 @@ components:
         phone:
           type: string
           nullable: true
-      required:
-        - name
+        notes:
+          type: string
+          nullable: true
 
     ClientImportResult:
       type: object
@@ -5814,6 +5831,8 @@ components:
         imported:
           type: integer
         skipped:
+          type: integer
+        duplicates:
           type: integer
         errors:
           type: array

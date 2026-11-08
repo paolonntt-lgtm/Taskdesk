@@ -4114,20 +4114,26 @@ export const DeleteLegacyEmailRuleResponse = zod.void()
  */
 export const ImportClientsBody = zod.object({
   "rows": zod.array(zod.object({
-  "name": zod.string(),
+  "name": zod.string().nullish(),
+  "firstName": zod.string().nullish(),
+  "lastName": zod.string().nullish(),
   "vatNumber": zod.string().nullish(),
   "taxCode": zod.string().nullish(),
+  "dateOfBirth": zod.coerce.date().nullish(),
+  "membershipNumber": zod.string().nullish(),
   "address": zod.string().nullish(),
   "pec": zod.string().nullish(),
   "contactPerson": zod.string().nullish(),
   "email": zod.string().nullish(),
-  "phone": zod.string().nullish()
+  "phone": zod.string().nullish(),
+  "notes": zod.string().nullish()
 }))
 })
 
 export const ImportClientsResponse = zod.object({
   "imported": zod.int(),
   "skipped": zod.int(),
+  "duplicates": zod.int().optional(),
   "errors": zod.array(zod.object({
   "row": zod.int(),
   "name": zod.string().nullish(),
