@@ -42,5 +42,6 @@ describe("profession-based onboarding presets", () => {
     expect(getOnboardingBusinessType("palestre")).toBe("other");
     expect(getOnboardingDashboardPreset("palestre")).toContain("feed-assigned");
     expect(getOnboardingDashboardPreset("palestre")).toContain("chart-status");
+    expect(getOnboardingDashboardPreset("palestre")).toContain("gym-access");
   });
 });

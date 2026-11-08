@@ -40,6 +40,7 @@ import {
   PeopleAlt as PeopleAltIcon,
   DeleteOutline as DeleteIcon,
   LocationOn as LocationOnIcon,
+  FitnessCenter as FitnessCenterIcon,
 } from '@mui/icons-material';
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
@@ -65,6 +66,7 @@ import { useTicketStatuses } from '../hooks/useTicketStatuses';
 import { useEntityTerm } from '../hooks/useEntityTerm';
 import { useClientNoteDeclaratives } from '../hooks/useClientNoteDeclaratives';
 import { hasDeclarativeClientNoteCategory } from '../lib/clientNoteHashtag';
+import { getGymAccessPeriodRange, type GymAccessPeriod } from '../lib/gymAccessPeriods';
 import {
   dashboardPreferenceStorageKey,
   dashboardWidgetInstancePreferenceKey,
@@ -2002,6 +2004,7 @@ interface WidgetSettingField {
 interface WidgetMeta {
   requireClients?: boolean;
   requireTimeTracking?: boolean;
+  requireGym?: boolean;
   id: string;
   labelKey: string;
   defaultLayout: Omit<LayoutItem, 'i'>;
@@ -2150,6 +2153,74 @@ function AcquisitionWidget() {
   );
 }
 
+function GymAccessWidget() {
+  const { t, lang } = useLanguage();
+  const [period, setPeriod] = useState<GymAccessPeriod>('today');
+  const range = useMemo(() => getGymAccessPeriodRange(period), [period]);
+  const { data = [], isLoading, isError } = useQuery<{
+    id: number;
+    personName: string;
+    occurredAt: string;
+  }[]>({
+    queryKey: ['gym-access', range.from, range.to],
+    queryFn: async () => {
+      const params = new URLSearchParams(range);
+      const response = await fetch(`/api/gym-access?${params}`, { credentials: 'include' });
+      if (!response.ok) throw new Error('Could not load gym access events');
+      return response.json();
+    },
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
+  });
+  const distinctPeople = new Set(data.map((event) => event.personName.trim().toLocaleLowerCase())).size;
+  const locale = lang === 'it' ? 'it-IT' : 'en-GB';
+  const labels = t.gymAccess;
+
+  return (
+    <Card sx={{ height: '100%' }}>
+      <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column', p: { xs: 1.5, sm: 2 }, '&:last-child': { pb: { xs: 1.5, sm: 2 } } }}>
+        <Box display="flex" alignItems="center" gap={1} mb={1}>
+          <FitnessCenterIcon color="primary" fontSize="small" />
+          <Typography variant="h6" fontWeight="bold" fontSize="0.95rem" flex={1}>{labels.title}</Typography>
+          <Button component={Link} href="/gym-access" size="small">{labels.openPage}</Button>
+        </Box>
+        <Box display="flex" alignItems="center" gap={1} mb={1}>
+          <FormControl size="small" sx={{ minWidth: 145 }}>
+            <Select
+              value={period}
+              onChange={(event) => setPeriod(event.target.value as GymAccessPeriod)}
+              aria-label={labels.period}
+            >
+              {(['today', 'yesterday', 'last7', 'lastMonth'] as GymAccessPeriod[]).map((value) => (
+                <MenuItem key={value} value={value}>{labels.periods[value]}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <Chip size="small" label={`${labels.entries}: ${data.length}`} color="primary" />
+          <Chip size="small" label={`${labels.distinctPeople}: ${distinctPeople}`} variant="outlined" />
+        </Box>
+        <Typography variant="caption" color="text.secondary" mb={1}>{labels.manualNotice}</Typography>
+        <Divider />
+        <Box sx={{ flex: 1, overflowY: 'auto', mt: 0.5 }}>
+          {isLoading ? <ChartLoader /> : isError ? (
+            <Typography variant="body2" color="error" textAlign="center" py={2}>{labels.loadError}</Typography>
+          ) : data.length === 0 ? (
+            <Typography variant="body2" color="text.secondary" textAlign="center" py={2}>{labels.empty}</Typography>
+          ) : [...data].sort((a, b) => b.occurredAt.localeCompare(a.occurredAt)).slice(0, 8).map((event) => (
+            <Box key={event.id} display="flex" justifyContent="space-between" gap={1} py={0.7} borderBottom={1} borderColor="divider">
+              <Typography variant="body2" fontWeight={600} noWrap>{event.personName}</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
+                {new Date(event.occurredAt).toLocaleString(locale, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+              </Typography>
+            </Box>
+          ))}
+        </Box>
+      </CardContent>
+    </Card>
+  );
+}
+
 const WIDGET_REGISTRY: WidgetMeta[] = [
   { id: 'stat-open',      labelKey: 'widgetStatOpen',      defaultLayout: { x: 0, y: 0, w: 3, h: 2, minW: 2, minH: 2 }, component: StatOpenWidget },
   { id: 'stat-resolved',  labelKey: 'widgetStatResolved',  defaultLayout: { x: 3, y: 0, w: 3, h: 2, minW: 2, minH: 2 }, component: StatResolvedWidget },
@@ -2177,6 +2248,7 @@ const WIDGET_REGISTRY: WidgetMeta[] = [
   { id: 'feed-status',    labelKey: 'widgetFeedStatus',    defaultLayout: { x: 4, y: 60, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedStatusWidget },
   { id: 'feed-all-assigned', labelKey: 'widgetFeedAllAssigned', defaultLayout: { x: 8, y: 60, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedAllAssignedWidget, settingsSchema: FEED_SETTINGS_SCHEMA },
   { id: 'billing-unbilled', labelKey: 'widgetUnbilled', defaultLayout: { x: 0, y: 67, w: 4, h: 4, minW: 2, minH: 3 }, component: UnbilledHoursWidget, requireAdmin: true, requireTimeTracking: true },
+  { id: 'gym-access', labelKey: 'widgetGymAccess', defaultLayout: { x: 0, y: 71, w: 6, h: 6, minW: 3, minH: 4 }, component: GymAccessWidget, requireAdmin: true, requireGym: true },
 ];
 
 const DEFAULT_VISIBLE_IDS = ['stat-open', 'stat-resolved', 'stat-urgent', 'stat-overdue', 'feed-my', 'feed-due', 'feed-recent'];
@@ -2427,7 +2499,7 @@ function AddWidgetDialog({
             const groups: { label: string; ids: string[] }[] = [
               { label: t.dashboard.wgStat   ?? 'Statistiche', ids: ['stat-open', 'stat-resolved', 'stat-urgent', 'stat-overdue'] },
               { label: t.dashboard.wgFeed   ?? 'Liste',       ids: ['feed-my', 'feed-due', 'feed-recent', 'feed-assigned', 'feed-open', 'feed-overdue', 'feed-person', 'feed-group', 'feed-category', 'feed-status', 'feed-all-assigned'] },
-              { label: t.dashboard.wgOther  ?? 'Altro',       ids: ['workload', 'client-notes', 'client-note-declaratives', 'acquisition', 'billing-unbilled'] },
+              { label: t.dashboard.wgOther  ?? 'Altro',       ids: ['workload', 'client-notes', 'client-note-declaratives', 'acquisition', 'billing-unbilled', 'gym-access'] },
               { label: t.dashboard.wgChart  ?? 'Grafici',     ids: ['chart-trend', 'chart-status', 'chart-category', 'chart-priority', 'chart-location', 'chart-assignee'] },
             ];
             return groups.map((group) => {
@@ -2546,9 +2618,10 @@ function Dashboard() {
   const { data: dashStats } = useGetDashboardStats({ query: { staleTime: 30_000, refetchInterval: POLL_MS * 2, refetchIntervalInBackground: false } as any });
   const hasNoTickets = !!dashStats && dashStats.totalTickets === 0;
 
+  const isGymProfile = user?.profession === 'palestre';
   const effectiveRegistry = WIDGET_REGISTRY.filter(
     (w) => (w.id !== 'acquisition' || isSuperAdmin)
-      && isDashboardWidgetAvailable(w, { isAdmin, clientsEnabled, timeTrackingEnabled }),
+      && isDashboardWidgetAvailable(w, { isAdmin, clientsEnabled, timeTrackingEnabled, isGym: isGymProfile }),
   );
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -2826,7 +2899,16 @@ function Dashboard() {
   const hiddenWidgets = effectiveRegistry.filter((w) => !visibleIds.includes(w.id));
 
   const activeWidgetIds = new Set(effectiveRegistry.map((widget) => widget.id));
-  const activeLayout: LayoutItem[] = layout.filter((l) => visibleDashboardIds.includes(l.i) && activeWidgetIds.has(getBaseId(l.i)));
+  const savedLayoutIds = new Set(layout.map((item) => item.i));
+  const activeLayout: LayoutItem[] = [
+    ...layout.filter((item) => visibleDashboardIds.includes(item.i) && activeWidgetIds.has(getBaseId(item.i))),
+    ...visibleDashboardIds
+      .filter((id) => !savedLayoutIds.has(id))
+      .flatMap((id) => {
+        const meta = effectiveRegistry.find((widget) => widget.id === getBaseId(id));
+        return meta ? [{ i: id, ...meta.defaultLayout }] : [];
+      }),
+  ];
   const greetingKey = getGreetingKey(now.getHours());
   const greeting = (t.dashboard as Record<string, unknown>)[greetingKey] as string;
   const firstName = user?.name?.trim().split(/\s+/)[0] || '';

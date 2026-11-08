@@ -25,7 +25,7 @@ export const PROFESSIONAL_DASHBOARD_PRESETS = {
   },
   palestre: {
     businessType: "other",
-    visibleIds: ["stat-open", "stat-urgent", "stat-overdue", "feed-recent", "feed-assigned", "chart-trend", "chart-status"],
+    visibleIds: ["stat-open", "stat-urgent", "stat-overdue", "feed-recent", "feed-assigned", "chart-trend", "chart-status", "gym-access"],
   },
 } as const;
 

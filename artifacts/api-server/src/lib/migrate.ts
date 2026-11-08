@@ -682,6 +682,20 @@ export async function runAppMigrations(): Promise<void> {
       CREATE UNIQUE INDEX IF NOT EXISTS ticket_attachment_onedrive_copies_identity_idx
         ON ticket_attachment_onedrive_copies (attachment_id, owner_tenant_id, owner_email, item_id);
     `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS gym_access_events (
+        id SERIAL PRIMARY KEY,
+        organization_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        person_name TEXT NOT NULL,
+        occurred_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        created_by INTEGER NOT NULL REFERENCES users(id),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS gym_access_events_org_occurred_idx
+        ON gym_access_events (organization_id, occurred_at);
+      CREATE INDEX IF NOT EXISTS gym_access_events_org_person_idx
+        ON gym_access_events (organization_id, person_name);
+    `);
 
     logger.info("App migrations completed");
   } catch (err) {

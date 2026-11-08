@@ -56,6 +56,7 @@ import {
   WhatsApp,
   ExpandMore,
   CheckCircleOutline,
+  FitnessCenter,
 } from '@mui/icons-material';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
@@ -728,6 +729,9 @@ export default function Layout({ children }: LayoutProps) {
     { text: t.nav.reports,    icon: <BarChart />,            iconColor: '#7B61C9', path: '/reports',       adminOnly: false, group: lang === 'it' ? 'Controllo' : 'Control' },
     ...(user?.role === 'admin' && timeTrackingSettings?.timeTrackingModuleEnabled
       ? [{ text: t.nav.timeTrackingReport, icon: <AccessTime />, iconColor: '#168B9B', path: '/time-report', adminOnly: true, group: lang === 'it' ? 'Controllo' : 'Control' }]
+      : []),
+    ...(user?.role === 'admin' && user.profession === 'palestre'
+      ? [{ text: t.nav.gymAccess, icon: <FitnessCenter />, iconColor: '#D17A22', path: '/gym-access', adminOnly: true, group: lang === 'it' ? 'Controllo' : 'Control' }]
       : []),
     ...(shouldShowPersonalTimeReport(user?.role, personalTimeReport.data?.rows)
       ? [{ text: t.nav.myTimeTrackingReport, icon: <AccessTime />, iconColor: '#168B9B', path: '/my-time-report', adminOnly: false, group: lang === 'it' ? 'Controllo' : 'Control' }]

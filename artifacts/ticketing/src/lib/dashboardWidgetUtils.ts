@@ -2,15 +2,17 @@ export interface DashboardWidgetAccess {
   requireAdmin?: boolean;
   requireClients?: boolean;
   requireTimeTracking?: boolean;
+  requireGym?: boolean;
 }
 
 export function isDashboardWidgetAvailable(
   widget: DashboardWidgetAccess,
-  access: { isAdmin: boolean; clientsEnabled: boolean; timeTrackingEnabled: boolean },
+  access: { isAdmin: boolean; clientsEnabled: boolean; timeTrackingEnabled: boolean; isGym?: boolean },
 ): boolean {
   return (!widget.requireAdmin || access.isAdmin)
     && (!widget.requireClients || access.clientsEnabled)
-    && (!widget.requireTimeTracking || access.timeTrackingEnabled);
+    && (!widget.requireTimeTracking || access.timeTrackingEnabled)
+    && (!widget.requireGym || access.isGym === true);
 }
 
 export interface UnbilledCustomerRow {

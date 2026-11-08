@@ -34,3 +34,4 @@ export * from "./announcements";
 export * from "./referrals";
 export * from "./onedrive_connections";
 export * from "./onedrive_client_archive";
+export * from "./gym_access_events";

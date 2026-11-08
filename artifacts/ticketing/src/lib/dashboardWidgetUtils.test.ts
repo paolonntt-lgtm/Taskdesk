@@ -29,6 +29,28 @@ describe('dashboard widget access', () => {
       timeTrackingEnabled: false,
     })).toBe(true);
   });
+
+  it('limits gym access widgets to gym administrators', () => {
+    const requirement = { requireAdmin: true, requireGym: true };
+    expect(isDashboardWidgetAvailable(requirement, {
+      isAdmin: true,
+      clientsEnabled: true,
+      timeTrackingEnabled: false,
+      isGym: true,
+    })).toBe(true);
+    expect(isDashboardWidgetAvailable(requirement, {
+      isAdmin: true,
+      clientsEnabled: true,
+      timeTrackingEnabled: false,
+      isGym: false,
+    })).toBe(false);
+    expect(isDashboardWidgetAvailable(requirement, {
+      isAdmin: false,
+      clientsEnabled: true,
+      timeTrackingEnabled: false,
+      isGym: true,
+    })).toBe(false);
+  });
 });
 
 describe('unbilled customer time summary', () => {

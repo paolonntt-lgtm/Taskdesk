@@ -71,6 +71,7 @@ const PREVIEW_WIDGET_LABEL_KEYS: Record<string, string> = {
   'chart-category': 'widgetChartCategory',
   'chart-priority': 'widgetChartPriority',
   'chart-assignee': 'widgetChartAssignee',
+  'gym-access': 'widgetGymAccess',
 };
 
 interface Props {

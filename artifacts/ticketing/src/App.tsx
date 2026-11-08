@@ -9,6 +9,7 @@ import { LanguageProvider, useLanguage } from "./contexts/LanguageContext";
 import { getLanguagePreferenceSyncAction } from "./contexts/languagePreferenceSync";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import GymAccessPage from "./pages/GymAccess";
 import TicketList from "./pages/TicketList";
 import TicketDetail from "./pages/TicketDetail";
 import NewTicket from "./pages/NewTicket";
@@ -82,6 +83,17 @@ function AdminRoute({ component: Component }: { component: React.ComponentType }
   return <Component />;
 }
 
+function GymAdminRoute({ component: Component }: { component: React.ComponentType }) {
+  const { user } = useAuth();
+  const [, setLocation] = useLocation();
+  const canAccess = user?.role === "admin" && user.profession === "palestre";
+  useEffect(() => {
+    if (user && !canAccess) setLocation("/");
+  }, [user, canAccess, setLocation]);
+  if (!canAccess) return null;
+  return <Component />;
+}
+
 function CollaboratorRoute({ component: Component }: { component: React.ComponentType }) {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
@@ -140,6 +152,7 @@ function AuthenticatedApp({ user, onTourDone }: { user: User; onTourDone: () => 
           <Route path="/my-time-report">{() => <CollaboratorRoute component={PersonalTimeTrackingReportPage} />}</Route>
           <Route path="/daily-reports/:id" component={DailyReportDetailPage} />
           <Route path="/calendar" component={CalendarPage} />
+          <Route path="/gym-access">{() => <GymAdminRoute component={GymAccessPage} />}</Route>
           <Route path="/drive" component={DrivePage} />
           <Route path="/onedrive" component={OneDrivePage} />
           <Route path="/notifications" component={NotificationsPage} />
