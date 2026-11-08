@@ -13,7 +13,12 @@ import {
 } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { useLanguage } from "../contexts/LanguageContext";
-import { getGymAccessPeriodRange, type GymAccessPeriod } from "../lib/gymAccessPeriods";
+import {
+  getGymAccessDateRange,
+  getGymAccessPeriodRange,
+  getLocalDateInputValue,
+  type GymAccessPeriod,
+} from "../lib/gymAccessPeriods";
 
 type GymAccessEvent = {
   id: number;
@@ -25,16 +30,32 @@ type GymAccessEvent = {
 export default function GymAccessClientHistory({ clientId }: { clientId: number }) {
   const { t, lang } = useLanguage();
   const labels = t.gymAccess;
-  const [period, setPeriod] = useState<GymAccessPeriod>("lastMonth");
-  const range = useMemo(() => getGymAccessPeriodRange(period), [period]);
+  const [period, setPeriod] = useState<GymAccessPeriod | "custom">("lastMonth");
+  const [today] = useState(() => getLocalDateInputValue(new Date()));
+  const [customToDate, setCustomToDate] = useState(today);
+  const [customFromDate, setCustomFromDate] = useState(() => {
+    const from = new Date();
+    from.setDate(from.getDate() - 30);
+    return getLocalDateInputValue(from);
+  });
+  const range = useMemo(
+    () => period === "custom"
+      ? getGymAccessDateRange(customFromDate, customToDate)
+      : getGymAccessPeriodRange(period),
+    [period, customFromDate, customToDate],
+  );
+  const customDatesAreOrdered = customFromDate !== "" && customToDate !== "" && customFromDate <= customToDate;
+  const customRangeIsTooLong = period === "custom" && customDatesAreOrdered && range === null;
   const query = useQuery<GymAccessEvent[]>({
-    queryKey: ["gym-access-client-history", clientId, range.from, range.to],
+    queryKey: ["gym-access-client-history", clientId, range?.from, range?.to],
     queryFn: async () => {
+      if (!range) throw new Error(labels.invalidDateRange);
       const params = new URLSearchParams({ ...range, clientId: String(clientId) });
       const response = await fetch(`/api/gym-access?${params}`, { credentials: "include" });
       if (!response.ok) throw new Error(labels.loadError);
       return response.json();
     },
+    enabled: Boolean(range),
     staleTime: 30_000,
   });
   const locale = lang === "it" ? "it-IT" : "en-GB";
@@ -55,9 +76,38 @@ export default function GymAccessClientHistory({ clientId }: { clientId: number 
             {(["today", "yesterday", "last7", "lastMonth"] as GymAccessPeriod[]).map((option) => (
               <MenuItem key={option} value={option}>{labels.periods[option]}</MenuItem>
             ))}
+            <MenuItem value="custom">{labels.periods.custom}</MenuItem>
           </TextField>
         </Stack>
-        {query.isLoading ? (
+        {period === "custom" && (
+          <Stack direction={{ xs: "column", sm: "row" }} gap={1.5} mb={2}>
+            <TextField
+              type="date"
+              label={labels.dateFrom}
+              value={customFromDate}
+              onChange={(event) => setCustomFromDate(event.target.value)}
+              size="small"
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+              inputProps={{ max: customToDate || today }}
+            />
+            <TextField
+              type="date"
+              label={labels.dateTo}
+              value={customToDate}
+              onChange={(event) => setCustomToDate(event.target.value)}
+              size="small"
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+              inputProps={{ min: customFromDate || undefined, max: today }}
+            />
+          </Stack>
+        )}
+        {period === "custom" && !customDatesAreOrdered ? (
+          <Alert severity="warning">{labels.invalidDateRange}</Alert>
+        ) : customRangeIsTooLong ? (
+          <Alert severity="warning">{labels.rangeTooLong}</Alert>
+        ) : query.isLoading ? (
           <Box display="flex" justifyContent="center" py={3}><CircularProgress size={26} /></Box>
         ) : query.isError ? (
           <Alert severity="error">{labels.loadError}</Alert>

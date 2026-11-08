@@ -1,5 +1,32 @@
 import { describe, expect, it } from "vitest";
-import { getGymAccessPeriodRange } from "./gymAccessPeriods";
+import {
+  getGymAccessDateRange,
+  getGymAccessPeriodRange,
+  getLocalDateInputValue,
+} from "./gymAccessPeriods";
+
+describe("getGymAccessDateRange", () => {
+  it("converts a chosen local date range to an exclusive end boundary", () => {
+    const range = getGymAccessDateRange("2026-10-01", "2026-10-31");
+
+    expect(range).not.toBeNull();
+    expect(new Date(range!.from).getTime()).toBe(new Date(2026, 9, 1).getTime());
+    expect(new Date(range!.to).getTime()).toBe(new Date(2026, 10, 1).getTime());
+  });
+
+  it("rejects reversed, invalid, and overlong ranges", () => {
+    expect(getGymAccessDateRange("2026-11-02", "2026-11-01")).toBeNull();
+    expect(getGymAccessDateRange("2026-02-30", "2026-03-01")).toBeNull();
+    expect(getGymAccessDateRange("2026-01-01", "2026-02-02")).toBeNull();
+    expect(getGymAccessDateRange("", "2026-02-02")).toBeNull();
+  });
+});
+
+describe("getLocalDateInputValue", () => {
+  it("formats dates using local calendar values", () => {
+    expect(getLocalDateInputValue(new Date(2026, 10, 8))).toBe("2026-11-08");
+  });
+});
 
 describe("getGymAccessPeriodRange", () => {
   it("uses local calendar-day boundaries for today and yesterday", () => {

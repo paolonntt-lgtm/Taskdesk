@@ -208,6 +208,41 @@ describe("gym access route", () => {
     expect(after.map((event) => event.id)).toEqual(before.map((event) => event.id));
   });
 
+  it("returns older entries only for the selected client", async () => {
+    const olderOccurredAt = new Date("2025-01-15T12:00:00.000Z");
+    await db.insert(gymAccessEventsTable).values([
+      {
+        organizationId,
+        clientId,
+        personName: "Registered Gym Member",
+        occurredAt: olderOccurredAt,
+        createdBy: adminId,
+      },
+      {
+        organizationId,
+        clientId: updatedClientId,
+        personName: "Updated Gym Member",
+        occurredAt: olderOccurredAt,
+        createdBy: adminId,
+      },
+    ]);
+
+    const historyParams = new URLSearchParams({
+      clientId: String(clientId),
+      from: "2025-01-01T00:00:00.000Z",
+      to: "2025-02-01T00:00:00.000Z",
+    });
+    const history = await request(`/api/gym-access?${historyParams}`);
+
+    expect(history.status).toBe(200);
+    expect(history.body).toHaveLength(1);
+    expect(history.body[0]).toMatchObject({
+      clientId,
+      personName: "Registered Gym Member",
+      occurredAt: olderOccurredAt.toISOString(),
+    });
+  });
+
   it("lets an admin update the member and time of an entry in their organization", async () => {
     const occurredAt = "2026-11-08T14:30:00.000Z";
     const response = await request(`/api/gym-access/${createdEventId}`, {
