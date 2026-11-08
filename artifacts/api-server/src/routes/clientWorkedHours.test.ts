@@ -90,6 +90,7 @@ describe("client worked-hours report", () => {
         alias: `Shared Search Alias ${runId}`,
         email: `worked-hours-client-${runId}@example.test`,
         phone: `+1555${runId.replaceAll("-", "").slice(0, 7)}`,
+        vatNumber: `VAT-${runId}`,
         membershipNumber: `GYM-${runId}`,
         slug: `worked-hours-${runId}`,
       })
@@ -395,15 +396,28 @@ describe("client worked-hours report", () => {
   });
 
   it("finds clients by membership number without exposing another organization's client", async () => {
-    const membershipNumberSearch = await request(
+    const fullMembershipNumberSearch = await request(
       `/api/clients?search=${encodeURIComponent(`GYM-${runId}`)}`,
       userSessionId,
     );
+    const partialMembershipNumberSearch = await request(
+      `/api/clients?search=${encodeURIComponent(runId.slice(0, 8))}`,
+      userSessionId,
+    );
 
-    expect(membershipNumberSearch.status).toBe(200);
-    expect(membershipNumberSearch.body.map((client: any) => client.id)).toContain(clientId);
-    expect(membershipNumberSearch.body.map((client: any) => client.id)).not.toContain(foreignClientId);
-  });
+    expect(fullMembershipNumberSearch.status).toBe(200);
+    expect(fullMembershipNumberSearch.body.map((client: any) => client.id)).toContain(clientId);
+    expect(partialMembershipNumberSearch.status).toBe(200);
+    expect(partialMembershipNumberSearch.body.map((client: any) => client.id)).toContain(clientId);
+    expect(partialMembershipNumberSearch.body.map((client: any) => client.id)).not.toContain(foreignClientId);
+
+    const companyVatSearch = await request(
+      `/api/clients?search=${encodeURIComponent(`VAT-${runId}`)}`,
+      userSessionId,
+    );
+    expect(companyVatSearch.status).toBe(200);
+    expect(companyVatSearch.body.map((client: any) => client.id)).toContain(clientId);
+  }, 30_000);
 
   it("treats SQL LIKE pattern characters as literal client-search text", async () => {
     const [
