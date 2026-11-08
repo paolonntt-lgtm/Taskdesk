@@ -3,8 +3,8 @@ name: Profession-based onboarding dashboard
 description: New TaskDesk signups should start from a dashboard setup suited to their profession and remain free to customize it.
 ---
 
-For new organizations, use the selected profession to choose an initial dashboard preset. A profession arriving from its dedicated signup page should be preselected, but the user can change it during onboarding and customize the dashboard afterward.
+For new organizations, use the profession saved during registration to choose an initial dashboard preset; do not ask the user to select it again during post-registration onboarding. If an older admin has no valid saved profession, keep the onboarding selection step. Users can still change their profession later in settings and customize the dashboard.
 
-**Why:** The user wants initial setup to feel relevant to the customer's work without locking them into a fixed dashboard.
+**Why:** The profession is already required and saved during account registration, so asking again in onboarding is redundant. Existing accounts without a valid profession still need a way to choose one.
 
-**How to apply:** Keep the profession-specific selection separate from broad organization categories where possible; preserve IT Support and general-use paths for users outside the professional landing profiles.
+**How to apply:** Skip the profession step only when a valid profile is already available from the account or signup context; use it for the dashboard preset and continue with team invitation and first-ticket onboarding.

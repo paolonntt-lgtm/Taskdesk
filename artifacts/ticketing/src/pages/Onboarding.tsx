@@ -31,6 +31,18 @@ const DASHBOARD_VISIBLE_KEY = 'td_dashboard_visible_v4';
 const DASHBOARD_LAYOUT_KEY = 'td_dashboard_layout_v4';
 const ONBOARDING_PROFESSION_KEY = 'td_onboarding_profession';
 
+function getInitialProfession(savedProfession: unknown): OnboardingProfileId | null {
+  if (isOnboardingProfileId(savedProfession)) return savedProfession;
+  try {
+    const fromUrl = new URLSearchParams(window.location.search).get('trial_profession');
+    if (isOnboardingProfileId(fromUrl)) return fromUrl;
+    const fromSession = sessionStorage.getItem(ONBOARDING_PROFESSION_KEY);
+    return isOnboardingProfileId(fromSession) ? fromSession : null;
+  } catch {
+    return null;
+  }
+}
+
 function applyDashboardPreset(profile: OnboardingProfileId, userId: number | string | null | undefined): void {
   try {
     const preset = getOnboardingDashboardPreset(profile);
@@ -82,19 +94,10 @@ export default function Onboarding({ onComplete }: Props) {
   const { t } = useLanguage();
   const { user } = useAuth();
 
-  const [currentStep, setCurrentStep] = useState(1);
-  const [selected, setSelected] = useState<OnboardingProfileId | null>(() => {
-    const savedProfession = (user as any)?.profession;
-    if (isOnboardingProfileId(savedProfession)) return savedProfession;
-    try {
-      const fromUrl = new URLSearchParams(window.location.search).get('trial_profession');
-      if (isOnboardingProfileId(fromUrl)) return fromUrl;
-      const fromSession = sessionStorage.getItem(ONBOARDING_PROFESSION_KEY);
-      return isOnboardingProfileId(fromSession) ? fromSession : null;
-    } catch {
-      return null;
-    }
-  });
+  const initialProfession = getInitialProfession((user as any)?.profession);
+  const [professionStepSkipped] = useState(initialProfession !== null);
+  const [currentStep, setCurrentStep] = useState(professionStepSkipped ? 2 : 1);
+  const [selected, setSelected] = useState<OnboardingProfileId | null>(initialProfession);
 
   const [emailInput, setEmailInput] = useState('');
   const [emails, setEmails] = useState<string[]>([]);
@@ -112,11 +115,10 @@ export default function Onboarding({ onComplete }: Props) {
   const [completing, setCompleting] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
 
-  const steps = [
-    t.onboarding.stepBusinessType,
-    t.onboarding.stepInviteTeam,
-    t.onboarding.stepFirstTicket,
-  ];
+  const steps = professionStepSkipped
+    ? [t.onboarding.stepInviteTeam, t.onboarding.stepFirstTicket]
+    : [t.onboarding.stepBusinessType, t.onboarding.stepInviteTeam, t.onboarding.stepFirstTicket];
+  const stepperActiveStep = currentStep - (professionStepSkipped ? 2 : 1);
 
   React.useEffect(() => {
     trackEvent('onboarding_started');
@@ -281,9 +283,9 @@ export default function Onboarding({ onComplete }: Props) {
           />
         </Box>
 
-        <Stepper activeStep={currentStep - 1} alternativeLabel sx={{ mb: 5 }}>
+        <Stepper activeStep={stepperActiveStep} alternativeLabel sx={{ mb: 5 }}>
           {steps.map((label, i) => (
-            <Step key={label} completed={i < currentStep - 1}>
+            <Step key={label} completed={i < stepperActiveStep}>
               <StepLabel>{label}</StepLabel>
             </Step>
           ))}
