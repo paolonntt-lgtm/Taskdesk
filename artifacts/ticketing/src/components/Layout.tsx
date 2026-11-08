@@ -162,9 +162,15 @@ function constrainBotFabPosition(
 
 interface LayoutProps {
   children: React.ReactNode;
+  highlightNewTicket?: boolean;
+  onNewTicketGuideDone?: () => void;
 }
 
-export default function Layout({ children }: LayoutProps) {
+export default function Layout({
+  children,
+  highlightNewTicket = false,
+  onNewTicketGuideDone,
+}: LayoutProps) {
   const { user, logout, switchWorkspace } = useAuth();
   const canShowAnnouncements = !!user &&
     !((user as any).registeredViaInvite && !(user as any).tourDone);
@@ -198,6 +204,9 @@ export default function Layout({ children }: LayoutProps) {
   });
 
   const [mobileOpen, setMobileOpen] = useState(false);
+  useEffect(() => {
+    if (highlightNewTicket && isMobile) setMobileOpen(true);
+  }, [highlightNewTicket, isMobile]);
   const [initialSidebarOpen] = useState(() => {
     try { return localStorage.getItem('sidebar_open') !== 'false'; } catch { return true; }
   });
@@ -784,13 +793,23 @@ export default function Layout({ children }: LayoutProps) {
             <ListItem disablePadding sx={{ mb: 0.35 }}>
               <ListItemButton
                 data-tour={item.path === '/tickets' ? 'tickets' : item.path === '/tickets/new' ? 'new-ticket' : undefined}
-                data-testid={item.path === '/announcements' ? 'nav-announcements' : undefined}
-                onClick={() => { setLocation(item.path); if (isMobile) setMobileOpen(false); }}
+                data-testid={item.path === '/announcements' ? 'nav-announcements' : item.path === '/tickets/new' ? 'nav-new-ticket' : undefined}
+                onClick={() => {
+                  if (highlightNewTicket && item.path === '/tickets/new') onNewTicketGuideDone?.();
+                  setLocation(item.path);
+                  if (isMobile) setMobileOpen(false);
+                }}
                 selected={isActive(item.path)}
                 sx={{
                   borderRadius: '8px',
                   py: 0.7,
                   color: theme.palette.mode === 'dark' ? '#e4edf5' : '#26384d',
+                  ...(highlightNewTicket && item.path === '/tickets/new' ? {
+                    background: theme.palette.mode === 'dark' ? 'rgba(21,154,131,.24)' : '#e6f7f2',
+                    outline: '2px solid #159A83',
+                    outlineOffset: '1px',
+                    boxShadow: '0 0 0 5px rgba(21,154,131,.18)',
+                  } : {}),
                   '&.Mui-selected': {
                      background: theme.palette.mode === 'dark' ? 'rgba(25,118,210,.22)' : '#eaf2fb',
                      color: theme.palette.mode === 'dark' ? '#f4f8fc' : '#143c5c',

@@ -7,4 +7,4 @@ For new organizations, use the profession saved during registration to choose an
 
 **Why:** The profession is already required and saved during account registration, so asking again in onboarding is redundant. Existing accounts without a valid profession still need a way to choose one.
 
-**How to apply:** Skip the profession step only when a valid profile is already available from the account or signup context; use it for the dashboard preset and continue with team invitation and first-ticket onboarding.
+**How to apply:** Skip the profession step only when a valid profile is already available from the account or signup context; use it for the dashboard preset, finish after team invitations, and guide the admin to create the first ticket from the dashboard.

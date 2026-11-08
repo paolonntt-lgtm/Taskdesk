@@ -22,6 +22,7 @@ import { translations } from '../i18n/translations';
 describe('profession step in onboarding', () => {
   let host: HTMLDivElement;
   let root: Root;
+  let fetchMock: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -31,12 +32,18 @@ describe('profession step in onboarding', () => {
     host = document.createElement('div');
     document.body.append(host);
     root = createRoot(host);
+    fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({}),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
   });
 
   afterEach(async () => {
     await act(async () => root.unmount());
     host.remove();
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it('skips profession selection when registration already saved it', async () => {
@@ -57,5 +64,25 @@ describe('profession step in onboarding', () => {
 
     expect(host.textContent).toContain(translations.en.onboarding.title);
     expect(host.textContent).toContain(translations.en.onboarding.types.avvocati.label);
+  });
+
+  it('completes onboarding after team invitations and hands off first-ticket creation', async () => {
+    const onComplete = vi.fn();
+    await act(async () => {
+      root.render(<Onboarding onComplete={onComplete} />);
+    });
+
+    const skipInviteButton = Array.from(document.querySelectorAll('button'))
+      .find((button) => button.textContent?.trim() === translations.en.onboarding.inviteSkip);
+    expect(skipInviteButton).toBeDefined();
+
+    await act(async () => {
+      skipInviteButton!.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/onboarding/complete', expect.objectContaining({ method: 'POST' }));
+    expect(fetchMock).not.toHaveBeenCalledWith('/api/tickets', expect.anything());
+    expect(onComplete).toHaveBeenCalledWith('professional_studio', 'avvocati', true);
   });
 });

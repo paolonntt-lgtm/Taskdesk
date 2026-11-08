@@ -26,7 +26,6 @@ interface BusinessTypeOption {
   icon: React.ReactNode;
   color: string;
 }
-
 const DASHBOARD_VISIBLE_KEY = 'td_dashboard_visible_v4';
 const DASHBOARD_LAYOUT_KEY = 'td_dashboard_layout_v4';
 const ONBOARDING_PROFESSION_KEY = 'td_onboarding_profession';
@@ -42,7 +41,6 @@ function getInitialProfession(savedProfession: unknown): OnboardingProfileId | n
     return null;
   }
 }
-
 function applyDashboardPreset(profile: OnboardingProfileId, userId: number | string | null | undefined): void {
   try {
     const preset = getOnboardingDashboardPreset(profile);
@@ -87,7 +85,7 @@ const PREVIEW_WIDGET_LABEL_KEYS: Record<string, string> = {
 };
 
 interface Props {
-  onComplete: (businessType: string, profession: OnboardingProfileId) => void;
+  onComplete: (businessType: string, profession: OnboardingProfileId, guideToFirstTicket: boolean) => void;
 }
 
 export default function Onboarding({ onComplete }: Props) {
@@ -106,25 +104,19 @@ export default function Onboarding({ onComplete }: Props) {
   const [inviteResult, setInviteResult] = useState<{ ok: number; fail: number } | null>(null);
   const [inviteError, setInviteError] = useState<string | null>(null);
 
-  const [ticketTitle, setTicketTitle] = useState('');
-  const [ticketDescription, setTicketDescription] = useState('');
-  const [creating, setCreating] = useState(false);
-  const [ticketSuccess, setTicketSuccess] = useState(false);
-  const [ticketError, setTicketError] = useState<string | null>(null);
-
   const [completing, setCompleting] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
 
   const steps = professionStepSkipped
-    ? [t.onboarding.stepInviteTeam, t.onboarding.stepFirstTicket]
-    : [t.onboarding.stepBusinessType, t.onboarding.stepInviteTeam, t.onboarding.stepFirstTicket];
+    ? [t.onboarding.stepInviteTeam]
+    : [t.onboarding.stepBusinessType, t.onboarding.stepInviteTeam];
   const stepperActiveStep = currentStep - (professionStepSkipped ? 2 : 1);
 
   React.useEffect(() => {
     trackEvent('onboarding_started');
   }, []);
 
-  const callOnboardingComplete = async (firstTicketCreated = false) => {
+  const callOnboardingComplete = async () => {
     setCompleting(true);
     setGlobalError(null);
     try {
@@ -144,9 +136,9 @@ export default function Onboarding({ onComplete }: Props) {
       trackEvent('onboarding_completed', {
         business_type: getOnboardingBusinessType(selected!),
         ...(isProfessionalDashboardPresetId(selected) ? { profession: selected } : {}),
-        first_ticket_created: firstTicketCreated,
+        first_ticket_created: false,
       });
-       onComplete(getOnboardingBusinessType(selected!), selected!);
+      onComplete(getOnboardingBusinessType(selected!), selected!, true);
     } catch {
       setGlobalError(t.onboarding.errorNetwork);
     } finally {
@@ -180,7 +172,7 @@ export default function Onboarding({ onComplete }: Props) {
   const handleSendInvites = async () => {
     if (emails.length === 0) {
       trackEvent('onboarding_invites_skipped', { method: 'continue_without_invites' });
-      setCurrentStep(3);
+      callOnboardingComplete();
       return;
     }
     setInviting(true);
@@ -217,47 +209,11 @@ export default function Onboarding({ onComplete }: Props) {
       return;
     }
     setInviteResult({ ok, fail });
-    setTimeout(() => { setCurrentStep(3); }, 1400);
+    setTimeout(() => { callOnboardingComplete(); }, 1400);
   };
 
   const handleSkipInvite = () => {
     trackEvent('onboarding_invites_skipped', { method: 'skip_button' });
-    setCurrentStep(3);
-  };
-
-  const handleCreateTicket = async () => {
-    if (!ticketTitle.trim()) return;
-    setCreating(true);
-    setTicketError(null);
-    try {
-      const res = await fetch('/api/tickets', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: ticketTitle.trim(),
-          description: ticketDescription.trim() || ticketTitle.trim(),
-          category: 'General',
-          priority: 'medium',
-        }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setTicketError(data.message || t.onboarding.ticketErrorGeneric);
-        return;
-      }
-      setTicketSuccess(true);
-      trackEvent('onboarding_first_ticket_created');
-      setTimeout(() => callOnboardingComplete(true), 1200);
-    } catch {
-      setTicketError(t.onboarding.ticketErrorGeneric);
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  const handleSkipTicket = () => {
-    trackEvent('onboarding_first_ticket_skipped');
     callOnboardingComplete();
   };
 
@@ -317,6 +273,7 @@ export default function Onboarding({ onComplete }: Props) {
             emails={emails}
             emailError={emailError}
             inviting={inviting}
+            completing={completing}
             inviteResult={inviteResult}
             inviteError={inviteError}
             onAddEmail={handleAddEmail}
@@ -328,21 +285,6 @@ export default function Onboarding({ onComplete }: Props) {
           />
         )}
 
-        {currentStep === 3 && (
-          <StepFirstTicket
-            ticketTitle={ticketTitle}
-            setTicketTitle={setTicketTitle}
-            ticketDescription={ticketDescription}
-            setTicketDescription={setTicketDescription}
-            creating={creating}
-            completing={completing}
-            ticketSuccess={ticketSuccess}
-            ticketError={ticketError}
-            onCreateTicket={handleCreateTicket}
-            onSkip={handleSkipTicket}
-            t={t}
-          />
-        )}
       </Container>
     </Box>
   );
@@ -554,7 +496,7 @@ function DashboardPresetPreview({ profile, t }: { profile: OnboardingProfileId; 
 }
 
 function StepInviteTeam({
-  emailInput, setEmailInput, emails, emailError, inviting,
+  emailInput, setEmailInput, emails, emailError, inviting, completing,
   inviteResult, inviteError,
   onAddEmail, onEmailKeyDown, onRemoveEmail, onSendInvites, onSkip, t,
 }: {
@@ -563,6 +505,7 @@ function StepInviteTeam({
   emails: string[];
   emailError: string;
   inviting: boolean;
+  completing: boolean;
   inviteResult: { ok: number; fail: number } | null;
   inviteError: string | null;
   onAddEmail: () => void;
@@ -612,13 +555,13 @@ function StepInviteTeam({
           onKeyDown={onEmailKeyDown}
           error={!!emailError}
           helperText={emailError}
-          disabled={inviting}
+          disabled={inviting || completing || !!inviteResult}
           sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
         />
         <Button
           variant="outlined"
           onClick={onAddEmail}
-          disabled={inviting}
+          disabled={inviting || completing || !!inviteResult}
           startIcon={<Add />}
           sx={{ borderRadius: '10px', px: 2.5, whiteSpace: 'nowrap', flexShrink: 0 }}
         >
@@ -645,7 +588,7 @@ function StepInviteTeam({
         <Button
           variant="contained"
           size="large"
-          disabled={inviting || !!inviteResult}
+          disabled={inviting || completing || !!inviteResult}
           onClick={onSendInvites}
           startIcon={inviting ? <CircularProgress size={18} color="inherit" /> : undefined}
           sx={{ px: 5, py: 1.6, fontWeight: 700, fontSize: '1rem', borderRadius: '12px', minWidth: 220 }}
@@ -656,100 +599,10 @@ function StepInviteTeam({
           variant="text"
           size="small"
           onClick={onSkip}
-          disabled={inviting}
+          disabled={inviting || completing || !!inviteResult}
           sx={{ color: 'text.secondary', fontSize: '0.875rem' }}
         >
           {t.onboarding.inviteSkip}
-        </Button>
-      </Box>
-    </Box>
-  );
-}
-
-function StepFirstTicket({
-  ticketTitle, setTicketTitle, ticketDescription, setTicketDescription,
-  creating, completing, ticketSuccess, ticketError,
-  onCreateTicket, onSkip, t,
-}: {
-  ticketTitle: string;
-  setTicketTitle: (v: string) => void;
-  ticketDescription: string;
-  setTicketDescription: (v: string) => void;
-  creating: boolean;
-  completing: boolean;
-  ticketSuccess: boolean;
-  ticketError: string | null;
-  onCreateTicket: () => void;
-  onSkip: () => void;
-  t: any;
-}) {
-  const busy = creating || completing;
-
-  return (
-    <Box maxWidth={560} mx="auto">
-      <Box textAlign="center" mb={4}>
-        <Typography variant="h4" fontWeight={800} mb={1.5} color="text.primary">
-          {t.onboarding.ticketTitle}
-        </Typography>
-        <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 460, mx: 'auto' }}>
-          {t.onboarding.ticketSubtitle}
-        </Typography>
-      </Box>
-
-      {ticketError && (
-        <Alert severity="error" sx={{ mb: 2, borderRadius: '12px' }} onClose={() => {}}>
-          {ticketError}
-        </Alert>
-      )}
-
-      {ticketSuccess && (
-        <Alert severity="success" icon={<CheckCircle />} sx={{ mb: 2, borderRadius: '12px' }}>
-          {t.onboarding.ticketSuccessMsg}
-        </Alert>
-      )}
-
-      <Box display="flex" flexDirection="column" gap={2} mb={3}>
-        <TextField
-          fullWidth
-          label={t.onboarding.ticketTitleField}
-          placeholder={t.onboarding.ticketTitlePlaceholder}
-          value={ticketTitle}
-          onChange={(e) => setTicketTitle(e.target.value)}
-          disabled={busy || ticketSuccess}
-          sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
-        />
-        <TextField
-          fullWidth
-          multiline
-          rows={3}
-          label={t.onboarding.ticketDescriptionField}
-          placeholder={t.onboarding.ticketDescriptionPlaceholder}
-          value={ticketDescription}
-          onChange={(e) => setTicketDescription(e.target.value)}
-          disabled={busy || ticketSuccess}
-          sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
-        />
-      </Box>
-
-      <Box display="flex" flexDirection="column" alignItems="center" gap={1.5}>
-        <Button
-          variant="contained"
-          size="large"
-          disabled={!ticketTitle.trim() || busy || ticketSuccess}
-          onClick={onCreateTicket}
-          startIcon={busy ? <CircularProgress size={18} color="inherit" /> : undefined}
-          sx={{ px: 5, py: 1.6, fontWeight: 700, fontSize: '1rem', borderRadius: '12px', minWidth: 220 }}
-        >
-          {busy ? t.onboarding.ticketCreating : t.onboarding.ticketCreate}
-        </Button>
-        <Button
-          variant="text"
-          size="small"
-          onClick={onSkip}
-          disabled={busy || ticketSuccess}
-          sx={{ color: 'text.secondary', fontSize: '0.875rem' }}
-        >
-          {t.onboarding.ticketSkip}
         </Button>
       </Box>
     </Box>

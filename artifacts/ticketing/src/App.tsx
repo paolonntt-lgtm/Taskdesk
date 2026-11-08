@@ -114,7 +114,17 @@ function SuperAdminRoute({ component: Component }: { component: React.ComponentT
   return <Component />;
 }
 
-function AuthenticatedApp({ user, onTourDone }: { user: User; onTourDone: () => void }) {
+function AuthenticatedApp({
+  user,
+  onTourDone,
+  showNewTicketGuide,
+  onNewTicketGuideDone,
+}: {
+  user: User;
+  onTourDone: () => void;
+  showNewTicketGuide: boolean;
+  onNewTicketGuideDone: () => void;
+}) {
   const [, setLocation] = useLocation();
   const isSuperAdmin = !!(user as any).isSuperAdmin;
   const isTrialExpired = !isSuperAdmin && (user as any).trialStatus?.isExpired === true;
@@ -138,7 +148,13 @@ function AuthenticatedApp({ user, onTourDone }: { user: User; onTourDone: () => 
     <>
       <StickyNotesLayer />
       {showTour && <MiniTour onDone={onTourDone} />}
-      <Layout>
+      {!showTour && showNewTicketGuide && (
+        <MiniTour firstTicketGuide onDone={onNewTicketGuideDone} />
+      )}
+      <Layout
+        highlightNewTicket={showNewTicketGuide && !showTour}
+        onNewTicketGuideDone={onNewTicketGuideDone}
+      >
         <Switch>
           <Route path="/" component={Dashboard} />
           <Route path="/tickets/new" component={NewTicket} />
@@ -192,6 +208,7 @@ const queryClient = new QueryClient({
 
 function AppShell() {
   const [user, setUser] = useState<User | null>(null);
+  const [showNewTicketGuide, setShowNewTicketGuide] = useState(false);
   const userRef = useRef<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -594,13 +611,17 @@ function AppShell() {
                 ) : !user ? (
                   <Login />
                 ) : user.role === 'admin' && !(user as any).onboardingDone ? (
-                  <Onboarding onComplete={(businessType, profession) => {
+                  <Onboarding onComplete={(businessType, profession, guideToFirstTicket) => {
                     setUser({ ...user, onboardingDone: true, businessType, profession } as any);
+                    setShowNewTicketGuide(guideToFirstTicket);
+                    setLocation("/");
                   }} />
                 ) : (
                   <AuthenticatedApp
                     user={user}
                     onTourDone={() => setUser({ ...user, tourDone: true } as any)}
+                    showNewTicketGuide={showNewTicketGuide}
+                    onNewTicketGuideDone={() => setShowNewTicketGuide(false)}
                   />
                 )}
               </Route>

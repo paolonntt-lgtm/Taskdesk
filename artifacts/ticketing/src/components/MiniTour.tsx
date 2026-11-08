@@ -20,6 +20,8 @@ interface TourStrings {
   ticketsDesc: string;
   newTicketTitle: string;
   newTicketDesc: string;
+  firstTicketTitle: string;
+  firstTicketDesc: string;
   notificationsTitle: string;
   notificationsDesc: string;
   skip: string;
@@ -35,47 +37,69 @@ const TOUR_STEPS: TourStep[] = [
   { target: '[data-tour="notifications"]', titleKey: 'notificationsTitle', descKey: 'notificationsDesc', placement: 'bottom' },
 ];
 
+const FIRST_TICKET_GUIDE_STEPS: TourStep[] = [
+  { target: '[data-tour="new-ticket"]', titleKey: 'firstTicketTitle', descKey: 'firstTicketDesc', placement: 'right' },
+];
+
 interface Props {
   onDone: () => void;
+  firstTicketGuide?: boolean;
 }
 
-export default function MiniTour({ onDone }: Props) {
+export default function MiniTour({ onDone, firstTicketGuide = false }: Props) {
   const { t } = useLanguage();
   const tr = t.miniTour as unknown as TourStrings;
+  const steps = firstTicketGuide ? FIRST_TICKET_GUIDE_STEPS : TOUR_STEPS;
   const [step, setStep] = useState(0);
   const [anchorEl, setAnchorEl] = useState<Element | null>(null);
 
   const findTarget = useCallback((index: number) => {
-    const sel = TOUR_STEPS[index]?.target;
+    const sel = steps[index]?.target;
     if (!sel) return null;
-    return document.querySelector(sel);
-  }, []);
+    const candidates = Array.from(document.querySelectorAll(sel));
+    return candidates.find((candidate) => candidate.getClientRects().length > 0) ?? candidates[0] ?? null;
+  }, [steps]);
 
   useEffect(() => {
-    const el = findTarget(step);
-    setAnchorEl(el);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
+    let frame = 0;
+    let attempts = 0;
+    let cancelled = false;
+    const locateTarget = () => {
+      if (cancelled) return;
+      const el = findTarget(step);
+      if (el && el.getClientRects().length > 0) {
+        setAnchorEl(el);
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        return;
+      }
+      if (attempts++ < 20) frame = window.requestAnimationFrame(locateTarget);
+    };
+    frame = window.requestAnimationFrame(locateTarget);
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(frame);
+    };
   }, [step, findTarget]);
 
   const markDone = async () => {
-    try {
-      await fetch('/api/auth/me/tour-done', { method: 'POST', credentials: 'include' });
-    } catch { /* fire and forget */ }
+    if (!firstTicketGuide) {
+      try {
+        await fetch('/api/auth/me/tour-done', { method: 'POST', credentials: 'include' });
+      } catch { /* fire and forget */ }
+    }
     onDone();
   };
 
   const handleNext = () => {
-    if (step < TOUR_STEPS.length - 1) {
+    if (step < steps.length - 1) {
       setStep((s) => s + 1);
     } else {
       markDone();
     }
   };
 
-  const currentStep = TOUR_STEPS[step];
-  const isLast = step === TOUR_STEPS.length - 1;
+  const currentStep = steps[step];
+  const isLast = step === steps.length - 1;
   const title = tr[currentStep.titleKey] as string;
   const desc = tr[currentStep.descKey] as string;
 
@@ -141,7 +165,7 @@ export default function MiniTour({ onDone }: Props) {
             </Box>
 
             <Typography variant="caption" color="text.secondary" mb={0.5} display="block">
-              {tr.stepOf(step + 1, TOUR_STEPS.length)}
+              {tr.stepOf(step + 1, steps.length)}
             </Typography>
 
             <Typography variant="subtitle1" fontWeight={700} gutterBottom>
