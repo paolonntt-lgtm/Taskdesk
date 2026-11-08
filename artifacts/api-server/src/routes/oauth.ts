@@ -222,6 +222,32 @@ router.get("/auth/google", (req, res) => {
     return;
   }
 
+  // The callback URL is registered on the canonical app host. If registration
+  // starts on a Replit preview/alias host, first move the browser to that same
+  // canonical host so the nonce cookie is available when Google returns.
+  const forwardedHost = req.get("x-forwarded-host")?.split(",")[0]?.trim();
+  const canonicalBaseUrl = appBaseUrl();
+  const requestHost = (forwardedHost || req.get("host")?.split(",")[0]?.trim())?.toLowerCase();
+  const canonicalHost = new URL(canonicalBaseUrl).host.toLowerCase();
+  const isLoopbackHost =
+    requestHost === "localhost" ||
+    requestHost?.startsWith("localhost:") ||
+    requestHost === "127.0.0.1" ||
+    requestHost?.startsWith("127.0.0.1:");
+  if (requestHost && !isLoopbackHost && requestHost !== canonicalHost) {
+    const canonicalStartUrl = new URL("/api/auth/google", canonicalBaseUrl);
+    for (const [key, value] of Object.entries(req.query)) {
+      if (typeof value === "string") canonicalStartUrl.searchParams.set(key, value);
+      else if (Array.isArray(value)) {
+        for (const item of value) {
+          if (typeof item === "string") canonicalStartUrl.searchParams.append(key, item);
+        }
+      }
+    }
+    res.redirect(302, canonicalStartUrl.toString());
+    return;
+  }
+
   const registrationProfession = parseRegistrationProfession(req.query);
   if (req.query.mode === "register" && !registrationProfession) {
     res.status(400).send("Seleziona una professione prima di registrarti.");

@@ -407,6 +407,28 @@ describe("Google OAuth callback", () => {
     expect(response.status).toBe(400);
   });
 
+  it("starts preview-host Google registration on the canonical callback host", async () => {
+    const query = "mode=register&profession=commercio&ref=ReferralCode_123";
+    const previewResponse = await fetch(`${baseUrl}/api/auth/google?${query}`, {
+      headers: { "x-forwarded-host": "preview.example.test" },
+      redirect: "manual",
+    });
+
+    expect(previewResponse.status).toBe(302);
+    expect(previewResponse.headers.get("location"))
+      .toBe(`https://taskdesk.example.test/api/auth/google?${query}`);
+    expect(previewResponse.headers.get("set-cookie")).toBeNull();
+
+    const canonicalResponse = await fetch(`${baseUrl}/api/auth/google?${query}`, {
+      headers: { "x-forwarded-host": "taskdesk.example.test" },
+      redirect: "manual",
+    });
+    expect(canonicalResponse.status).toBe(200);
+    expect(canonicalResponse.headers.get("set-cookie")).toContain("oauth_nonce=");
+    expect(await canonicalResponse.text())
+      .toContain(encodeURIComponent("https://taskdesk.example.test/api/auth/google/callback"));
+  });
+
   it("does not create a Google account from login when no profession was selected", async () => {
     mocks.db.select.mockImplementation(() => {
       const query: Record<string, ReturnType<typeof vi.fn>> = {};
