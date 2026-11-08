@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Alert, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle } from '@mui/material';
+import { Alert, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Select } from '@mui/material';
 import { CheckCircle } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -67,6 +67,15 @@ const s = {
   dividerLine: { flex: 1, height: 1, background: 'rgba(0,0,0,0.08)' },
   link: { fontWeight: 600, color: '#2563eb', textDecoration: 'none' as const, cursor: 'pointer' },
   row: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+};
+
+const professionVisuals: Record<string, { glyph: string; color: string; background: string }> = {
+  commercialisti: { glyph: 'C', color: '#2563eb', background: '#eff6ff' },
+  avvocati: { glyph: '§', color: '#7c3aed', background: '#f5f3ff' },
+  'consulenti-del-lavoro': { glyph: 'L', color: '#0891b2', background: '#ecfeff' },
+  notai: { glyph: 'N', color: '#be123c', background: '#fff1f2' },
+  commercio: { glyph: 'B', color: '#15803d', background: '#f0fdf4' },
+  agenzie: { glyph: 'A', color: '#c2410c', background: '#fff7ed' },
 };
 
 export default function Login() {
@@ -263,7 +272,7 @@ export default function Login() {
     ? oauthErrorMessages[oauthErrorCode] ?? t.login.oauthGenericError
     : null;
   const displayError = registerOpen ? null : oauthError || localError || (mode === 'login' ? error : null);
-  const registrationSteps = [t.login.stepProfession, t.login.stepOrganization, t.login.stepAccount];
+  const registrationSteps = [t.login.stepProfessionShort, t.login.stepOrganizationShort, t.login.stepAccountShort];
   const registrationError = oauthError || localError;
 
   return (
@@ -366,49 +375,161 @@ export default function Login() {
           onClose={closeRegistration}
           fullWidth
           maxWidth="sm"
+          sx={{
+            '& .MuiDialog-container': {
+              alignItems: { xs: 'flex-start', sm: 'center' },
+              pt: { xs: 2, sm: 0 },
+              pb: { xs: '200px', sm: 0 },
+            },
+          }}
           aria-labelledby="registration-dialog-title"
-          PaperProps={{ sx: { borderRadius: 4, overflow: 'hidden', background: 'linear-gradient(145deg, #ffffff 0%, #f8faff 100%)', boxShadow: '0 24px 80px rgba(30, 64, 175, 0.22)' } }}
+          BackdropProps={{ sx: { backdropFilter: 'blur(7px)', backgroundColor: 'rgba(19, 31, 54, .52)' } }}
+          PaperProps={{ sx: {
+            position: 'relative',
+            maxHeight: { xs: 'calc(100dvh - 232px)', sm: 'calc(100dvh - 28px)' },
+            borderRadius: { xs: 3, sm: 4 },
+            overflow: 'hidden',
+            background: '#fff',
+            backgroundImage: 'none',
+            border: '1px solid rgba(215,225,241,.9)',
+            boxShadow: '0 30px 90px rgba(28,50,91,.2), 0 5px 20px rgba(28,50,91,.08)',
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              zIndex: 1,
+              top: 0,
+              left: { xs: 20, sm: 36 },
+              right: { xs: 20, sm: 36 },
+              height: 3,
+              borderRadius: '0 0 6px 6px',
+              background: 'linear-gradient(90deg,#2474ed 0%,#6d5dfc 65%,#aa72f4 100%)',
+            },
+          } }}
         >
           <form onSubmit={handleRegister}>
             <DialogTitle id="registration-dialog-title" sx={{ px: { xs: 2.5, sm: 4 }, pt: 3.5, pb: 1 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
                 <div>
-                  <div style={{ color: '#2563eb', fontSize: 11, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-                    {t.login.registerTitle}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#4167b3', fontSize: 10, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#4f74ef', boxShadow: '0 0 0 4px #eef3ff' }} />
+                    {t.login.registrationEyebrow}
                   </div>
-                  <div style={{ color: '#111827', fontSize: 23, fontWeight: 750, marginTop: 5, lineHeight: 1.2 }}>
-                    {registrationSteps[registerStep]}
+                  <div style={{ color: '#172033', fontSize: 24, fontWeight: 750, letterSpacing: '-0.04em', marginTop: 10, lineHeight: 1.22 }}>
+                    {t.login.registrationHeading}
                   </div>
-                  <p style={{ color: '#6b7280', fontSize: 13, fontWeight: 400, margin: '8px 0 0' }}>
-                    {registerStep === 0 ? t.login.stepProfessionHelp : registerStep === 1 ? t.login.stepOrganizationHelp : t.login.stepAccountHelp}
+                  <p style={{ color: '#718096', fontSize: 13, fontWeight: 400, lineHeight: 1.5, margin: '8px 0 0' }}>
+                    {registerStep === 0 ? t.login.registrationSubtitle : registerStep === 1 ? t.login.stepOrganizationHelp : t.login.stepAccountHelp}
                   </p>
                 </div>
-                <button type="button" aria-label={t.login.closeRegistration} onClick={closeRegistration} style={{ border: 0, background: '#eff4ff', color: '#64748b', borderRadius: 12, width: 36, height: 36, cursor: 'pointer', fontSize: 20, lineHeight: 1 }}>
+                <button type="button" aria-label={t.login.closeRegistration} onClick={closeRegistration} style={{ flex: '0 0 36px', border: '1px solid #e6ebf3', background: '#fff', color: '#74829b', borderRadius: 12, width: 36, height: 36, cursor: 'pointer', fontSize: 20, lineHeight: 1, transition: 'all .16s ease' }}>
                   ×
                 </button>
               </div>
-              <div style={{ display: 'flex', gap: 7, marginTop: 22 }} aria-label={`${t.login.stepLabel} ${registerStep + 1} ${t.login.ofLabel} 3`}>
-                {registrationSteps.map((label, index) => (
-                  <div key={label} style={{ flex: 1 }}>
-                    <div style={{ height: 4, borderRadius: 99, background: index <= registerStep ? 'linear-gradient(90deg, #2563eb, #7c3aed)' : '#e5e7eb' }} />
-                    <span style={{ display: 'block', marginTop: 6, fontSize: 10, fontWeight: index === registerStep ? 700 : 500, color: index <= registerStep ? '#475569' : '#9ca3af' }}>{label}</span>
-                  </div>
-                ))}
+              <div style={{ marginTop: 25 }} aria-label={`${t.login.stepLabel} ${registerStep + 1} ${t.login.ofLabel} 3`}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                  {registrationSteps.map((label, index) => (
+                    <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0, color: index === registerStep ? '#345db3' : '#a0aabe', fontSize: 10, fontWeight: index === registerStep ? 700 : 600, whiteSpace: 'nowrap' }}>
+                      <span style={{ display: 'grid', placeItems: 'center', width: 22, height: 22, flex: '0 0 22px', borderRadius: '50%', border: `1px solid ${index <= registerStep ? '#356de1' : '#e0e6f0'}`, color: index < registerStep ? '#356de1' : index === registerStep ? '#fff' : '#9aa6ba', background: index === registerStep ? '#356de1' : index < registerStep ? '#eef4ff' : '#fff', fontSize: 9, fontWeight: 800 }}>
+                        {index < registerStep ? '✓' : `0${index + 1}`}
+                      </span>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ height: 3, marginTop: 11, borderRadius: 10, overflow: 'hidden', background: '#edf1f7' }}>
+                  <div style={{ width: `${((registerStep + 1) / 3) * 100}%`, height: '100%', borderRadius: 'inherit', background: 'linear-gradient(90deg,#2474ed,#765ff5)', transition: 'width .2s ease' }} />
+                </div>
               </div>
             </DialogTitle>
-            <DialogContent sx={{ px: { xs: 2.5, sm: 4 }, pt: '20px !important', minHeight: 190 }}>
+            <DialogContent sx={{ px: { xs: 2.5, sm: 4 }, pt: '20px !important', maxHeight: 'min(58vh, 480px)', overflowY: 'auto' }}>
               {registrationError && (
                 <Alert severity="error" sx={{ borderRadius: 2, mb: 2 }} onClose={() => { setLocalError(null); setOauthErrorCode(null); }}>
                   {registrationError}
                 </Alert>
               )}
               {registerStep === 0 && (
-                <div>
-                  <label style={s.label}>{t.login.profession}</label>
-                  <select required autoFocus value={profession} onChange={e => setProfession(isOnboardingProfileId(e.target.value) ? e.target.value : '')} style={s.inputPlain} data-testid="registration-profession">
-                    <option value="">{t.login.professionPlaceholder}</option>
-                    {ONBOARDING_PROFILE_IDS.map(value => <option key={value} value={value}>{t.onboarding.types[value].label}</option>)}
-                  </select>
+                <div style={{ paddingTop: 2 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                    <label style={{ ...s.label, marginBottom: 0, color: '#26344b', fontSize: 13, letterSpacing: 0, textTransform: 'none' }}>{t.login.professionQuestion}</label>
+                    <span style={{ color: '#98a3b5', fontSize: 9, fontWeight: 800, letterSpacing: '.1em', whiteSpace: 'nowrap' }}>{t.login.stepLabel.toUpperCase()} 1 / 3</span>
+                  </div>
+                  <p style={{ margin: '5px 0 12px', color: '#8591a4', fontSize: 12 }}>{t.login.professionHelp}</p>
+                  <Select
+                    fullWidth
+                    required
+                    autoFocus
+                    displayEmpty
+                    value={profession}
+                    onChange={e => setProfession(isOnboardingProfileId(e.target.value) ? e.target.value : '')}
+                    inputProps={{ 'aria-label': t.login.profession }}
+                    data-testid="registration-profession"
+                    renderValue={(selected) => {
+                      if (!selected) return <span style={{ color: '#8b96a8', fontSize: 13 }}>{t.login.professionPlaceholder}</span>;
+                      const visual = professionVisuals[selected] ?? { glyph: selected.slice(0, 1).toUpperCase(), color: '#2563eb', background: '#eff6ff' };
+                      return (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+                          <span style={{ display: 'grid', placeItems: 'center', width: 36, height: 36, borderRadius: 11, color: visual.color, background: visual.background, fontWeight: 800, fontSize: 13 }}>{visual.glyph}</span>
+                          <span style={{ color: '#25344c', fontSize: 13, fontWeight: 700 }}>{t.onboarding.types[selected].label}</span>
+                        </span>
+                      );
+                    }}
+                    MenuProps={{
+                      PaperProps: {
+                        sx: {
+                          mt: 0.75,
+                          maxHeight: 330,
+                          border: '1px solid #e3eaf4',
+                          borderRadius: 3,
+                          boxShadow: '0 18px 46px rgba(31,53,92,.16)',
+                          '& .MuiList-root': { p: 0.75 },
+                        },
+                      },
+                    }}
+                    sx={{
+                      minHeight: 60,
+                      borderRadius: '14px',
+                      background: '#fbfdff',
+                      boxShadow: '0 0 0 3px rgba(63,115,225,.06)',
+                      '& .MuiOutlinedInput-notchedOutline': { borderColor: '#d5dfef' },
+                      '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#9ab2df' },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#6192ed', borderWidth: 1 },
+                      '& .MuiSelect-select': { display: 'flex', alignItems: 'center', minHeight: '44px !important', py: '7px', px: '12px' },
+                    }}
+                  >
+                    {ONBOARDING_PROFILE_IDS.map((value) => {
+                      const visual = professionVisuals[value] ?? { glyph: value.slice(0, 1).toUpperCase(), color: '#2563eb', background: '#eff6ff' };
+                      const selected = profession === value;
+                      return (
+                        <MenuItem
+                          key={value}
+                          value={value}
+                          selected={selected}
+                          sx={{
+                            display: 'flex',
+                            gap: 1.25,
+                            minHeight: 58,
+                            my: 0.25,
+                            px: 1.25,
+                            border: '1px solid transparent',
+                            borderRadius: 2,
+                            '&.Mui-selected': { borderColor: '#dce7fb', backgroundColor: '#f3f7ff' },
+                            '&.Mui-selected:hover': { backgroundColor: '#edf4ff' },
+                            '&:hover': { backgroundColor: '#f6f8fc' },
+                          }}
+                        >
+                          <span style={{ display: 'grid', placeItems: 'center', flex: '0 0 34px', width: 34, height: 34, borderRadius: 10, color: visual.color, background: visual.background, fontWeight: 800, fontSize: 12 }}>{visual.glyph}</span>
+                          <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1, gap: 3 }}>
+                            <span style={{ color: '#25344c', fontSize: 13, fontWeight: 700 }}>{t.onboarding.types[value].label}</span>
+                            <span style={{ color: '#8793a6', fontSize: 10, lineHeight: 1.35, whiteSpace: 'normal' }}>{t.onboarding.types[value].description}</span>
+                          </span>
+                          {selected && <span aria-hidden="true" style={{ color: '#3269d7', fontSize: 15, fontWeight: 800 }}>✓</span>}
+                        </MenuItem>
+                      );
+                    })}
+                  </Select>
+                  <p style={{ display: 'flex', alignItems: 'center', gap: 7, margin: '13px 0 0', color: '#8995a9', fontSize: 11 }}>
+                    <span style={{ color: '#617fe1' }}>✦</span> {t.login.professionChangeLater}
+                  </p>
                 </div>
               )}
               {registerStep === 1 && (
@@ -454,7 +575,7 @@ export default function Login() {
                 </div>
               )}
             </DialogContent>
-            <DialogActions sx={{ px: { xs: 2.5, sm: 4 }, pb: 3.5, pt: 1, gap: 1 }}>
+            <DialogActions sx={{ px: { xs: 2.5, sm: 4 }, pb: { xs: 2.5, sm: 3 }, pt: 2, gap: 1, borderTop: '1px solid #eef1f6', mx: { xs: 2.5, sm: 4 }, mt: 1 }}>
               <button type="button" onClick={() => registerStep === 0 ? closeRegistration() : setRegisterStep(registerStep - 1)} style={{ ...s.btnOutline, width: 'auto', padding: '11px 18px', marginRight: 'auto' }}>
                 {registerStep === 0 ? t.login.cancel : `← ${t.login.back}`}
               </button>
