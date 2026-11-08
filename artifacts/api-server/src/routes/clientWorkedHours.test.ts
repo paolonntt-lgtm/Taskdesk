@@ -404,12 +404,25 @@ describe("client worked-hours report", () => {
       `/api/clients?search=${encodeURIComponent(runId.slice(0, 8))}`,
       userSessionId,
     );
+    const globalMembershipSearch = await request(
+      `/api/search?q=${encodeURIComponent(`GYM-${runId}`)}`,
+      userSessionId,
+    );
+    const globalAliasSearch = await request(
+      `/api/search?q=${encodeURIComponent(`Shared Search Alias ${runId}`)}`,
+      userSessionId,
+    );
 
     expect(fullMembershipNumberSearch.status).toBe(200);
     expect(fullMembershipNumberSearch.body.map((client: any) => client.id)).toContain(clientId);
     expect(partialMembershipNumberSearch.status).toBe(200);
     expect(partialMembershipNumberSearch.body.map((client: any) => client.id)).toContain(clientId);
     expect(partialMembershipNumberSearch.body.map((client: any) => client.id)).not.toContain(foreignClientId);
+    expect(globalMembershipSearch.status).toBe(200);
+    expect(globalMembershipSearch.body.clients.map((client: any) => client.id)).toContain(clientId);
+    expect(globalMembershipSearch.body.clients.map((client: any) => client.id)).not.toContain(foreignClientId);
+    expect(globalAliasSearch.body.clients.map((client: any) => client.id)).toContain(clientId);
+    expect(globalAliasSearch.body.clients.map((client: any) => client.id)).not.toContain(foreignClientId);
 
     const companyVatSearch = await request(
       `/api/clients?search=${encodeURIComponent(`VAT-${runId}`)}`,

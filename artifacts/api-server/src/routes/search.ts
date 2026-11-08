@@ -58,7 +58,8 @@ router.get("/search", requireAuth, async (req, res) => {
               eq(clientsTable.organizationId, orgId),
               or(
                 ilike(clientsTable.name, pattern),
-                ilike(clientsTable.alias ?? clientsTable.name, pattern)
+                ilike(clientsTable.alias ?? clientsTable.name, pattern),
+                ilike(clientsTable.membershipNumber, pattern),
               )
             )
           )
