@@ -18,6 +18,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import { hasUnavailableBuiltInClientNoteTag, parseClientNoteTags } from '../lib/clientNoteHashtag';
+import { clientNoteMonthKeyFromDate } from '../lib/clientNoteMonth';
 import { useClientNoteDeclaratives } from '../hooks/useClientNoteDeclaratives';
 
 interface ChecklistItem {
@@ -46,13 +47,6 @@ interface ClientNotesBlockProps {
 
 function genId(): string {
   return Math.random().toString(36).slice(2, 10);
-}
-
-function monthKeyFromDate(iso: string): string {
-  const d = new Date(iso);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  return `${y}-${m}`;
 }
 
 function nextMonthKey(yyyyMM: string): string {
@@ -110,7 +104,7 @@ function getClientNoteCategoryOptions(
   }
 
   if (years.size === 0) {
-    const month = note.monthOverride ?? monthKeyFromDate(note.createdAt);
+    const month = note.monthOverride ?? clientNoteMonthKeyFromDate(note.createdAt);
     years.add(month.slice(2, 4));
   }
   const referenceYears = [...years].sort();
@@ -144,7 +138,7 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
   const updateNote = useUpdateClientNote();
   const deleteNote = useDeleteClientNote();
 
-  const currentMonthKey = useMemo(() => monthKeyFromDate(new Date().toISOString()), []);
+  const currentMonthKey = useMemo(() => clientNoteMonthKeyFromDate(new Date()), []);
 
   const groupedNotes = useMemo(() => {
     const typedNotes = notes as any[];
@@ -160,7 +154,7 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
     for (const note of typedNotes) {
       const categories: string[] = Array.isArray(note.categories) ? note.categories : [];
       if (note.monthOverride || categories.length === 0) {
-        const monthKey = note.monthOverride ?? monthKeyFromDate(note.createdAt);
+        const monthKey = note.monthOverride ?? clientNoteMonthKeyFromDate(note.createdAt);
         addToGroup(monthGroups, monthKey, note);
       }
       for (const category of categories) {
@@ -349,8 +343,8 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
   const openEditNote = (note: any) => {
     setEditingNoteId(note.id);
     setEditBody(noteToEditableText(note));
-    setEditMonth(note.monthOverride ?? (note.categories?.length ? '' : monthKeyFromDate(note.createdAt)));
-    const referenceYear = (note.monthOverride ?? monthKeyFromDate(note.createdAt)).slice(2, 4);
+    setEditMonth(note.monthOverride ?? (note.categories?.length ? '' : clientNoteMonthKeyFromDate(note.createdAt)));
+    const referenceYear = (note.monthOverride ?? clientNoteMonthKeyFromDate(note.createdAt)).slice(2, 4);
     setEditCategories(Array.isArray(note.categories)
       ? note.categories.map((category: string) =>
           /^declarative:([0-9a-f-]{36})$/i.test(category) ? `${category}:${referenceYear}` : category,
@@ -370,7 +364,7 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
     const categoryOnlyNote = !note.monthOverride && note.categories?.length > 0;
     if (!editMonth && !categoryOnlyNote) { showToast('error', tc.editMonthRequired); return; }
     const contentChanged = editBody.trim() !== noteToEditableText(note).trim();
-    const initialMonth = note.monthOverride ?? (note.categories?.length ? '' : monthKeyFromDate(note.createdAt));
+    const initialMonth = note.monthOverride ?? (note.categories?.length ? '' : clientNoteMonthKeyFromDate(note.createdAt));
     const updateData: Record<string, unknown> = {};
     if (editMonth !== initialMonth) updateData.monthOverride = editMonth || null;
     if (contentChanged) {
@@ -406,7 +400,7 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
   };
 
   const handleMoveToNextMonth = async (note: any) => {
-    const currentMonth = note.monthOverride ?? monthKeyFromDate(note.createdAt);
+    const currentMonth = note.monthOverride ?? clientNoteMonthKeyFromDate(note.createdAt);
     const nextMonth = nextMonthKey(currentMonth);
     setMovingNoteId(note.id);
     try {

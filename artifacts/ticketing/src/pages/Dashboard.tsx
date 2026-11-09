@@ -66,6 +66,7 @@ import { useTicketStatuses } from '../hooks/useTicketStatuses';
 import { useEntityTerm } from '../hooks/useEntityTerm';
 import { useClientNoteDeclaratives } from '../hooks/useClientNoteDeclaratives';
 import { hasDeclarativeClientNoteCategory } from '../lib/clientNoteHashtag';
+import { clientNoteMonthKeyFromDate, getClientNoteMonthKey } from '../lib/clientNoteMonth';
 import { getGymAccessPeriodRange, type GymAccessPeriod } from '../lib/gymAccessPeriods';
 import {
   dashboardPreferenceStorageKey,
@@ -1152,7 +1153,7 @@ function ClientNotesWidget() {
   const [settings] = useWidgetSettings<ClientNotesSettings>('client-notes', CLIENT_NOTES_SETTINGS_DEFAULTS);
   const { data: allNotes = [], isLoading } = useListAllClientNotes();
 
-  const currentMonth = React.useMemo(() => new Date().toISOString().slice(0, 7), []);
+  const currentMonth = React.useMemo(() => clientNoteMonthKeyFromDate(new Date()), []);
   const [selectedMonth, setSelectedMonth] = React.useState<string>(currentMonth);
 
   const availableMonths = React.useMemo(() => {
@@ -1160,7 +1161,7 @@ function ClientNotesWidget() {
     for (const note of allNotes) {
       if (!note.clientId) continue;
       if (hasDeclarativeClientNoteCategory(note.categories)) continue;
-      const noteMonth = note.monthOverride ?? note.createdAt.slice(0, 7);
+      const noteMonth = getClientNoteMonthKey(note.monthOverride, note.createdAt);
       monthSet.add(noteMonth);
     }
     return Array.from(monthSet).sort();
@@ -1174,7 +1175,7 @@ function ClientNotesWidget() {
     const map = new Map<number, { name: string; slug: string | null; count: number }>();
     for (const note of allNotes) {
       if (hasDeclarativeClientNoteCategory(note.categories)) continue;
-      const noteMonth = note.monthOverride ?? note.createdAt.slice(0, 7);
+      const noteMonth = getClientNoteMonthKey(note.monthOverride, note.createdAt);
       if (noteMonth !== effectiveMonth) continue;
       if (!note.clientId) continue;
       const existing = map.get(note.clientId);
