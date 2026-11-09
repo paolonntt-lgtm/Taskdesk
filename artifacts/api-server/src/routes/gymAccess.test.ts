@@ -201,6 +201,8 @@ describe("gym access route", () => {
       clientId: String(otherClientId),
       from: "2026-11-08T00:00:00.000Z",
       to: "2026-11-09T00:00:00.000Z",
+      limit: "1",
+      offset: "0",
     });
     const foreignHistory = await request(`/api/gym-access?${historyParams}`);
     const after = await db.select({ id: gymAccessEventsTable.id })
@@ -348,6 +350,67 @@ describe("gym access route", () => {
     })}`);
     expect(springMaxRange.status).toBe(200);
     expect(autumnMaxRange.status).toBe(200);
+  });
+
+  it("returns bounded, ordered pages scoped to the selected client", async () => {
+    const pageTime = new Date("2025-02-10T12:00:00.000Z");
+    const [first, second, third] = await db.insert(gymAccessEventsTable).values([
+      {
+        organizationId,
+        clientId,
+        personName: "Page entry one",
+        occurredAt: pageTime,
+        createdBy: adminId,
+      },
+      {
+        organizationId,
+        clientId,
+        personName: "Page entry two",
+        occurredAt: pageTime,
+        createdBy: adminId,
+      },
+      {
+        organizationId,
+        clientId,
+        personName: "Page entry three",
+        occurredAt: new Date(pageTime.getTime() + 1_000),
+        createdBy: adminId,
+      },
+    ]).returning({ id: gymAccessEventsTable.id });
+    await db.insert(gymAccessEventsTable).values({
+      organizationId,
+      clientId: updatedClientId,
+      personName: "Other client entry",
+      occurredAt: pageTime,
+      createdBy: adminId,
+    });
+
+    const params = new URLSearchParams({
+      clientId: String(clientId),
+      from: "2025-02-10T00:00:00.000Z",
+      to: "2025-02-11T00:00:00.000Z",
+      limit: "2",
+      offset: "0",
+    });
+    const firstPage = await request(`/api/gym-access?${params}`);
+    params.set("offset", "2");
+    const secondPage = await request(`/api/gym-access?${params}`);
+
+    expect(firstPage.status).toBe(200);
+    expect(firstPage.body).toMatchObject({
+      hasMore: true,
+      events: [
+        { id: first.id, clientId },
+        { id: second.id, clientId },
+      ],
+    });
+    expect(secondPage.status).toBe(200);
+    expect(secondPage.body).toMatchObject({
+      hasMore: false,
+      events: [{ id: third.id, clientId }],
+    });
+    expect(firstPage.body.events).toHaveLength(2);
+    expect(secondPage.body.events).toHaveLength(1);
   });
 
   it("lets an admin update the member and time of an entry in their organization", async () => {

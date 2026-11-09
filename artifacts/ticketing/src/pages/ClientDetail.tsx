@@ -1348,7 +1348,9 @@ export default function ClientDetail() {
       )}
 
       <Box mb={3}>
-        {!editMode && isAdmin && isGym && <GymAccessClientHistory clientId={clientId} />}
+        {!editMode && isAdmin && isGym && (
+          <GymAccessClientHistory clientId={clientId} organizationId={user?.organizationId ?? null} />
+        )}
         {canViewWorkedHours && (
           <WorkedHoursReport clientId={clientId} tickets={tickets} isAdmin={isAdmin} />
         )}

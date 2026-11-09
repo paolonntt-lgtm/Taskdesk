@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import {
   Alert,
   Box,
+  Button,
   Card,
   CardContent,
   CircularProgress,
@@ -11,7 +12,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { useLanguage } from "../contexts/LanguageContext";
 import {
   getGymAccessDateRange,
@@ -27,7 +28,20 @@ type GymAccessEvent = {
   occurredAt: string;
 };
 
-export default function GymAccessClientHistory({ clientId }: { clientId: number }) {
+type GymAccessPage = {
+  events: GymAccessEvent[];
+  hasMore: boolean;
+};
+
+const PAGE_SIZE = 50;
+
+export default function GymAccessClientHistory({
+  clientId,
+  organizationId,
+}: {
+  clientId: number;
+  organizationId: number | null;
+}) {
   const { t, lang } = useLanguage();
   const labels = t.gymAccess;
   const [period, setPeriod] = useState<GymAccessPeriod | "custom">("lastMonth");
@@ -46,18 +60,27 @@ export default function GymAccessClientHistory({ clientId }: { clientId: number 
   );
   const customDatesAreOrdered = customFromDate !== "" && customToDate !== "" && customFromDate <= customToDate;
   const customRangeIsTooLong = period === "custom" && customDatesAreOrdered && range === null;
-  const query = useQuery<GymAccessEvent[]>({
-    queryKey: ["gym-access-client-history", clientId, range?.from, range?.to],
-    queryFn: async () => {
+  const query = useInfiniteQuery<GymAccessPage>({
+    queryKey: ["gym-access-client-history", organizationId, clientId, range?.from, range?.to],
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }) => {
       if (!range) throw new Error(labels.invalidDateRange);
-      const params = new URLSearchParams({ ...range, clientId: String(clientId) });
+      const params = new URLSearchParams({
+        ...range,
+        clientId: String(clientId),
+        limit: String(PAGE_SIZE),
+        offset: String(pageParam),
+      });
       const response = await fetch(`/api/gym-access?${params}`, { credentials: "include" });
       if (!response.ok) throw new Error(labels.loadError);
       return response.json();
     },
+    getNextPageParam: (lastPage, pages) =>
+      lastPage.hasMore ? pages.reduce((count, page) => count + page.events.length, 0) : undefined,
     enabled: Boolean(range),
     staleTime: 30_000,
   });
+  const events = query.data?.pages.flatMap((page) => page.events) ?? [];
   const locale = lang === "it" ? "it-IT" : "en-GB";
 
   return (
@@ -111,9 +134,9 @@ export default function GymAccessClientHistory({ clientId }: { clientId: number 
           <Box display="flex" justifyContent="center" py={3}><CircularProgress size={26} /></Box>
         ) : query.isError ? (
           <Alert severity="error">{labels.loadError}</Alert>
-        ) : query.data?.length ? (
+        ) : events.length ? (
           <Stack spacing={1}>
-            {query.data.map((event) => (
+            {events.map((event) => (
               <Paper key={event.id} variant="outlined" sx={{ p: 1.5, display: "flex", justifyContent: "space-between", gap: 2 }}>
                 <Typography fontWeight={600}>{event.personName}</Typography>
                 <Typography variant="body2" color="text.secondary" textAlign="right">
@@ -127,6 +150,26 @@ export default function GymAccessClientHistory({ clientId }: { clientId: number 
                 </Typography>
               </Paper>
             ))}
+            {query.isFetchNextPageError && <Alert severity="error">{labels.loadError}</Alert>}
+            {query.hasNextPage ? (
+              <Button
+                variant="outlined"
+                onClick={() => query.fetchNextPage()}
+                disabled={query.isFetchingNextPage}
+                sx={{ alignSelf: "center", mt: 1 }}
+              >
+                {query.isFetchingNextPage ? (
+                  <Stack direction="row" alignItems="center" gap={1}>
+                    <CircularProgress size={16} />
+                    {labels.loadingMore}
+                  </Stack>
+                ) : labels.loadMore}
+              </Button>
+            ) : (
+              <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ pt: 1 }}>
+                {labels.endOfHistory}
+              </Typography>
+            )}
           </Stack>
         ) : (
           <Typography color="text.secondary">{labels.empty}</Typography>

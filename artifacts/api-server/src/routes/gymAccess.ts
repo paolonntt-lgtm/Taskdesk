@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, eq, gte, lt } from "drizzle-orm";
+import { and, asc, eq, gte, lt } from "drizzle-orm";
 import { db, clientsTable, gymAccessEventsTable, organizationsTable } from "@workspace/db";
 import { requireAdmin, requireAuth } from "../middlewares/auth";
 import { z } from "zod";
@@ -10,11 +10,16 @@ const ListQuery = z.object({
   from: z.string().datetime({ offset: true }),
   to: z.string().datetime({ offset: true }),
   clientId: z.coerce.number().int().positive().optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+  offset: z.coerce.number().int().min(0).optional(),
 }).superRefine((query, ctx) => {
   if (new Date(query.from) >= new Date(query.to)) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["to"], message: "End must be after start" });
   } else if (new Date(query.to).getTime() - new Date(query.from).getTime() > 32 * 24 * 60 * 60 * 1000) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["to"], message: "Date range cannot exceed 32 days" });
+  }
+  if (query.offset !== undefined && query.limit === undefined) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["limit"], message: "Limit is required when offset is provided" });
   }
 });
 
@@ -71,7 +76,7 @@ router.get("/gym-access", requireAuth, requireAdmin, async (req, res): Promise<v
       return;
     }
   }
-  const events = await db.select({
+  const eventsQuery = db.select({
     id: gymAccessEventsTable.id,
     clientId: gymAccessEventsTable.clientId,
     personName: gymAccessEventsTable.personName,
@@ -86,8 +91,18 @@ router.get("/gym-access", requireAuth, requireAdmin, async (req, res): Promise<v
         ? eq(gymAccessEventsTable.clientId, parsedQuery.data.clientId)
         : undefined,
     ))
-    .orderBy(gymAccessEventsTable.occurredAt);
+    .orderBy(asc(gymAccessEventsTable.occurredAt), asc(gymAccessEventsTable.id));
 
+  if (parsedQuery.data.limit !== undefined) {
+    const limit = parsedQuery.data.limit;
+    const offset = parsedQuery.data.offset ?? 0;
+    const page = await eventsQuery.limit(limit + 1).offset(offset);
+    const hasMore = page.length > limit;
+    res.json({ events: page.slice(0, limit), hasMore });
+    return;
+  }
+
+  const events = await eventsQuery;
   res.json(events);
 });
 

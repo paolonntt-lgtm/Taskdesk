@@ -523,6 +523,9 @@ const it = {
     distinctPeople: 'Persone distinte',
     empty: 'Nessun ingresso in questo periodo.',
     loadError: 'Impossibile caricare gli accessi.',
+    loadMore: 'Carica altri accessi',
+    loadingMore: 'Caricamento…',
+    endOfHistory: 'Fine dello storico.',
     openPage: 'Apri storico',
   },
   ticketList: {
@@ -2876,6 +2879,9 @@ const en: typeof it = {
     distinctPeople: 'Distinct people',
     empty: 'No entries for this period.',
     loadError: 'Could not load gym access records.',
+    loadMore: 'Load more entries',
+    loadingMore: 'Loading…',
+    endOfHistory: 'End of history.',
     openPage: 'Open history',
   },
   ticketList: {
