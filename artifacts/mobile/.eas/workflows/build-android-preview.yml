@@ -7,7 +7,12 @@ on:
     paths:
       - artifacts/mobile/.eas/workflows/build-android-preview.yml
       - artifacts/mobile/eas.json
+      - artifacts/mobile/app.json
+      - artifacts/mobile/app.config.js
       - artifacts/mobile/package.json
+      - artifacts/mobile/assets/images/taskdesk-app-icon.png
+      - artifacts/mobile/assets/images/taskdesk-adaptive-foreground.png
+      - artifacts/mobile/assets/images/notification-icon.png
 
 jobs:
   build_android_preview:
