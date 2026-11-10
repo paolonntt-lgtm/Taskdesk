@@ -34,6 +34,7 @@ jobs:
       before_install_node_modules:
         - name: Verify pnpm 10.26.1
           run: |
+            npm install --global pnpm@10.26.1
             pnpm --version
             test "$(pnpm --version)" = "10.26.1"
 
@@ -71,6 +72,7 @@ jobs:
       before_install_node_modules:
         - name: Verify pnpm 10.26.1
           run: |
+            npm install --global pnpm@10.26.1
             pnpm --version
             test "$(pnpm --version)" = "10.26.1"
     params:
@@ -89,6 +91,7 @@ jobs:
       before_install_node_modules:
         - name: Verify pnpm 10.26.1
           run: |
+            npm install --global pnpm@10.26.1
             pnpm --version
             test "$(pnpm --version)" = "10.26.1"
     params:

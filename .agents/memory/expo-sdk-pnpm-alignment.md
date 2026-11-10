@@ -15,8 +15,8 @@ For EAS builds targeting the nested mobile app, declare the same exact `packageM
 
 **How to apply:** If EAS reports an incompatible lockfile, compare the actual pnpm version in the worker log with the lockfile version. For nested workspace apps, align `packageManager` in the app manifest and ensure build workflow triggers include it; keep frozen-lockfile enabled.
 
-EAS Workflows can have a separate pnpm version from EAS Build. Set the exact version under workflow `defaults.tools.pnpm` and use `before_install_node_modules` only to verify it before dependency installation; this applies to build, fingerprint, and update jobs.
+EAS Workflows can have a separate pnpm version from EAS Build. Set the exact version under workflow `defaults.tools.pnpm`, and install then verify it in `before_install_node_modules` when the actual dependency-install worker still exposes an older pnpm; this applies to build, fingerprint, and update jobs.
 
-**Why:** The EAS worker exposed pnpm 8.7.5 and 9.8.1, and an Android build still rejected the lockfile even though the app manifest and build profile specified pnpm 10.26.1. EAS Workflows documents `defaults.tools.pnpm` as the version selector for workflow jobs.
+**Why:** The EAS worker exposed pnpm 8.7.5 and 9.8.1, and the frozen install still rejected the lockfile despite the app manifest, build profile, and workflow `defaults.tools.pnpm` specifying pnpm 10.26.1. A pre-install hook can update the binary in the worker that performs the install.
 
-**How to apply:** In each EAS workflow that installs workspace dependencies, pin `defaults.tools.pnpm` to the lockfile-compatible version and assert it in a pre-install hook. Keep frozen-lockfile checks enabled.
+**How to apply:** In each EAS workflow that installs workspace dependencies, pin `defaults.tools.pnpm` to the lockfile-compatible version. If logs show the install worker still uses another version, install the pinned pnpm globally in `before_install_node_modules`, print and assert its version, and keep frozen-lockfile checks enabled.
