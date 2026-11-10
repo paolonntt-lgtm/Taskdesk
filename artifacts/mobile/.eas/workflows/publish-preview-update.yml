@@ -5,6 +5,8 @@ on:
     branches:
       - main
     paths:
+      - artifacts/mobile/.eas/workflows/publish-preview-update.yml
+      - artifacts/mobile/package.json
       - artifacts/mobile/app/**
       - artifacts/mobile/assets/**
       - '!artifacts/mobile/assets/images/icon.png'
