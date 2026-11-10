@@ -14,3 +14,9 @@ For EAS builds targeting the nested mobile app, declare the same exact `packageM
 **Why:** EAS's initial dependency installation can select pnpm from the nested app manifest rather than the monorepo root or build profile, leaving a newer lockfile incompatible.
 
 **How to apply:** If EAS reports an incompatible lockfile, compare the actual pnpm version in the worker log with the lockfile version. For nested workspace apps, align `packageManager` in the app manifest and ensure build workflow triggers include it; keep frozen-lockfile enabled.
+
+EAS Workflows `fingerprint` and `update` jobs can still use the worker's preinstalled pnpm even when EAS Build uses the profile-pinned version. Use each job's `before_install_node_modules` hook to install the workspace's exact pnpm version and verify it before dependency installation.
+
+**Why:** The OTA workflow's dependency installation ran before fingerprinting or publishing and rejected the lockfile despite the successful preview APK build.
+
+**How to apply:** For EAS Workflows jobs that install workspace dependencies, set up and verify the same pnpm version in `before_install_node_modules`; do not disable frozen-lockfile checks.
