@@ -9,7 +9,7 @@ on:
       - artifacts/mobile/package.json
       - artifacts/mobile/app/**
       - artifacts/mobile/assets/**
-      - '!artifacts/mobile/assets/images/icon.png'
+      - "!artifacts/mobile/assets/images/icon.png"
       - artifacts/mobile/components/**
       - artifacts/mobile/constants/**
       - artifacts/mobile/contexts/**
