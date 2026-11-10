@@ -7,6 +7,7 @@ on:
     paths:
       - artifacts/mobile/.eas/workflows/build-android-preview.yml
       - artifacts/mobile/eas.json
+      - artifacts/mobile/package.json
 
 jobs:
   build_android_preview:
