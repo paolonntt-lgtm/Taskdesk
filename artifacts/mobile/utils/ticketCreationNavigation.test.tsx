@@ -6,7 +6,7 @@ import DashboardScreen from "../app/(tabs)";
 import TabLayout from "../app/(tabs)/_layout";
 
 const mocks = vi.hoisted(() => ({
-  user: { id: 5, name: "Ada Lovelace", role: "member", organizationId: 7 },
+  user: { id: 5, name: "Ada Lovelace", role: "member", organizationId: 7, mainLocation: null as string | null },
   organizationSettings: { clientsEnabled: false, timeTrackingModuleEnabled: false },
   organizationSettingsError: false,
   organizationSettingsRefetchError: false,
@@ -368,7 +368,7 @@ describe("mobile ticket creation navigation", () => {
     host = document.createElement("div");
     document.body.append(host);
     root = createRoot(host);
-    mocks.user = { id: 5, name: "Ada Lovelace", role: "member", organizationId: 7 };
+    mocks.user = { id: 5, name: "Ada Lovelace", role: "member", organizationId: 7, mainLocation: null };
     mocks.organizationSettings = { clientsEnabled: false, timeTrackingModuleEnabled: false };
     mocks.organizationSettingsError = false;
     mocks.organizationSettingsRefetchError = false;
@@ -413,6 +413,7 @@ describe("mobile ticket creation navigation", () => {
   });
 
   it("keeps the Dashboard greeting concise and makes the first name visible", async () => {
+    mocks.user.mainLocation = "Milano";
     await render(DashboardScreen);
 
     const greeting = host.querySelector('[data-testid="dashboard-greeting-line"]');
@@ -420,6 +421,9 @@ describe("mobile ticket creation navigation", () => {
     expect(host.querySelector('[data-testid="dashboard-greeting-name"]')?.textContent).toBe("Ada");
     expect(greeting?.textContent).not.toContain("Lovelace");
     expect(host.textContent).toContain("Your day");
+    expect(host.querySelector('[data-testid="dashboard-hero-date"]')?.textContent).toBeTruthy();
+    expect(host.querySelector('[data-testid="dashboard-hero-time"]')?.textContent).toMatch(/\d{2}:\d{2}/);
+    expect(host.querySelector('[data-testid="dashboard-hero-location"]')?.textContent).toBe("Milano");
     expect(host.textContent).not.toContain("at a glance");
     expect(host.querySelector('[data-testid="dashboard-greeting-card"]')).not.toBeNull();
     expect(host.querySelector('[data-testid="dashboard-create-ticket"]')).toBeNull();

@@ -1,5 +1,5 @@
 import "./_group.css";
-import { Sun } from "lucide-react";
+import { CalendarDays, Clock3, MapPin, Sun } from "lucide-react";
 
 export function Refined() {
   return (
@@ -12,7 +12,14 @@ export function Refined() {
           <div className="td-hero-eyebrow"><span className="td-hero-pulse" /> LA TUA GIORNATA</div>
           <div className="td-hero-greeting">Buongiorno,</div>
           <div className="td-hero-name">Giulia</div>
-          <div className="td-hero-caption">Tutto quello che conta, in un solo posto.</div>
+          <div className="td-hero-details">
+            <div className="td-hero-date-time">
+              <span><CalendarDays size={12} /> Mer 11 nov</span>
+              <i />
+              <span><Clock3 size={12} /> 10:24</span>
+            </div>
+            <span className="td-hero-location"><MapPin size={12} /> Milano</span>
+          </div>
         </div>
         <div className="td-hero-art">
           <div className="td-hero-disc"><Sun size={27} strokeWidth={1.8} /></div>

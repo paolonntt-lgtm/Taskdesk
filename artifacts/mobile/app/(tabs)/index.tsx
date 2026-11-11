@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
-  View, Text, ScrollView, StyleSheet,
+  AppState, View, Text, ScrollView, StyleSheet,
   TouchableOpacity, ActivityIndicator, RefreshControl, Platform, useWindowDimensions,
 } from "react-native";
 import { useQuery } from "@tanstack/react-query";
@@ -36,6 +36,20 @@ export default function DashboardScreen() {
   const { width } = useWindowDimensions();
   const singleRowStats = width >= 360;
   const s = styles(colors);
+  const [now, setNow] = useState<Date>(() => new Date());
+
+  useEffect(() => {
+    const refreshClock = () => setNow(new Date());
+    const interval = setInterval(refreshClock, 60_000);
+    const appStateSubscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") refreshClock();
+    });
+
+    return () => {
+      clearInterval(interval);
+      appStateSubscription.remove();
+    };
+  }, []);
 
   const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery({
     queryKey: ["dashboard-stats"],
@@ -51,7 +65,7 @@ export default function DashboardScreen() {
 
   const onRefresh = () => { refetchStats(); refetchTickets(); };
 
-  const greetingHour = new Date().getHours();
+  const greetingHour = now.getHours();
   const greeting =
     greetingHour < 12
       ? t.dashboard.goodMorning
@@ -61,6 +75,17 @@ export default function DashboardScreen() {
   const greetingIcon =
     greetingHour < 12 ? "sunrise" : greetingHour < 18 ? "sun" : "moon";
   const firstName = user?.name?.split(" ")[0] ?? t.profile.user;
+  const locale = lang === "it" ? "it-IT" : "en-US";
+  const heroDate = new Intl.DateTimeFormat(locale, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  }).format(now).replace(/\.$/, "");
+  const heroTime = new Intl.DateTimeFormat(locale, {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(now);
+  const mainLocation = user?.mainLocation?.trim();
 
   const statCards = [
     { label: t.dashboard.open, value: stats?.openTickets ?? 0, color: colors.primary, icon: "inbox" as const, filter: "status=open" },
@@ -103,9 +128,27 @@ export default function DashboardScreen() {
               {firstName}
             </Text>
           </View>
-          <Text style={s.greetingCaption} numberOfLines={2}>
-            {t.dashboard.heroSubtitle}
-          </Text>
+          <View style={s.heroDetails}>
+            <View style={s.heroDateTime}>
+              <View style={s.heroMetaItem}>
+                <Feather name="calendar" size={12} color={colors.primaryForeground} />
+                <Text style={s.heroMetaText} testID="dashboard-hero-date">{heroDate}</Text>
+              </View>
+              <View style={s.heroMetaDivider} />
+              <View style={s.heroMetaItem}>
+                <Feather name="clock" size={12} color={colors.primaryForeground} />
+                <Text style={s.heroMetaText} testID="dashboard-hero-time">{heroTime}</Text>
+              </View>
+            </View>
+            {mainLocation ? (
+              <View style={s.heroMetaItem}>
+                <Feather name="map-pin" size={12} color={colors.primaryForeground} />
+                <Text style={s.heroMetaText} numberOfLines={1} testID="dashboard-hero-location">
+                  {mainLocation}
+                </Text>
+              </View>
+            ) : null}
+          </View>
         </View>
         <View style={s.greetingArtwork} pointerEvents="none">
           <View style={s.greetingDisc} />
@@ -259,15 +302,18 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       fontFamily: "Inter_700Bold",
       letterSpacing: -0.7,
     },
-    greetingCaption: {
-      maxWidth: 220,
-      marginTop: 2,
-      fontSize: 11,
-      lineHeight: 15,
+    heroDetails: { gap: 5, marginTop: 2 },
+    heroDateTime: { flexDirection: "row", alignItems: "center", gap: 8 },
+    heroMetaItem: { flexDirection: "row", alignItems: "center", gap: 5, minWidth: 0 },
+    heroMetaText: {
+      flexShrink: 1,
+      fontSize: 10,
+      lineHeight: 14,
       color: colors.primaryForeground,
-      opacity: 0.8,
-      fontFamily: "Inter_400Regular",
+      opacity: 0.84,
+      fontFamily: "Inter_500Medium",
     },
+    heroMetaDivider: { height: 12, width: 1, backgroundColor: colors.primaryForeground, opacity: 0.45 },
     greetingSubtitle: {
       fontSize: 10,
       color: colors.primaryForeground,

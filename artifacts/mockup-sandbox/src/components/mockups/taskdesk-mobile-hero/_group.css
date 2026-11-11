@@ -65,7 +65,7 @@
 
 .td-hero-copy {
   z-index: 1;
-  max-width: 76%;
+  max-width: 70%;
 }
 
 .td-hero-eyebrow {
@@ -101,11 +101,39 @@
   letter-spacing: -.04em;
 }
 
-.td-hero-caption {
-  margin-top: 10px;
-  font-size: 11px;
-  line-height: 1.4;
-  color: rgba(255,255,255,.78);
+.td-hero-details {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+  color: rgba(255,255,255,.82);
+  font-size: 10px;
+}
+
+.td-hero-date-time {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.td-hero-date-time span,
+.td-hero-location {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.td-hero-date-time i {
+  width: 1px;
+  height: 12px;
+  background: rgba(255,255,255,.45);
+}
+
+.td-hero-location {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .td-hero-art {
@@ -146,6 +174,6 @@
 @media (max-width: 360px) {
   .td-hero-card { padding: 18px; }
   .td-hero-art { right: 6px; opacity: .82; }
-  .td-hero-copy { max-width: 80%; }
-  .td-hero-caption { max-width: 180px; }
+  .td-hero-copy { max-width: 73%; }
+  .td-hero-details { font-size: 9px; }
 }
