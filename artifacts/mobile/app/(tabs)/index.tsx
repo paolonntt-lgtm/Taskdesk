@@ -5,7 +5,7 @@ import {
 } from "react-native";
 import * as Location from "expo-location";
 import { useQuery } from "@tanstack/react-query";
-import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useColors } from "@/hooks/useColors";
@@ -28,25 +28,35 @@ interface Ticket {
   category: string;
   createdAt: string;
   creator?: { name: string };
+  latestActivity?: {
+    actionType: string;
+    actorName: string | null;
+    createdAt: string;
+  } | null;
 }
 
-interface CurrentWeather {
-  temperature: number;
-  code: number;
-  isDay: boolean;
-}
-
-type WeatherIcon = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
-
-function weatherDescription(code: number, isDay: boolean, lang: string) {
-  if (code === 0) return { label: lang === "it" ? "Sereno" : "Clear", icon: isDay ? "weather-sunny" : "weather-night" } as const;
-  if (code <= 2) return { label: lang === "it" ? "Poco nuvoloso" : "Partly cloudy", icon: "weather-partly-cloudy" } as const;
-  if (code === 3) return { label: lang === "it" ? "Nuvoloso" : "Overcast", icon: "weather-cloudy" } as const;
-  if (code === 45 || code === 48) return { label: lang === "it" ? "Nebbia" : "Fog", icon: "weather-fog" } as const;
-  if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return { label: lang === "it" ? "Pioggia" : "Rain", icon: "weather-rainy" } as const;
-  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return { label: lang === "it" ? "Neve" : "Snow", icon: "weather-snowy" } as const;
-  if (code >= 95) return { label: lang === "it" ? "Temporale" : "Thunderstorm", icon: "weather-lightning-rainy" } as const;
-  return { label: lang === "it" ? "Variabile" : "Changeable", icon: "weather-partly-cloudy" } as const;
+function recentActivityLabel(actionType: string, lang: string) {
+  const labels: Record<string, [string, string]> = {
+    created: ["Ticket creato", "Ticket created"],
+    status_changed: ["Stato modificato", "Status changed"],
+    assigned: ["Ticket assegnato", "Ticket assigned"],
+    reassigned: ["Assegnazione modificata", "Assignment changed"],
+    unassigned: ["Assegnazione rimossa", "Assignment removed"],
+    priority_changed: ["Priorità modificata", "Priority changed"],
+    category_changed: ["Categoria modificata", "Category changed"],
+    location_changed: ["Sede modificata", "Location changed"],
+    comment_added: ["Commento aggiunto", "Comment added"],
+    email_reply_sent: ["Risposta email inviata", "Email reply sent"],
+    checklist_item_updated: ["Checklist aggiornata", "Checklist updated"],
+    checklist_applied_from_template: ["Checklist applicata", "Checklist applied"],
+    recurrence_set: ["Ricorrenza aggiornata", "Recurrence updated"],
+    recurrence_created: ["Ticket ricorrente creato", "Recurring ticket created"],
+    solution_marked: ["Soluzione registrata", "Solution recorded"],
+  };
+  const label = labels[actionType] ?? (actionType.startsWith("ticket_field_")
+    ? ["Ticket aggiornato", "Ticket updated"]
+    : ["Attività aggiornata", "Activity updated"]);
+  return lang === "it" ? label[0] : label[1];
 }
 
 export default function DashboardScreen() {
@@ -58,7 +68,6 @@ export default function DashboardScreen() {
   const s = styles(colors);
   const [now, setNow] = useState<Date>(() => new Date());
   const [gpsLocation, setGpsLocation] = useState<string | null>(null);
-  const [weather, setWeather] = useState<CurrentWeather | null>(null);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [locationPermission, requestLocationPermission] = Location.useForegroundPermissions();
   const locationPromptedThisMount = useRef(false);
@@ -102,6 +111,7 @@ export default function DashboardScreen() {
       : greetingHour < 18
         ? t.dashboard.goodAfternoon
         : t.dashboard.goodEvening;
+  const greetingIcon = greetingHour < 12 ? "sunrise" : greetingHour < 18 ? "sun" : "moon";
   const firstName = user?.name?.split(" ")[0] ?? t.profile.user;
   const locale = lang === "it" ? "it-IT" : "en-US";
   const heroDate = new Intl.DateTimeFormat(locale, {
@@ -111,7 +121,6 @@ export default function DashboardScreen() {
   }).format(now).replace(/\.$/, "");
   const mainLocation = user?.mainLocation?.trim();
   const displayLocation = gpsLocation || mainLocation;
-  const weatherInfo = weather ? weatherDescription(weather.code, weather.isDay, lang) : null;
 
   const captureGpsLocation = async (askSystemPermission = false) => {
     setIsGettingLocation(true);
@@ -155,7 +164,6 @@ export default function DashboardScreen() {
         setGpsLocation(mainLocation || null);
       }
     } catch {
-      setWeather(null);
       Alert.alert(t.dashboard.locationDisclosureTitle, t.dashboard.locationUnavailable);
     } finally {
       setIsGettingLocation(false);
@@ -253,14 +261,6 @@ export default function DashboardScreen() {
               <Feather name="calendar" size={16} color={colors.primaryForeground} />
               <Text style={s.heroDateText} testID="dashboard-hero-date">{heroDate}</Text>
             </View>
-            {weather && weatherInfo ? (
-              <View style={s.heroWeather}>
-                <Feather name="thermometer" size={13} color={colors.warning} />
-                <Text style={s.heroWeatherText} testID="dashboard-hero-weather">
-                  {weather.temperature}° · {weatherInfo.label}
-                </Text>
-              </View>
-            ) : null}
             {displayLocation ? (
               <View style={s.heroMetaItem}>
                 <Feather name="map-pin" size={12} color={colors.primaryForeground} />
@@ -292,25 +292,16 @@ export default function DashboardScreen() {
         </View>
         <View style={s.greetingArtwork} pointerEvents="none">
           <LinearGradient
-            colors={weatherInfo?.icon.includes("sun") ? [colors.warning, colors.destructive] : [colors.accent, colors.primary]}
+            colors={greetingIcon === "moon" ? [colors.primary, colors.accent] : [colors.warning, colors.destructive]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={s.weatherArtwork}
+            style={s.greetingIllustration}
           >
-            {weatherInfo ? (
-              <MaterialCommunityIcons
-                name={weatherInfo.icon as WeatherIcon}
-                size={48}
-                color={weatherInfo.icon.includes("sun") ? colors.primaryForeground : colors.accentForeground}
-              />
-            ) : (
-              <MaterialCommunityIcons
-                name="map-marker-radius"
-                size={46}
-                color={colors.primaryForeground}
-              />
-            )}
-            {weather ? <Text style={s.weatherTemperature}>{weather.temperature}°</Text> : null}
+            <Feather
+              name={greetingIcon as "sunrise" | "sun" | "moon"}
+              size={38}
+              color={colors.primaryForeground}
+            />
           </LinearGradient>
         </View>
       </LinearGradient>
@@ -368,6 +359,18 @@ export default function DashboardScreen() {
               <View style={[s.priorityDot, { backgroundColor: PRIORITY_COLORS[ticket.priority] ?? colors.muted }]} />
               <View style={s.ticketInfo}>
                 <Text style={s.ticketTitle} numberOfLines={1}>{ticket.title}</Text>
+                <Text
+                  style={s.ticketActivity}
+                  numberOfLines={1}
+                  testID={`dashboard-recent-ticket-activity-${ticket.id}`}
+                >
+                  {ticket.latestActivity
+                    ? [
+                        recentActivityLabel(ticket.latestActivity.actionType, lang),
+                        ticket.latestActivity.actorName,
+                      ].filter(Boolean).join(" · ")
+                    : t.dashboard.activityNotRecorded}
+                </Text>
                 <Text style={s.ticketMeta}>#{ticket.id} · {t.status[ticket.status] ?? ticket.status}</Text>
               </View>
               <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
@@ -465,13 +468,6 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       fontFamily: "Inter_700Bold",
       letterSpacing: -0.2,
     },
-    heroWeather: { flexDirection: "row", alignItems: "center", gap: 5 },
-    heroWeatherText: {
-      fontSize: 12,
-      lineHeight: 16,
-      color: colors.primaryForeground,
-      fontFamily: "Inter_600SemiBold",
-    },
     heroMetaItem: { flexDirection: "row", alignItems: "center", gap: 5, minWidth: 0 },
     heroMetaText: {
       flexShrink: 1,
@@ -497,7 +493,7 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       marginLeft: 4,
       zIndex: 1,
     },
-    weatherArtwork: {
+    greetingIllustration: {
       width: 78,
       height: 82,
       borderRadius: 25,
@@ -510,13 +506,6 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       shadowOpacity: 0.18,
       shadowRadius: 10,
       elevation: 4,
-    },
-    weatherTemperature: {
-      marginTop: -4,
-      color: colors.primaryForeground,
-      fontSize: 14,
-      lineHeight: 17,
-      fontFamily: "Inter_700Bold",
     },
     loadingRow: { height: 120, alignItems: "center", justifyContent: "center" },
     statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 20 },
@@ -553,5 +542,6 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     priorityDot: { width: 8, height: 8, borderRadius: 4 },
     ticketInfo: { flex: 1 },
     ticketTitle: { fontSize: 14, fontWeight: "500" as const, color: colors.foreground, fontFamily: "Inter_500Medium" },
-    ticketMeta: { fontSize: 12, color: colors.mutedForeground, marginTop: 2, fontFamily: "Inter_400Regular" },
+    ticketActivity: { fontSize: 12, color: colors.primary, marginTop: 3, fontFamily: "Inter_600SemiBold" },
+    ticketMeta: { fontSize: 11, color: colors.mutedForeground, marginTop: 2, fontFamily: "Inter_400Regular" },
   });

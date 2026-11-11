@@ -30,6 +30,15 @@ const mocks = vi.hoisted(() => ({
   },
   searchResultsByQuery: {} as Record<string, { search: string; results: unknown[] }>,
   apiGet: vi.fn(),
+  recentTickets: [] as {
+    id: number;
+    title: string;
+    status: string;
+    priority: string;
+    category: string;
+    createdAt: string;
+    latestActivity?: { actionType: string; actorName: string | null; createdAt: string } | null;
+  }[],
   ticketSearchResults: [] as { id: number; title: string; status?: string | null }[],
   ticketSearchResultsByOrganization: null as null | Record<
     number,
@@ -288,6 +297,7 @@ vi.mock("@/contexts/LanguageContext", () => ({
         recentActivity: "Recent activity",
         seeAll: "See all",
         noRecentTickets: "No recent tickets",
+        activityNotRecorded: "Activity not recorded",
       },
       profile: { user: "User" },
       tickets: { search: "Search tickets" },
@@ -337,7 +347,9 @@ vi.mock("@tanstack/react-query", () => ({
                     ? mocks.ticketSearchResultsByOrganization[queryKey[1]] ?? []
                     : mocks.ticketSearchResults,
               }
-            : mocks.notifications,
+            : queryKey[0] === "recent-tickets"
+              ? mocks.recentTickets
+              : mocks.notifications,
       isLoading:
         (queryKey[0] === "mobile-dashboard-client-search" && mocks.clientSearchLoading) ||
         isTicketSearch && mocks.ticketSearchLoading ||
@@ -406,6 +418,7 @@ describe("mobile ticket creation navigation", () => {
     });
     mocks.searchResultsByQuery = {};
     mocks.apiGet.mockReset();
+    mocks.recentTickets = [];
     mocks.ticketSearchResults = [];
     mocks.ticketSearchResultsByOrganization = null;
     mocks.ticketSearchLoading = false;
@@ -453,6 +466,26 @@ describe("mobile ticket creation navigation", () => {
     expect(host.textContent).not.toContain("at a glance");
     expect(host.querySelector('[data-testid="dashboard-greeting-card"]')).not.toBeNull();
     expect(host.querySelector('[data-testid="dashboard-create-ticket"]')).toBeNull();
+  });
+
+  it("names the latest ticket activity and its actor in Recent Activity", async () => {
+    mocks.recentTickets = [{
+      id: 72,
+      title: "VPN access request",
+      status: "in_progress",
+      priority: "normal",
+      category: "support",
+      createdAt: "2026-11-11T10:00:00.000Z",
+      latestActivity: {
+        actionType: "status_changed",
+        actorName: "Luca",
+        createdAt: "2026-11-11T11:00:00.000Z",
+      },
+    }];
+    await render(DashboardScreen);
+
+    expect(host.querySelector('[data-testid="dashboard-recent-ticket-activity-72"]')?.textContent)
+      .toBe("Status changed · Luca");
   });
 
   it("asks for GPS on opening and keeps the GPS action available", async () => {
