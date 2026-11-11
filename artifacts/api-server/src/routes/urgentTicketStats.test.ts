@@ -9,7 +9,7 @@ import {
   ticketsTable,
   usersTable,
 } from "@workspace/db";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import app from "../app";
 import { createSession } from "../lib/session";
 
@@ -81,7 +81,7 @@ describe("urgent ticket dashboard statistic", () => {
       { title: "Urgent fallback closed", status: "closed", priority: "urgent", visibility: "organization", deletedAt: null },
       { title: "Urgent private", status: "open", priority: "urgent", visibility: "admins", deletedAt: null },
       { title: "Urgent deleted", status: "open", priority: "urgent", visibility: "organization", deletedAt: new Date() },
-      { title: "Not urgent", status: "working", priority: "high", visibility: "organization", deletedAt: null },
+      { title: "Not urgent in progress", status: "in_progress", priority: "high", visibility: "organization", deletedAt: null },
     ];
     const insertedTickets = await db.insert(ticketsTable).values(ticketRows.map((ticket) => ({
       ...ticket,
@@ -144,6 +144,10 @@ describe("urgent ticket dashboard statistic", () => {
     expect(userTickets.status).toBe(200);
     expect(adminStats.body.urgentTickets).toBe(4);
     expect(userStats.body.urgentTickets).toBe(3);
+    expect(adminStats.body.inProgressTickets).toBe(1);
+    expect(userStats.body.inProgressTickets).toBe(1);
+    expect(adminStats.body.closedTickets).toBe(2);
+    expect(userStats.body.closedTickets).toBe(2);
     expect(adminTickets.body).toHaveLength(adminStats.body.urgentTickets);
     expect(userTickets.body).toHaveLength(userStats.body.urgentTickets);
     expect(adminTickets.body.map((ticket: { title: string }) => ticket.title)).toContain("Urgent private");
@@ -153,6 +157,20 @@ describe("urgent ticket dashboard statistic", () => {
       expect(tickets.map((ticket: { title: string }) => ticket.title)).not.toContain("Urgent fallback closed");
       expect(tickets.map((ticket: { title: string }) => ticket.title)).not.toContain("Urgent deleted");
     }
+  });
+
+  it("counts resolved and custom closed statuses in the closed total", async () => {
+    await db.update(ticketStatusesTable)
+      .set({ isClosed: true })
+      .where(and(
+        eq(ticketStatusesTable.organizationId, organizationId),
+        eq(ticketStatusesTable.key, "resolved"),
+      ));
+
+    const stats = await request("/api/stats/dashboard", userSessionId);
+
+    expect(stats.status).toBe(200);
+    expect(stats.body.closedTickets).toBe(3);
   });
 
   it("returns an empty urgent list when every configured status is closed", async () => {

@@ -106,9 +106,10 @@ router.get("/stats/dashboard", requireAuth, async (req, res): Promise<void> => {
   const [counts] = await db.select({
     total: sql<number>`count(*)`,
     open: sql<number>`count(*) filter (where status = 'open')`,
+    inProgress: sql<number>`count(*) filter (where status = 'in_progress')`,
     waiting: sql<number>`count(*) filter (where status = 'waiting')`,
     resolved: sql<number>`count(*) filter (where status = 'resolved')`,
-    closed: sql<number>`count(*) filter (where status = 'closed')`,
+    closed: sql<number>`count(*) filter (where ${inArray(ticketsTable.status, closedStatusKeys)})`,
     urgent: sql<number>`count(*) filter (where ${ticketsTable.priority} = 'urgent' and ${isOpenStatus})`,
     overdue: sql<number>`count(*) filter (where due_at is not null and due_at < now() and status not in ('resolved','closed'))`,
     last7: sql<number>`count(*) filter (where created_at >= now() - interval '7 days')`,
@@ -124,6 +125,7 @@ router.get("/stats/dashboard", requireAuth, async (req, res): Promise<void> => {
   res.json({
     totalTickets: Number(counts.total),
     openTickets: Number(counts.open),
+    inProgressTickets: Number(counts.inProgress),
     waitingTickets: Number(counts.waiting),
     resolvedTickets: Number(counts.resolved),
     closedTickets: Number(counts.closed),
