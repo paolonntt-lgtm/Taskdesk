@@ -36,4 +36,19 @@ describe("mobile generated API requests", () => {
       expect.objectContaining({ credentials: "omit" }),
     );
   });
+
+  it("keeps web API calls on the current origin when no API base is configured", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response("[]", { headers: { "Content-Type": "application/json" } }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    setBaseUrl(null);
+
+    await customFetch("/api/clients/1/notes");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/clients/1/notes",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
 });
