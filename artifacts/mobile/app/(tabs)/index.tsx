@@ -90,7 +90,7 @@ export default function DashboardScreen() {
     minute: "2-digit",
   }).format(now);
   const mainLocation = user?.mainLocation?.trim();
-  const displayLocation = mainLocation || gpsLocation;
+  const displayLocation = gpsLocation || mainLocation;
 
   const captureGpsLocation = async () => {
     setIsGettingLocation(true);
@@ -203,7 +203,8 @@ export default function DashboardScreen() {
                   {displayLocation}
                 </Text>
               </View>
-            ) : Platform.OS !== "web" ? (
+            ) : null}
+            {Platform.OS !== "web" ? (
               <TouchableOpacity
                 style={s.heroMetaItem}
                 onPress={askForGpsLocation}
@@ -218,7 +219,7 @@ export default function DashboardScreen() {
                 <Text style={s.heroMetaText}>
                   {isGettingLocation
                     ? (lang === "it" ? "Ricerca posizione…" : "Finding location…")
-                    : t.dashboard.useGpsLocation}
+                    : gpsLocation ? t.dashboard.refreshGpsLocation : t.dashboard.useGpsLocation}
                 </Text>
               </TouchableOpacity>
             ) : null}

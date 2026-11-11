@@ -455,15 +455,40 @@ describe("mobile ticket creation navigation", () => {
     expect(host.querySelector('[data-testid="dashboard-create-ticket"]')).toBeNull();
   });
 
-  it("offers GPS only when no profile location is available", async () => {
+  it("offers user-triggered GPS with or without a profile location", async () => {
     await render(DashboardScreen);
     expect(host.querySelector('[data-testid="dashboard-hero-gps-button"]')).not.toBeNull();
     expect(mocks.requestLocationPermission).not.toHaveBeenCalled();
 
     mocks.user.mainLocation = "Roma";
     await act(async () => root.render(React.createElement(DashboardScreen)));
-    expect(host.querySelector('[data-testid="dashboard-hero-gps-button"]')).toBeNull();
+    expect(host.querySelector('[data-testid="dashboard-hero-gps-button"]')).not.toBeNull();
     expect(host.querySelector('[data-testid="dashboard-hero-location"]')?.textContent).toBe("Roma");
+    expect(mocks.requestLocationPermission).not.toHaveBeenCalled();
+  });
+
+  it("shows the GPS locality in place of the profile location after consent", async () => {
+    mocks.user.mainLocation = "Roma";
+    mocks.requestLocationPermission.mockResolvedValue({
+      granted: true,
+      canAskAgain: true,
+      status: "granted",
+    });
+    await render(DashboardScreen);
+
+    const gpsButton = host.querySelector('[data-testid="dashboard-hero-gps-button"]') as HTMLButtonElement;
+    await act(async () => gpsButton.click());
+    const alertButtons = mocks.alert.mock.calls[0]?.[2] as Array<{ onPress?: () => void }> | undefined;
+    await act(async () => {
+      alertButtons?.[1]?.onPress?.();
+    });
+    await vi.waitFor(() => {
+      expect(host.querySelector('[data-testid="dashboard-hero-location"]')?.textContent).toBe("Milano, Italia");
+    });
+
+    expect(mocks.requestLocationPermission).toHaveBeenCalledOnce();
+    expect(mocks.getCurrentPosition).toHaveBeenCalledOnce();
+    expect(mocks.reverseGeocode).toHaveBeenCalledOnce();
   });
 
   it("shows the TaskDesk logo and search field in the Dashboard header", async () => {
