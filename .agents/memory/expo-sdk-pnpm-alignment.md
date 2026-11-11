@@ -20,3 +20,9 @@ EAS Workflows can have a separate pnpm version from EAS Build. Set the exact ver
 **Why:** The EAS worker exposed pnpm 8.7.5 and 9.8.1, and the frozen install still rejected the lockfile despite the app manifest, build profile, and workflow `defaults.tools.pnpm` specifying pnpm 10.26.1. A pre-install hook can update the binary in the worker that performs the install.
 
 **How to apply:** In each EAS workflow that installs workspace dependencies, pin `defaults.tools.pnpm` to the lockfile-compatible version. If logs show the install worker still uses another version, install the pinned pnpm globally in `before_install_node_modules`, print and assert its version, and keep frozen-lockfile checks enabled.
+
+Pin `defaults.tools.node` to Node 22 in EAS workflows that run fingerprinting or the EAS CLI. EAS CLI versions may raise their minimum Node requirement; verify the selected runtime in the pre-install hook before fingerprint generation.
+
+**Why:** The fingerprint worker used Node 18.18.0 with EAS CLI 27.7.2, which requires Node 20.18.3 or Node 22+. It failed in `fingerprint:generate` with `tracingChannel` missing, before any OTA update could publish.
+
+**How to apply:** For workflow jobs using EAS CLI/fingerprinting, pin `defaults.tools.node` to 22 and print/check the Node major in `before_install_node_modules`. Keep the native build profile's runtime aligned separately if its build worker has a distinct Node configuration.

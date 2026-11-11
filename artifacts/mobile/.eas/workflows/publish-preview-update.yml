@@ -2,6 +2,7 @@ name: Publish compatible preview updates
 
 defaults:
   tools:
+    node: "22"
     pnpm: "10.26.1"
 
 on:
@@ -34,6 +35,8 @@ jobs:
       before_install_node_modules:
         - name: Verify pnpm 10.26.1
           run: |
+            node --version
+            test "$(node -p 'process.versions.node.split(".")[0]')" = "22"
             npm install --global pnpm@10.26.1
             pnpm --version
             test "$(pnpm --version)" = "10.26.1"
@@ -72,6 +75,8 @@ jobs:
       before_install_node_modules:
         - name: Verify pnpm 10.26.1
           run: |
+            node --version
+            test "$(node -p 'process.versions.node.split(".")[0]')" = "22"
             npm install --global pnpm@10.26.1
             pnpm --version
             test "$(pnpm --version)" = "10.26.1"
@@ -91,6 +96,8 @@ jobs:
       before_install_node_modules:
         - name: Verify pnpm 10.26.1
           run: |
+            node --version
+            test "$(node -p 'process.versions.node.split(".")[0]')" = "22"
             npm install --global pnpm@10.26.1
             pnpm --version
             test "$(pnpm --version)" = "10.26.1"
