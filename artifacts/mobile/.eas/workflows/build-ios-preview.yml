@@ -1,0 +1,37 @@
+name: Build iOS preview app
+
+defaults:
+  tools:
+    node: "22"
+    pnpm: "10.26.1"
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - artifacts/mobile/.eas/workflows/build-ios-preview.yml
+      - artifacts/mobile/eas.json
+      - artifacts/mobile/app.json
+      - artifacts/mobile/app.config.js
+      - artifacts/mobile/package.json
+      - artifacts/mobile/assets/images/taskdesk-app-icon.png
+      - artifacts/mobile/assets/images/taskdesk-adaptive-foreground.png
+      - artifacts/mobile/assets/images/notification-icon.png
+
+jobs:
+  build_ios_preview:
+    name: Build iOS preview app
+    type: build
+    hooks:
+      before_install_node_modules:
+        - name: Verify pnpm 10.26.1
+          run: |
+            node --version
+            test "$(node -p 'process.versions.node.split(".")[0]')" = "22"
+            npm install --global pnpm@10.26.1
+            pnpm --version
+            test "$(pnpm --version)" = "10.26.1"
+    params:
+      platform: ios
+      profile: preview
