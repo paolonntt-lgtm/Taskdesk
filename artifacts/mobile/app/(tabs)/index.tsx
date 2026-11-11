@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
 import {
-  AppState, View, Text, ScrollView, StyleSheet,
+  Alert, AppState, Linking, View, Text, ScrollView, StyleSheet,
   TouchableOpacity, ActivityIndicator, RefreshControl, Platform, useWindowDimensions,
 } from "react-native";
+import * as Location from "expo-location";
 import { useQuery } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -37,6 +38,9 @@ export default function DashboardScreen() {
   const singleRowStats = width >= 360;
   const s = styles(colors);
   const [now, setNow] = useState<Date>(() => new Date());
+  const [gpsLocation, setGpsLocation] = useState<string | null>(null);
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
+  const [locationPermission, requestLocationPermission] = Location.useForegroundPermissions();
 
   useEffect(() => {
     const refreshClock = () => setNow(new Date());
@@ -86,6 +90,58 @@ export default function DashboardScreen() {
     minute: "2-digit",
   }).format(now);
   const mainLocation = user?.mainLocation?.trim();
+  const displayLocation = mainLocation || gpsLocation;
+
+  const captureGpsLocation = async () => {
+    setIsGettingLocation(true);
+    try {
+      const permission = await requestLocationPermission();
+      if (!permission.granted) {
+        if (!permission.canAskAgain) {
+          Alert.alert(t.dashboard.locationDisclosureTitle, t.dashboard.locationPermissionDenied, [
+            { text: lang === "it" ? "Annulla" : "Cancel", style: "cancel" },
+            {
+              text: lang === "it" ? "Impostazioni" : "Settings",
+              onPress: () => { void Linking.openSettings().catch(() => {}); },
+            },
+          ]);
+        } else {
+          Alert.alert(t.dashboard.locationDisclosureTitle, t.dashboard.locationPermissionDenied);
+        }
+        return;
+      }
+
+      if (!(await Location.hasServicesEnabledAsync())) {
+        Alert.alert(t.dashboard.locationDisclosureTitle, t.dashboard.locationUnavailable);
+        return;
+      }
+
+      const position = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      const [address] = await Location.reverseGeocodeAsync({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      });
+      const area = address?.city ?? address?.subregion ?? address?.region;
+      if (!area) {
+        Alert.alert(t.dashboard.locationDisclosureTitle, t.dashboard.locationUnavailable);
+        return;
+      }
+      setGpsLocation([area, address?.country].filter(Boolean).join(", "));
+    } catch {
+      Alert.alert(t.dashboard.locationDisclosureTitle, t.dashboard.locationUnavailable);
+    } finally {
+      setIsGettingLocation(false);
+    }
+  };
+
+  const askForGpsLocation = () => {
+    Alert.alert(t.dashboard.locationDisclosureTitle, t.dashboard.locationDisclosureMessage, [
+      { text: lang === "it" ? "Annulla" : "Cancel", style: "cancel" },
+      { text: t.dashboard.locationContinue, onPress: () => { void captureGpsLocation(); } },
+    ]);
+  };
 
   const statCards = [
     { label: t.dashboard.open, value: stats?.openTickets ?? 0, color: colors.primary, icon: "inbox" as const, filter: "status=open" },
@@ -140,13 +196,31 @@ export default function DashboardScreen() {
                 <Text style={s.heroMetaText} testID="dashboard-hero-time">{heroTime}</Text>
               </View>
             </View>
-            {mainLocation ? (
+            {displayLocation ? (
               <View style={s.heroMetaItem}>
                 <Feather name="map-pin" size={12} color={colors.primaryForeground} />
                 <Text style={s.heroMetaText} numberOfLines={1} testID="dashboard-hero-location">
-                  {mainLocation}
+                  {displayLocation}
                 </Text>
               </View>
+            ) : Platform.OS !== "web" ? (
+              <TouchableOpacity
+                style={s.heroMetaItem}
+                onPress={askForGpsLocation}
+                disabled={isGettingLocation || !locationPermission}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                testID="dashboard-hero-gps-button"
+              >
+                {isGettingLocation
+                  ? <ActivityIndicator size="small" color={colors.primaryForeground} />
+                  : <Feather name="map-pin" size={12} color={colors.primaryForeground} />}
+                <Text style={s.heroMetaText}>
+                  {isGettingLocation
+                    ? (lang === "it" ? "Ricerca posizione…" : "Finding location…")
+                    : t.dashboard.useGpsLocation}
+                </Text>
+              </TouchableOpacity>
             ) : null}
           </View>
         </View>

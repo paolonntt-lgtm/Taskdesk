@@ -39,6 +39,12 @@
       ],
       "expo-font",
       [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "TaskDesk uses location only while the app is open to show your area on the dashboard. Coordinates are not saved. / TaskDesk usa la posizione solo con l’app aperta per mostrare la zona nella dashboard. Le coordinate non vengono salvate."
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./assets/images/taskdesk-app-icon.png",

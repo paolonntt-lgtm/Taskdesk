@@ -18,7 +18,9 @@ export function Refined() {
               <i />
               <span><Clock3 size={12} /> 10:24</span>
             </div>
-            <span className="td-hero-location"><MapPin size={12} /> Milano</span>
+            <button className="td-hero-location td-hero-gps" type="button">
+              <MapPin size={12} /> Usa posizione GPS
+            </button>
           </div>
         </div>
         <div className="td-hero-art">

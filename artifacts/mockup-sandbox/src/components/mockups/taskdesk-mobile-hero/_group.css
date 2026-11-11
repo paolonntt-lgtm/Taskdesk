@@ -136,6 +136,16 @@
   text-overflow: ellipsis;
 }
 
+.td-hero-gps {
+  width: fit-content;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
 .td-hero-art {
   position: absolute;
   right: 16px;

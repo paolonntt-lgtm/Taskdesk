@@ -53,6 +53,20 @@ const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   navigate: vi.fn(),
   announce: vi.fn(),
+  alert: vi.fn(),
+  locationPermission: { granted: false, canAskAgain: true, status: "undetermined" },
+  requestLocationPermission: vi.fn(async () => ({ granted: false, canAskAgain: true, status: "undetermined" })),
+  hasLocationServices: vi.fn(async () => true),
+  getCurrentPosition: vi.fn(async () => ({ coords: { latitude: 45.4642, longitude: 9.19 } })),
+  reverseGeocode: vi.fn(async () => [{ city: "Milano", country: "Italia" }]),
+}));
+
+vi.mock("expo-location", () => ({
+  Accuracy: { Balanced: 3 },
+  useForegroundPermissions: () => [mocks.locationPermission, mocks.requestLocationPermission],
+  hasServicesEnabledAsync: mocks.hasLocationServices,
+  getCurrentPositionAsync: mocks.getCurrentPosition,
+  reverseGeocodeAsync: mocks.reverseGeocode,
 }));
 
 vi.mock("react-native", async () => {
@@ -111,6 +125,8 @@ vi.mock("react-native", async () => {
     TouchableOpacity: component("button"),
     View: component("div"),
     AccessibilityInfo: { announceForAccessibility: mocks.announce },
+    Alert: { alert: mocks.alert },
+    Linking: { openSettings: vi.fn(async () => {}) },
     AppState: {
       currentState: "active",
       addEventListener: vi.fn(
@@ -404,6 +420,16 @@ describe("mobile ticket creation navigation", () => {
     mocks.push.mockReset();
     mocks.navigate.mockReset();
     mocks.announce.mockReset();
+    mocks.alert.mockReset();
+    mocks.locationPermission = { granted: false, canAskAgain: true, status: "undetermined" };
+    mocks.requestLocationPermission.mockReset();
+    mocks.requestLocationPermission.mockResolvedValue({ granted: false, canAskAgain: true, status: "undetermined" });
+    mocks.hasLocationServices.mockReset();
+    mocks.hasLocationServices.mockResolvedValue(true);
+    mocks.getCurrentPosition.mockReset();
+    mocks.getCurrentPosition.mockResolvedValue({ coords: { latitude: 45.4642, longitude: 9.19 } });
+    mocks.reverseGeocode.mockReset();
+    mocks.reverseGeocode.mockResolvedValue([{ city: "Milano", country: "Italia" }]);
   });
 
   afterEach(async () => {
@@ -427,6 +453,17 @@ describe("mobile ticket creation navigation", () => {
     expect(host.textContent).not.toContain("at a glance");
     expect(host.querySelector('[data-testid="dashboard-greeting-card"]')).not.toBeNull();
     expect(host.querySelector('[data-testid="dashboard-create-ticket"]')).toBeNull();
+  });
+
+  it("offers GPS only when no profile location is available", async () => {
+    await render(DashboardScreen);
+    expect(host.querySelector('[data-testid="dashboard-hero-gps-button"]')).not.toBeNull();
+    expect(mocks.requestLocationPermission).not.toHaveBeenCalled();
+
+    mocks.user.mainLocation = "Roma";
+    await act(async () => root.render(React.createElement(DashboardScreen)));
+    expect(host.querySelector('[data-testid="dashboard-hero-gps-button"]')).toBeNull();
+    expect(host.querySelector('[data-testid="dashboard-hero-location"]')?.textContent).toBe("Roma");
   });
 
   it("shows the TaskDesk logo and search field in the Dashboard header", async () => {
