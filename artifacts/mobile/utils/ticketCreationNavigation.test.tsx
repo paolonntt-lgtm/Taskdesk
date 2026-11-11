@@ -251,7 +251,7 @@ vi.mock("expo-linear-gradient", async () => {
   };
 });
 vi.mock("expo-symbols", () => ({ SymbolView: () => null }));
-vi.mock("@expo/vector-icons", () => ({ Feather: () => null }));
+vi.mock("@expo/vector-icons", () => ({ Feather: () => null, MaterialCommunityIcons: () => null }));
 vi.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));

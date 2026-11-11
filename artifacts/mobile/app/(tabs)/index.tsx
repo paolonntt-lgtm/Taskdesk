@@ -5,7 +5,7 @@ import {
 } from "react-native";
 import * as Location from "expo-location";
 import { useQuery } from "@tanstack/react-query";
-import { Feather } from "@expo/vector-icons";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useColors } from "@/hooks/useColors";
@@ -30,6 +30,25 @@ interface Ticket {
   creator?: { name: string };
 }
 
+interface CurrentWeather {
+  temperature: number;
+  code: number;
+  isDay: boolean;
+}
+
+type WeatherIcon = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
+
+function weatherDescription(code: number, isDay: boolean, lang: string) {
+  if (code === 0) return { label: lang === "it" ? "Sereno" : "Clear", icon: isDay ? "weather-sunny" : "weather-night" } as const;
+  if (code <= 2) return { label: lang === "it" ? "Poco nuvoloso" : "Partly cloudy", icon: "weather-partly-cloudy" } as const;
+  if (code === 3) return { label: lang === "it" ? "Nuvoloso" : "Overcast", icon: "weather-cloudy" } as const;
+  if (code === 45 || code === 48) return { label: lang === "it" ? "Nebbia" : "Fog", icon: "weather-fog" } as const;
+  if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return { label: lang === "it" ? "Pioggia" : "Rain", icon: "weather-rainy" } as const;
+  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return { label: lang === "it" ? "Neve" : "Snow", icon: "weather-snowy" } as const;
+  if (code >= 95) return { label: lang === "it" ? "Temporale" : "Thunderstorm", icon: "weather-lightning-rainy" } as const;
+  return { label: lang === "it" ? "Variabile" : "Changeable", icon: "weather-partly-cloudy" } as const;
+}
+
 export default function DashboardScreen() {
   const colors = useColors();
   const { user } = useAuth();
@@ -39,6 +58,7 @@ export default function DashboardScreen() {
   const s = styles(colors);
   const [now, setNow] = useState<Date>(() => new Date());
   const [gpsLocation, setGpsLocation] = useState<string | null>(null);
+  const [weather, setWeather] = useState<CurrentWeather | null>(null);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [locationPermission, requestLocationPermission] = Location.useForegroundPermissions();
   const locationPromptedThisMount = useRef(false);
@@ -82,8 +102,6 @@ export default function DashboardScreen() {
       : greetingHour < 18
         ? t.dashboard.goodAfternoon
         : t.dashboard.goodEvening;
-  const greetingIcon =
-    greetingHour < 12 ? "sunrise" : greetingHour < 18 ? "sun" : "moon";
   const firstName = user?.name?.split(" ")[0] ?? t.profile.user;
   const locale = lang === "it" ? "it-IT" : "en-US";
   const heroDate = new Intl.DateTimeFormat(locale, {
@@ -93,6 +111,7 @@ export default function DashboardScreen() {
   }).format(now).replace(/\.$/, "");
   const mainLocation = user?.mainLocation?.trim();
   const displayLocation = gpsLocation || mainLocation;
+  const weatherInfo = weather ? weatherDescription(weather.code, weather.isDay, lang) : null;
 
   const captureGpsLocation = async (askSystemPermission = false) => {
     setIsGettingLocation(true);
@@ -125,17 +144,18 @@ export default function DashboardScreen() {
       const position = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
-      const [address] = await Location.reverseGeocodeAsync({
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-      });
-      const area = address?.city ?? address?.subregion ?? address?.region;
-      if (!area) {
-        Alert.alert(t.dashboard.locationDisclosureTitle, t.dashboard.locationUnavailable);
-        return;
+      try {
+        const [address] = await Location.reverseGeocodeAsync({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        });
+        const area = address?.city ?? address?.subregion ?? address?.region;
+        if (area) setGpsLocation([area, address?.country].filter(Boolean).join(", "));
+      } catch {
+        setGpsLocation(mainLocation || null);
       }
-      setGpsLocation([area, address?.country].filter(Boolean).join(", "));
     } catch {
+      setWeather(null);
       Alert.alert(t.dashboard.locationDisclosureTitle, t.dashboard.locationUnavailable);
     } finally {
       setIsGettingLocation(false);
@@ -167,7 +187,8 @@ export default function DashboardScreen() {
   };
 
   onAppResume.current = () => {
-    if (locationPermission && !locationPermission.granted) askForGpsLocation();
+    if (locationPermission?.granted) void captureGpsLocation();
+    else if (locationPermission) askForGpsLocation();
   };
 
   useEffect(() => {
@@ -232,6 +253,14 @@ export default function DashboardScreen() {
               <Feather name="calendar" size={16} color={colors.primaryForeground} />
               <Text style={s.heroDateText} testID="dashboard-hero-date">{heroDate}</Text>
             </View>
+            {weather && weatherInfo ? (
+              <View style={s.heroWeather}>
+                <Feather name="thermometer" size={13} color={colors.warning} />
+                <Text style={s.heroWeatherText} testID="dashboard-hero-weather">
+                  {weather.temperature}° · {weatherInfo.label}
+                </Text>
+              </View>
+            ) : null}
             {displayLocation ? (
               <View style={s.heroMetaItem}>
                 <Feather name="map-pin" size={12} color={colors.primaryForeground} />
@@ -262,15 +291,27 @@ export default function DashboardScreen() {
           </View>
         </View>
         <View style={s.greetingArtwork} pointerEvents="none">
-          <View style={s.greetingDisc} />
-          <Feather
-            name={greetingIcon as "sunrise" | "sun" | "moon"}
-            size={32}
-            color={colors.primaryForeground}
-            style={s.greetingArtworkIcon}
-          />
-          <View style={s.greetingSparkOne} />
-          <View style={s.greetingSparkTwo} />
+          <LinearGradient
+            colors={weatherInfo?.icon.includes("sun") ? [colors.warning, colors.destructive] : [colors.accent, colors.primary]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={s.weatherArtwork}
+          >
+            {weatherInfo ? (
+              <MaterialCommunityIcons
+                name={weatherInfo.icon as WeatherIcon}
+                size={48}
+                color={weatherInfo.icon.includes("sun") ? colors.primaryForeground : colors.accentForeground}
+              />
+            ) : (
+              <MaterialCommunityIcons
+                name="map-marker-radius"
+                size={46}
+                color={colors.primaryForeground}
+              />
+            )}
+            {weather ? <Text style={s.weatherTemperature}>{weather.temperature}°</Text> : null}
+          </LinearGradient>
         </View>
       </LinearGradient>
 
@@ -343,7 +384,7 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     root: { flex: 1, backgroundColor: colors.background },
     content: { padding: 18, paddingTop: 16, gap: 2 },
     header: {
-    minHeight: 184,
+    minHeight: 194,
       marginBottom: 20,
       paddingHorizontal: 20,
       paddingVertical: 20,
@@ -424,6 +465,13 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       fontFamily: "Inter_700Bold",
       letterSpacing: -0.2,
     },
+    heroWeather: { flexDirection: "row", alignItems: "center", gap: 5 },
+    heroWeatherText: {
+      fontSize: 12,
+      lineHeight: 16,
+      color: colors.primaryForeground,
+      fontFamily: "Inter_600SemiBold",
+    },
     heroMetaItem: { flexDirection: "row", alignItems: "center", gap: 5, minWidth: 0 },
     heroMetaText: {
       flexShrink: 1,
@@ -442,48 +490,34 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       fontFamily: "Inter_600SemiBold",
     },
     greetingArtwork: {
-      width: 98,
-      height: 98,
+      width: 92,
+      height: 92,
       alignItems: "center",
       justifyContent: "center",
       marginLeft: 4,
       zIndex: 1,
     },
-    greetingDisc: {
-      position: "absolute",
-      width: 70,
-      height: 70,
-      borderRadius: 35,
-      backgroundColor: colors.primaryForeground,
+    weatherArtwork: {
+      width: 78,
+      height: 82,
+      borderRadius: 25,
+      alignItems: "center",
+      justifyContent: "center",
       borderWidth: 1,
       borderColor: colors.primaryForeground,
-      opacity: 0.17,
-      shadowColor: colors.primary,
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.2,
-      shadowRadius: 14,
+      shadowColor: colors.foreground,
+      shadowOffset: { width: 0, height: 5 },
+      shadowOpacity: 0.18,
+      shadowRadius: 10,
+      elevation: 4,
     },
-    greetingSparkOne: {
-      position: "absolute",
-      right: 6,
-      top: 14,
-      width: 5,
-      height: 5,
-      borderRadius: 3,
-      backgroundColor: colors.primaryForeground,
-      opacity: 0.9,
+    weatherTemperature: {
+      marginTop: -4,
+      color: colors.primaryForeground,
+      fontSize: 14,
+      lineHeight: 17,
+      fontFamily: "Inter_700Bold",
     },
-    greetingSparkTwo: {
-      position: "absolute",
-      left: 10,
-      bottom: 11,
-      width: 4,
-      height: 4,
-      borderRadius: 2,
-      backgroundColor: colors.accentForeground,
-      opacity: 0.9,
-    },
-    greetingArtworkIcon: { opacity: 1, textShadowColor: "rgba(5, 35, 89, 0.28)", textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 6 },
     loadingRow: { height: 120, alignItems: "center", justifyContent: "center" },
     statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 20 },
     statsGridSingleRow: { flexWrap: "nowrap", gap: 6 },
