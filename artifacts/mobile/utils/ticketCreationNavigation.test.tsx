@@ -448,7 +448,7 @@ describe("mobile ticket creation navigation", () => {
     expect(greeting?.textContent).not.toContain("Lovelace");
     expect(host.textContent).toContain("Your day");
     expect(host.querySelector('[data-testid="dashboard-hero-date"]')?.textContent).toBeTruthy();
-    expect(host.querySelector('[data-testid="dashboard-hero-time"]')?.textContent).toMatch(/\d{2}:\d{2}/);
+    expect(host.querySelector('[data-testid="dashboard-hero-time"]')).toBeNull();
     expect(host.querySelector('[data-testid="dashboard-hero-location"]')?.textContent).toBe("Milano");
     expect(host.textContent).not.toContain("at a glance");
     expect(host.querySelector('[data-testid="dashboard-greeting-card"]')).not.toBeNull();

@@ -91,10 +91,6 @@ export default function DashboardScreen() {
     day: "numeric",
     month: "short",
   }).format(now).replace(/\.$/, "");
-  const heroTime = new Intl.DateTimeFormat(locale, {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(now);
   const mainLocation = user?.mainLocation?.trim();
   const displayLocation = gpsLocation || mainLocation;
 
@@ -232,16 +228,9 @@ export default function DashboardScreen() {
             </Text>
           </View>
           <View style={s.heroDetails}>
-            <View style={s.heroDateTime}>
-              <View style={s.heroMetaItem}>
-                <Feather name="calendar" size={12} color={colors.primaryForeground} />
-                <Text style={s.heroMetaText} testID="dashboard-hero-date">{heroDate}</Text>
-              </View>
-              <View style={s.heroMetaDivider} />
-              <View style={s.heroMetaItem}>
-                <Feather name="clock" size={12} color={colors.primaryForeground} />
-                <Text style={s.heroMetaText} testID="dashboard-hero-time">{heroTime}</Text>
-              </View>
+            <View style={s.heroDate}>
+              <Feather name="calendar" size={16} color={colors.primaryForeground} />
+              <Text style={s.heroDateText} testID="dashboard-hero-date">{heroDate}</Text>
             </View>
             {displayLocation ? (
               <View style={s.heroMetaItem}>
@@ -354,7 +343,7 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     root: { flex: 1, backgroundColor: colors.background },
     content: { padding: 18, paddingTop: 16, gap: 2 },
     header: {
-      minHeight: 168,
+    minHeight: 184,
       marginBottom: 20,
       paddingHorizontal: 20,
       paddingVertical: 20,
@@ -425,7 +414,16 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       letterSpacing: -0.7,
     },
     heroDetails: { gap: 5, marginTop: 2 },
-    heroDateTime: { flexDirection: "row", alignItems: "center", gap: 8 },
+    heroDate: { flexDirection: "row", alignItems: "center", gap: 8 },
+    heroDateText: {
+      flexShrink: 1,
+      fontSize: 17,
+      lineHeight: 22,
+      fontWeight: "700" as const,
+      color: colors.primaryForeground,
+      fontFamily: "Inter_700Bold",
+      letterSpacing: -0.2,
+    },
     heroMetaItem: { flexDirection: "row", alignItems: "center", gap: 5, minWidth: 0 },
     heroMetaText: {
       flexShrink: 1,
@@ -435,7 +433,6 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       opacity: 0.84,
       fontFamily: "Inter_500Medium",
     },
-    heroMetaDivider: { height: 12, width: 1, backgroundColor: colors.primaryForeground, opacity: 0.45 },
     greetingSubtitle: {
       fontSize: 10,
       color: colors.primaryForeground,
