@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Alert, AppState, Linking, View, Text, ScrollView, StyleSheet,
   TouchableOpacity, ActivityIndicator, RefreshControl, Platform, useWindowDimensions,
@@ -41,12 +41,18 @@ export default function DashboardScreen() {
   const [gpsLocation, setGpsLocation] = useState<string | null>(null);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [locationPermission, requestLocationPermission] = Location.useForegroundPermissions();
+  const locationPromptedThisMount = useRef(false);
+  const locationPromptActive = useRef(false);
+  const onAppResume = useRef<() => void>(() => {});
 
   useEffect(() => {
     const refreshClock = () => setNow(new Date());
     const interval = setInterval(refreshClock, 60_000);
     const appStateSubscription = AppState.addEventListener("change", (state) => {
-      if (state === "active") refreshClock();
+      if (state === "active") {
+        refreshClock();
+        onAppResume.current();
+      }
     });
 
     return () => {
@@ -92,12 +98,16 @@ export default function DashboardScreen() {
   const mainLocation = user?.mainLocation?.trim();
   const displayLocation = gpsLocation || mainLocation;
 
-  const captureGpsLocation = async () => {
+  const captureGpsLocation = async (askSystemPermission = false) => {
     setIsGettingLocation(true);
     try {
-      const permission = await requestLocationPermission();
-      if (!permission.granted) {
-        if (!permission.canAskAgain) {
+      const permission = locationPermission?.granted
+        ? locationPermission
+        : askSystemPermission && locationPermission?.canAskAgain
+          ? await requestLocationPermission()
+          : locationPermission;
+      if (!permission?.granted) {
+        if (permission && !permission.canAskAgain) {
           Alert.alert(t.dashboard.locationDisclosureTitle, t.dashboard.locationPermissionDenied, [
             { text: lang === "it" ? "Annulla" : "Cancel", style: "cancel" },
             {
@@ -137,11 +147,48 @@ export default function DashboardScreen() {
   };
 
   const askForGpsLocation = () => {
+    if (locationPermission?.granted) {
+      void captureGpsLocation();
+      return;
+    }
+    if (locationPromptActive.current) return;
+    locationPromptActive.current = true;
     Alert.alert(t.dashboard.locationDisclosureTitle, t.dashboard.locationDisclosureMessage, [
-      { text: lang === "it" ? "Annulla" : "Cancel", style: "cancel" },
-      { text: t.dashboard.locationContinue, onPress: () => { void captureGpsLocation(); } },
-    ]);
+      {
+        text: lang === "it" ? "Annulla" : "Cancel",
+        style: "cancel",
+        onPress: () => { locationPromptActive.current = false; },
+      },
+      {
+        text: t.dashboard.locationContinue,
+        onPress: () => {
+          void captureGpsLocation(true).finally(() => {
+            locationPromptActive.current = false;
+          });
+        },
+      },
+    ], { cancelable: true, onDismiss: () => { locationPromptActive.current = false; } });
   };
+
+  onAppResume.current = () => {
+    if (locationPermission && !locationPermission.granted) askForGpsLocation();
+  };
+
+  useEffect(() => {
+    if (
+      Platform.OS === "web" ||
+      !user ||
+      !locationPermission ||
+      locationPromptedThisMount.current
+    ) return;
+
+    locationPromptedThisMount.current = true;
+    if (locationPermission.granted) {
+      void captureGpsLocation();
+    } else {
+      askForGpsLocation();
+    }
+  }, [user, locationPermission]);
 
   const statCards = [
     { label: t.dashboard.open, value: stats?.openTickets ?? 0, color: colors.primary, icon: "inbox" as const, filter: "status=open" },

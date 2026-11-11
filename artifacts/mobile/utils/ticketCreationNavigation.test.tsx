@@ -455,10 +455,17 @@ describe("mobile ticket creation navigation", () => {
     expect(host.querySelector('[data-testid="dashboard-create-ticket"]')).toBeNull();
   });
 
-  it("offers user-triggered GPS with or without a profile location", async () => {
+  it("asks for GPS on opening and keeps the GPS action available", async () => {
     await render(DashboardScreen);
+    expect(mocks.alert).toHaveBeenCalledOnce();
     expect(host.querySelector('[data-testid="dashboard-hero-gps-button"]')).not.toBeNull();
     expect(mocks.requestLocationPermission).not.toHaveBeenCalled();
+
+    const firstPromptButtons = mocks.alert.mock.calls[0]?.[2] as Array<{ onPress?: () => void }> | undefined;
+    await act(async () => firstPromptButtons?.[0]?.onPress?.());
+    await act(async () => mocks.appStateChange?.("background"));
+    await act(async () => mocks.appStateChange?.("active"));
+    expect(mocks.alert).toHaveBeenCalledTimes(2);
 
     mocks.user.mainLocation = "Roma";
     await act(async () => root.render(React.createElement(DashboardScreen)));
@@ -476,8 +483,6 @@ describe("mobile ticket creation navigation", () => {
     });
     await render(DashboardScreen);
 
-    const gpsButton = host.querySelector('[data-testid="dashboard-hero-gps-button"]') as HTMLButtonElement;
-    await act(async () => gpsButton.click());
     const alertButtons = mocks.alert.mock.calls[0]?.[2] as Array<{ onPress?: () => void }> | undefined;
     await act(async () => {
       alertButtons?.[1]?.onPress?.();
@@ -489,6 +494,18 @@ describe("mobile ticket creation navigation", () => {
     expect(mocks.requestLocationPermission).toHaveBeenCalledOnce();
     expect(mocks.getCurrentPosition).toHaveBeenCalledOnce();
     expect(mocks.reverseGeocode).toHaveBeenCalledOnce();
+  });
+
+  it("uses GPS on opening without prompting again when permission is granted", async () => {
+    mocks.user.mainLocation = "Roma";
+    mocks.locationPermission = { granted: true, canAskAgain: false, status: "granted" };
+    await render(DashboardScreen);
+
+    await vi.waitFor(() => {
+      expect(host.querySelector('[data-testid="dashboard-hero-location"]')?.textContent).toBe("Milano, Italia");
+    });
+    expect(mocks.alert).not.toHaveBeenCalled();
+    expect(mocks.requestLocationPermission).not.toHaveBeenCalled();
   });
 
   it("shows the TaskDesk logo and search field in the Dashboard header", async () => {
