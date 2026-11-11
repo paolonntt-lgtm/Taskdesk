@@ -111,6 +111,7 @@ const it = {
     goodMorning: 'Buongiorno',
     goodAfternoon: 'Buon pomeriggio',
     goodEvening: 'Buonasera',
+    heroSubtitle: 'Tutto quello che conta, in un solo posto.',
     searchPlaceholder: 'Cerca su Taskdesk',
   },
   tickets: {
@@ -597,6 +598,7 @@ const en: typeof it = {
     goodMorning: 'Good morning',
     goodAfternoon: 'Good afternoon',
     goodEvening: 'Good evening',
+    heroSubtitle: 'Everything that matters, all in one place.',
     searchPlaceholder: 'Search Taskdesk',
   },
   tickets: {

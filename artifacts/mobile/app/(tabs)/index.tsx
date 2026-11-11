@@ -82,7 +82,16 @@ export default function DashboardScreen() {
         end={{ x: 1, y: 1 }}
         style={s.header}
       >
+        <View style={s.headerGlow} pointerEvents="none" />
+        <View style={s.headerOrbitLarge} pointerEvents="none" />
+        <View style={s.headerOrbitSmall} pointerEvents="none" />
         <View style={s.greetingCopy}>
+          <View style={s.greetingEyebrow}>
+            <View style={s.greetingDot} />
+            <Text style={s.greetingSubtitle} numberOfLines={1}>
+              {lang === "it" ? "La tua giornata" : "Your day"}
+            </Text>
+          </View>
           <View style={s.greetingLine} testID="dashboard-greeting-line">
             <Text style={s.greeting}>{greeting}</Text>
             <Text
@@ -94,22 +103,20 @@ export default function DashboardScreen() {
               {firstName}
             </Text>
           </View>
-          <View style={s.greetingSubtitleRow}>
-            <Feather name="activity" size={13} color={colors.primaryForeground} />
-            <Text style={s.greetingSubtitle} numberOfLines={1}>
-              {lang === "it" ? "La tua giornata" : "Your day"}
-            </Text>
-          </View>
+          <Text style={s.greetingCaption} numberOfLines={2}>
+            {t.dashboard.heroSubtitle}
+          </Text>
         </View>
         <View style={s.greetingArtwork} pointerEvents="none">
-          <View style={s.greetingOrbLarge} />
-          <View style={s.greetingOrbSmall} />
+          <View style={s.greetingDisc} />
           <Feather
             name={greetingIcon as "sunrise" | "sun" | "moon"}
             size={32}
             color={colors.primaryForeground}
             style={s.greetingArtworkIcon}
           />
+          <View style={s.greetingSparkOne} />
+          <View style={s.greetingSparkTwo} />
         </View>
       </LinearGradient>
 
@@ -182,65 +189,136 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     root: { flex: 1, backgroundColor: colors.background },
     content: { padding: 18, paddingTop: 16, gap: 2 },
     header: {
-      minHeight: 138,
+      minHeight: 168,
       marginBottom: 20,
-      paddingHorizontal: 18,
-      paddingVertical: 18,
-      borderRadius: colors.radius * 2.25,
+      paddingHorizontal: 20,
+      paddingVertical: 20,
+      borderRadius: colors.radius * 2.4,
       flexDirection: "row",
       alignItems: "center",
       overflow: "hidden",
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 10 },
+      shadowOpacity: 0.2,
+      shadowRadius: 18,
+      elevation: 5,
     },
-    greetingCopy: { flex: 1, gap: 7, zIndex: 1, minWidth: 0 },
-    greetingLine: { minWidth: 0, gap: 1 },
+    headerGlow: {
+      position: "absolute",
+      right: -56,
+      bottom: -106,
+      width: 214,
+      height: 214,
+      borderRadius: 107,
+      backgroundColor: colors.primaryForeground,
+      opacity: 0.12,
+    },
+    headerOrbitLarge: {
+      position: "absolute",
+      right: -30,
+      top: -104,
+      width: 224,
+      height: 224,
+      borderRadius: 112,
+      borderWidth: 1,
+      borderColor: colors.primaryForeground,
+      opacity: 0.17,
+    },
+    headerOrbitSmall: {
+      position: "absolute",
+      right: -5,
+      top: -78,
+      width: 172,
+      height: 172,
+      borderRadius: 86,
+      borderWidth: 1,
+      borderColor: colors.primaryForeground,
+      opacity: 0.13,
+    },
+    greetingCopy: { flex: 1, gap: 14, zIndex: 1, minWidth: 0 },
+    greetingEyebrow: { flexDirection: "row", alignItems: "center", gap: 9 },
+    greetingDot: {
+      width: 7,
+      height: 7,
+      borderRadius: 4,
+      backgroundColor: colors.accentForeground,
+      opacity: 0.95,
+    },
+    greetingLine: { minWidth: 0, gap: 0 },
     greeting: {
-      fontSize: 14,
-      fontWeight: "600" as const,
+      fontSize: 15,
+      fontWeight: "500" as const,
       color: colors.primaryForeground,
-      fontFamily: "Inter_600SemiBold",
+      opacity: 0.84,
+      fontFamily: "Inter_500Medium",
     },
     greetingName: {
-      fontSize: 25,
+      fontSize: 31,
       fontWeight: "700" as const,
       color: colors.primaryForeground,
       fontFamily: "Inter_700Bold",
+      letterSpacing: -0.7,
     },
-    greetingSubtitleRow: { flexDirection: "row", alignItems: "center", gap: 7 },
-    greetingSubtitle: {
-      fontSize: 12,
+    greetingCaption: {
+      maxWidth: 220,
+      marginTop: 2,
+      fontSize: 11,
+      lineHeight: 15,
       color: colors.primaryForeground,
-      opacity: 0.9,
-      fontFamily: "Inter_500Medium",
+      opacity: 0.8,
+      fontFamily: "Inter_400Regular",
+    },
+    greetingSubtitle: {
+      fontSize: 10,
+      color: colors.primaryForeground,
+      opacity: 0.86,
+      letterSpacing: 1.2,
+      textTransform: "uppercase",
+      fontFamily: "Inter_600SemiBold",
     },
     greetingArtwork: {
-      width: 64,
-      height: 64,
+      width: 98,
+      height: 98,
       alignItems: "center",
       justifyContent: "center",
-      marginLeft: 8,
+      marginLeft: 4,
+      zIndex: 1,
     },
-    greetingOrbLarge: {
+    greetingDisc: {
       position: "absolute",
-      right: -28,
-      top: -30,
-      width: 124,
-      height: 124,
-      borderRadius: 62,
+      width: 70,
+      height: 70,
+      borderRadius: 35,
+      backgroundColor: colors.primaryForeground,
       borderWidth: 1,
       borderColor: colors.primaryForeground,
-      opacity: 0.2,
+      opacity: 0.17,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.2,
+      shadowRadius: 14,
     },
-    greetingOrbSmall: {
+    greetingSparkOne: {
       position: "absolute",
-      right: 2,
-      bottom: -34,
-      width: 82,
-      height: 82,
-      borderRadius: 41,
+      right: 6,
+      top: 14,
+      width: 5,
+      height: 5,
+      borderRadius: 3,
       backgroundColor: colors.primaryForeground,
-      opacity: 0.1,
+      opacity: 0.9,
     },
-    greetingArtworkIcon: { opacity: 0.95 },
+    greetingSparkTwo: {
+      position: "absolute",
+      left: 10,
+      bottom: 11,
+      width: 4,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: colors.accentForeground,
+      opacity: 0.9,
+    },
+    greetingArtworkIcon: { opacity: 1, textShadowColor: "rgba(5, 35, 89, 0.28)", textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 6 },
     loadingRow: { height: 120, alignItems: "center", justifyContent: "center" },
     statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 20 },
     statsGridSingleRow: { flexWrap: "nowrap", gap: 6 },
