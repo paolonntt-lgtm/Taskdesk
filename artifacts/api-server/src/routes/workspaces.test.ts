@@ -115,6 +115,7 @@ describe("shared workspaces", () => {
       passwordHash: "not-used-in-test",
       role: "admin",
       organizationId: billingOrganizationId,
+      avatarUrl: "data:image/jpeg;base64,billing-admin-photo",
     }).returning({ id: usersTable.id });
     billingAdminId = billingAdmin.id;
     const [externalUser] = await db.insert(usersTable).values({
@@ -123,6 +124,7 @@ describe("shared workspaces", () => {
       passwordHash: "not-used-in-test",
       role: "user",
       organizationId: externalOrganizationId,
+      avatarUrl: "data:image/jpeg;base64,external-user-photo",
     }).returning({ id: usersTable.id });
     externalUserId = externalUser.id;
     const [unbilledUser] = await db.insert(usersTable).values({
@@ -209,6 +211,15 @@ describe("shared workspaces", () => {
   });
 
   it("keeps billing seats on home organizations while isolating workspace access and roles", async () => {
+    const homeOrganizationUsers = await request("/api/users", billingAdminSessionId);
+    expect(homeOrganizationUsers.status).toBe(200);
+    expect(homeOrganizationUsers.body).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: billingAdminId,
+        avatarUrl: "data:image/jpeg;base64,billing-admin-photo",
+      }),
+    ]));
+
     const homeSeatsBefore = await db.select({ id: usersTable.id }).from(usersTable)
       .where(and(eq(usersTable.organizationId, billingOrganizationId), eq(usersTable.isActive, true)));
     const createResponse = await request("/api/workspaces", billingAdminSessionId, undefined, {
@@ -568,6 +579,18 @@ describe("shared workspaces", () => {
       isSharedWorkspace: true,
       externalSharingEnabled: true,
     });
+    const sharedWorkspaceUsers = await request("/api/users", externalUserSessionId, workspaceId);
+    expect(sharedWorkspaceUsers.status).toBe(200);
+    expect(sharedWorkspaceUsers.body).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: billingAdminId,
+        avatarUrl: "data:image/jpeg;base64,billing-admin-photo",
+      }),
+      expect.objectContaining({
+        id: externalUserId,
+        avatarUrl: "data:image/jpeg;base64,external-user-photo",
+      }),
+    ]));
     vi.mocked(sendEmailForOrg).mockResolvedValueOnce({ ok: false, error: "SMTP unavailable" });
     const failedDelivery = await invite(`workspace-outsider-${runId}@example.test`);
     expect(failedDelivery.status).toBe(502);
