@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import {
-  View, Text, FlatList, StyleSheet, TouchableOpacity,
+  View, Text, Image, FlatList, StyleSheet, TouchableOpacity,
   ActivityIndicator, Alert, Modal, TextInput, ScrollView,
   Platform, KeyboardAvoidingView, Switch,
 } from "react-native";
@@ -17,6 +17,7 @@ interface User {
   name: string;
   email: string;
   role: string;
+  avatarUrl?: string | null;
   group?: string | null;
   mainLocation?: string | null;
   isActive: boolean;
@@ -30,6 +31,65 @@ const EMPTY_FORM = {
   name: "", email: "", password: "",
   role: "user", group: "", mainLocation: "", isActive: true, hourlyCompensated: false,
 };
+
+function UserAvatar({
+  name,
+  avatarUrl,
+  inactive,
+  testID,
+}: {
+  name: string;
+  avatarUrl?: string | null;
+  inactive: boolean;
+  testID: string;
+}) {
+  const colors = useColors();
+  const [imageFailed, setImageFailed] = useState(false);
+  const initials = name.split(" ").map((word) => word[0]).slice(0, 2).join("").toUpperCase();
+
+  return (
+    <View
+      testID={testID}
+      style={[
+        avatarStyles.container,
+        { backgroundColor: inactive ? colors.muted : colors.primary },
+      ]}
+    >
+      <Text style={[avatarStyles.initials, { color: colors.primaryForeground }]}>{initials}</Text>
+      {avatarUrl && !imageFailed ? (
+        <Image
+          source={{ uri: avatarUrl }}
+          style={avatarStyles.image}
+          resizeMode="cover"
+          accessible={false}
+          onError={() => setImageFailed(true)}
+        />
+      ) : null}
+    </View>
+  );
+}
+
+const avatarStyles = StyleSheet.create({
+  container: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  initials: { fontSize: 15, fontFamily: "Inter_700Bold" },
+  image: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+  },
+});
 
 export default function UsersScreen() {
   const colors = useColors();
@@ -196,16 +256,19 @@ export default function UsersScreen() {
   const renderUser = ({ item }: { item: User }) => {
     const isActive = item.isActive !== false;
     const isMe = item.id === me?.id;
-    const initials = item.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
     return (
       <TouchableOpacity
         style={[s.userCard, !isActive && s.userCardInactive]}
         onPress={() => openEdit(item)}
         activeOpacity={0.75}
       >
-        <View style={[s.avatar, !isActive && { backgroundColor: colors.muted }]}>
-          <Text style={s.avatarText}>{initials}</Text>
-        </View>
+        <UserAvatar
+          key={`${item.id}:${item.avatarUrl ?? ""}`}
+          testID={`user-avatar-${item.id}`}
+          name={item.name}
+          avatarUrl={item.avatarUrl}
+          inactive={!isActive}
+        />
         <View style={s.userInfo}>
           <View style={s.userNameRow}>
             <Text style={[s.userName, !isActive && { color: colors.mutedForeground }]}>{item.name}</Text>
@@ -481,12 +544,6 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       borderWidth: 1, borderColor: colors.border,
     },
     userCardInactive: { opacity: 0.55 },
-    avatar: {
-      width: 42, height: 42, borderRadius: 21,
-      backgroundColor: colors.primary,
-      alignItems: "center", justifyContent: "center",
-    },
-    avatarText: { color: colors.primaryForeground, fontSize: 15, fontFamily: "Inter_700Bold" },
     userInfo: { flex: 1, gap: 3 },
     userNameRow: { flexDirection: "row", alignItems: "center", gap: 6 },
     userName: { fontSize: 14, fontWeight: "600" as const, color: colors.foreground, fontFamily: "Inter_600SemiBold" },
