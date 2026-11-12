@@ -136,11 +136,6 @@ export default function TimeReportScreen() {
 
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <TouchableOpacity style={styles.back} onPress={() => router.back()} accessibilityRole="button" testID="back-time-report">
-        <Feather name="arrow-left" size={18} color={palette.primary} />
-        <Text style={styles.backText}>{english ? "Back" : "Indietro"}</Text>
-      </TouchableOpacity>
-      <Text style={styles.heading}>{labels.title}</Text>
       {settingsQuery.isLoading ? (
         <View style={styles.card}><Text style={styles.mutedText}>{labels.checkingSettings}</Text></View>
       ) : settingsUnavailable ? (

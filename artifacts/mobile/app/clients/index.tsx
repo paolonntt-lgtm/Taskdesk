@@ -55,7 +55,7 @@ export default function ClientsScreen() {
   </View>;
   if (!clientsEnabled) return <View style={[s.root, s.center]}><Text style={s.muted}>{it ? "La gestione clienti non è attiva per questa organizzazione." : "Client management is not enabled for this organization."}</Text></View>;
   return <ScrollView style={s.root} contentContainerStyle={s.content}>
-    <View style={s.heading}><Text style={s.title}>{it ? "Clienti" : "Clients"}</Text><Pressable style={s.add} onPress={() => openForm()}><Feather name="plus" size={18} color={c.primaryForeground} /><Text style={s.addText}>{it ? "Nuovo" : "Add"}</Text></Pressable></View>
+    <View style={s.heading}><Pressable style={s.add} onPress={() => openForm()}><Feather name="plus" size={18} color={c.primaryForeground} /><Text style={s.addText}>{it ? "Nuovo" : "Add"}</Text></Pressable></View>
     <View style={s.search}><Feather name="search" size={17} color={c.mutedForeground} /><TextInput value={search} onChangeText={setSearch} placeholder={it ? "Cerca cliente" : "Search clients"} placeholderTextColor={c.mutedForeground} style={s.searchInput} /></View>
     {isLoading && <ActivityIndicator color={c.primary} />}
     {error && <Text style={s.muted}>{it ? "Impossibile caricare i clienti." : "Could not load clients."}</Text>}
@@ -79,7 +79,7 @@ export default function ClientsScreen() {
 const styles = (c: ReturnType<typeof useColors>) => StyleSheet.create({
   root: { flex: 1, backgroundColor: c.background }, center: { alignItems: "center", justifyContent: "center", padding: 24 }, content: { padding: 18, gap: 12, paddingBottom: 100 },
   retry: { backgroundColor: c.primary, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10, marginTop: 8 }, retryText: { color: c.primaryForeground, fontFamily: "Inter_600SemiBold" },
-  heading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, title: { color: c.foreground, fontSize: 24, fontFamily: "Inter_700Bold" },
+  heading: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end" }, title: { color: c.foreground, fontSize: 24, fontFamily: "Inter_700Bold" },
   add: { flexDirection: "row", alignItems: "center", gap: 5, borderRadius: 10, backgroundColor: c.primary, paddingHorizontal: 12, paddingVertical: 9 }, addText: { color: c.primaryForeground, fontFamily: "Inter_600SemiBold" },
   search: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: c.border, backgroundColor: c.card },
   searchInput: { flex: 1, color: c.foreground, paddingVertical: 12 }, card: { flexDirection: "row", alignItems: "center", gap: 12, padding: 13, backgroundColor: c.card, borderColor: c.border, borderWidth: 1, borderRadius: 14 },

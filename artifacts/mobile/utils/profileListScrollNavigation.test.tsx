@@ -10,10 +10,12 @@ import TicketsScreen from "../app/(tabs)/tickets";
 const mocks = vi.hoisted(() => ({
   initialRoute: "tickets",
   clientsEnabled: true,
+  routeFromProfile: undefined as string | undefined,
   routeSearch: undefined as string | undefined,
   routeStatus: undefined as string | undefined,
   routePriority: undefined as string | undefined,
   ticketQueryFn: undefined as (() => Promise<unknown>) | undefined,
+  routerPush: vi.fn(),
   dashboardTickets: [] as Array<{
     id: number;
     title: string;
@@ -107,7 +109,7 @@ vi.mock("expo-router", async () => {
     detachInactiveScreens?: boolean;
     screenOptions?: (args: {
       navigation: { navigate: (route: string, params?: { returnTo?: string }) => void };
-      route: { name: string; params?: { returnTo?: string } };
+      route: { name: string; params?: { returnTo?: string; fromProfile?: string } };
     }) => {
       headerLeft?: () => React.ReactNode;
       headerRight?: () => React.ReactNode;
@@ -127,6 +129,9 @@ vi.mock("expo-router", async () => {
       route: {
         name: activeRoute,
         ...(activeRoute === "profile" && returnTo ? { params: { returnTo } } : {}),
+        ...(activeRoute !== "profile" && mocks.routeFromProfile
+          ? { params: { fromProfile: mocks.routeFromProfile } }
+          : {}),
       },
     });
     const routeScreens = [
@@ -169,8 +174,8 @@ vi.mock("expo-router", async () => {
       status: mocks.routeStatus,
       priority: mocks.routePriority,
     }),
-    useRouter: () => ({ push: vi.fn() }),
-    router: { push: vi.fn() },
+    useRouter: () => ({ push: mocks.routerPush }),
+    router: { push: mocks.routerPush },
   };
 });
 
@@ -326,12 +331,14 @@ describe("mobile list position after returning from Profile", () => {
     root = createRoot(host);
     mocks.initialRoute = "tickets";
     mocks.clientsEnabled = true;
+    mocks.routeFromProfile = undefined;
     mocks.routeSearch = undefined;
     mocks.routeStatus = undefined;
     mocks.routePriority = undefined;
     mocks.ticketQueryFn = undefined;
     mocks.dashboardTickets = [];
     mocks.apiGet.mockClear();
+    mocks.routerPush.mockClear();
   });
 
   it("shows the email under the profile identity and keeps language under Settings", async () => {
@@ -347,6 +354,34 @@ describe("mobile list position after returning from Profile", () => {
     expect(
       host.querySelector('[data-testid="profile-tool-reports"]')?.parentElement,
     ).toBe(host.querySelector('[data-testid="profile-admin-users"]')?.parentElement);
+  });
+
+  it("marks Profile section navigation for a contextual back button", async () => {
+    await act(async () => root.render(React.createElement(ProfileScreen)));
+    const reports = host.querySelector('[data-testid="profile-tool-reports"]');
+    expect(reports).not.toBeNull();
+
+    await act(async () => {
+      reports?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(mocks.routerPush).toHaveBeenCalledWith({
+      pathname: "/reports",
+      params: { fromProfile: "1" },
+    });
+  });
+
+  it("shows a back button that returns from a Profile section", async () => {
+    mocks.initialRoute = "reports";
+    mocks.routeFromProfile = "1";
+    await act(async () => root.render(React.createElement(TabLayout)));
+
+    const backButton = host.querySelector('[data-testid="profile-section-back-button"]');
+    expect(backButton).not.toBeNull();
+    await act(async () => {
+      backButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    expect(host.querySelector('[data-testid="active-route"]')?.textContent).toContain("profile");
   });
 
   afterEach(async () => {

@@ -304,7 +304,6 @@ export default function AdminSettingsScreen() {
           <View style={s.headerContent}>
             <View style={s.headerCopy}>
               <Text style={s.eyebrow}>{t.adminSettings.adminSettingsEyebrow}</Text>
-              <Text style={s.pageTitle}>{t.adminSettings.title}</Text>
               <Text style={s.pageDescription}>{t.adminSettings.mobileIntro}</Text>
             </View>
             <View style={s.headerMark}>

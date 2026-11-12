@@ -28,7 +28,6 @@ export default function TicketTrashScreen() {
   const s = styles(c);
   if (user?.role !== "admin") return <View style={s.center}><Text style={s.muted}>{it ? "Accesso riservato agli amministratori." : "Admins only."}</Text></View>;
   return <ScrollView style={s.root} contentContainerStyle={s.content}>
-    <Text style={s.title}>{it ? "Cestino ticket" : "Ticket trash"}</Text>
     {isLoading && <ActivityIndicator color={c.primary} />}
     {error && <Text style={s.muted}>{it ? "Impossibile caricare il cestino." : "Could not load trash."}</Text>}
     {!isLoading && data.length === 0 && <Text style={s.muted}>{it ? "Il cestino è vuoto." : "Trash is empty."}</Text>}

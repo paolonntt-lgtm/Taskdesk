@@ -62,6 +62,8 @@ export default function ProfileScreen() {
   const initials = user?.name?.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase() ?? "?";
   const isOrganizationAdmin = user?.role === "admin" && user.organizationId != null;
   const menuAccents = [colors.primary, colors.accent, colors.warning];
+  const openSection = (path: string) =>
+    router.push({ pathname: path as any, params: { fromProfile: "1" } } as any);
 
   const LANGS: { value: Lang; label: string; flag: string }[] = [
     { value: "it", label: "Italiano", flag: "IT" },
@@ -138,7 +140,7 @@ export default function ProfileScreen() {
           <TouchableOpacity
             key={item.path}
             style={[s.menuItem, index === items.length - 1 && !isOrganizationAdmin && s.menuItemLast]}
-            onPress={() => router.push(item.path as any)}
+            onPress={() => openSection(item.path)}
             activeOpacity={0.7}
             accessibilityRole="button"
             accessibilityLabel={item.label}
@@ -160,7 +162,7 @@ export default function ProfileScreen() {
           </View>
           <TouchableOpacity
             style={[s.menuItem, s.menuItemBorder]}
-            onPress={() => router.push("/users" as any)}
+            onPress={() => openSection("/users")}
             activeOpacity={0.7}
             accessibilityRole="button"
             accessibilityLabel={t.profile.manageUsers}
@@ -174,7 +176,7 @@ export default function ProfileScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={[s.menuItem, s.menuItemBorder]}
-            onPress={() => router.push("/admin-settings" as any)}
+            onPress={() => openSection("/admin-settings")}
             activeOpacity={0.7}
             accessibilityRole="button"
             accessibilityLabel={t.profile.manageSettings}
@@ -212,7 +214,7 @@ export default function ProfileScreen() {
       {user?.isSuperAdmin && (
         <View style={s.card}>
           <Text style={s.cardTitle}>{lang === "it" ? "Superamministrazione" : "Superadmin"}</Text>
-          <TouchableOpacity style={s.infoRow} onPress={() => router.push("/superadmin" as any)} activeOpacity={0.7}>
+          <TouchableOpacity style={s.infoRow} onPress={() => openSection("/superadmin")} activeOpacity={0.7}>
             <View style={s.infoLeft}>
               <Feather name="shield" size={16} color={colors.primary} />
               <Text style={[s.infoLabel, { color: colors.primary }]}>{lang === "it" ? "Console piattaforma" : "Platform console"}</Text>

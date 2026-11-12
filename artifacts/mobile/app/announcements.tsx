@@ -192,7 +192,7 @@ export default function AnnouncementsScreen() {
   const announcements = listQuery.data ?? [];
   return <View style={st.root}>
     <ScrollView contentContainerStyle={st.content}>
-      <View style={st.heading}><View><Text style={st.title}>{it ? "Avvisi" : "Announcements"}</Text><Text style={st.muted}>{it ? "Pubblica messaggi per tutti o per gruppi specifici." : "Publish messages to everyone or selected groups."}</Text></View>
+      <View style={st.heading}><View><Text style={st.muted}>{it ? "Pubblica messaggi per tutti o per gruppi specifici." : "Publish messages to everyone or selected groups."}</Text></View>
         <Pressable accessibilityLabel={it ? "Crea avviso" : "Create announcement"} style={st.addButton} onPress={openCreate}><Feather name="plus" size={17} color={colors.primaryForeground} /><Text style={st.addText}>{it ? "Nuovo" : "New"}</Text></Pressable>
       </View>
       {listQuery.isLoading ? <ActivityIndicator color={colors.primary} /> : null}

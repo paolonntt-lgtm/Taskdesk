@@ -58,7 +58,7 @@ export default function NotificationsScreen() {
   };
   const s = styles(colors);
   return <ScrollView style={s.root} contentContainerStyle={s.content}>
-    <View style={s.heading}><Text style={s.title}>{t.notifications.title}</Text><Pressable onPress={() => void markAllRead()}><Text style={s.link}>{t.notifications.markAllRead}</Text></Pressable></View>
+    <View style={s.heading}><Pressable onPress={() => void markAllRead()}><Text style={s.link}>{t.notifications.markAllRead}</Text></Pressable></View>
     <View style={s.filters}>{(["all", "unread", "read"] as const).map(value => <Pressable key={value} onPress={() => setFilter(value)} style={[s.filter, filter === value && s.filterActive]}><Text style={[s.filterText, filter === value && s.filterTextActive]}>{t.notifications[value]}</Text></Pressable>)}</View>
     {isLoading ? <View accessible={false} style={s.state}>
       <ActivityIndicator color={colors.primary} />
@@ -87,7 +87,7 @@ export default function NotificationsScreen() {
 }
 
 const styles = (c: ReturnType<typeof useColors>) => StyleSheet.create({
-  root: { flex: 1, backgroundColor: c.background }, content: { padding: 18, gap: 12, paddingBottom: 100 }, state: { alignItems: "center", gap: 8 }, heading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  root: { flex: 1, backgroundColor: c.background }, content: { padding: 18, gap: 12, paddingBottom: 100 }, state: { alignItems: "center", gap: 8 }, heading: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end" },
   title: { color: c.foreground, fontSize: 24, fontFamily: "Inter_700Bold", marginBottom: 6 },
   link: { color: c.primary, fontSize: 12, fontFamily: "Inter_600SemiBold" }, filters: { flexDirection: "row", gap: 7 }, filter: { borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: c.card, borderWidth: 1, borderColor: c.border },
   filterActive: { backgroundColor: c.primary + "20", borderColor: c.primary }, filterText: { color: c.mutedForeground, fontSize: 12 }, filterTextActive: { color: c.primary },

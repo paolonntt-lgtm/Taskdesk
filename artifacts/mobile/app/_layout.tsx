@@ -7,10 +7,11 @@ import {
 } from "@expo-google-fonts/inter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { setBaseUrl } from "@workspace/api-client-react";
+import { Feather } from "@expo/vector-icons";
 import { Stack, router } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
-import { Platform } from "react-native";
+import { Platform, Pressable } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -18,6 +19,8 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useColors } from "@/hooks/useColors";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 if (Platform.OS !== "web" && process.env.EXPO_PUBLIC_DOMAIN) {
@@ -43,6 +46,8 @@ const queryClient = new QueryClient({
 
 function RootLayoutNav() {
   const { user, isLoading } = useAuth();
+  const { lang, t } = useLanguage();
+  const colors = useColors();
   usePushNotifications(!!user);
 
   useEffect(() => {
@@ -55,7 +60,32 @@ function RootLayoutNav() {
   }, [user, isLoading]);
 
   return (
-    <Stack screenOptions={{ headerBackTitle: "Indietro" }}>
+    <Stack screenOptions={({ navigation, route }) => {
+      const openedFromProfile =
+        (route.params as { fromProfile?: unknown } | undefined)?.fromProfile === "1";
+      return {
+        headerBackTitle: lang === "it" ? "Indietro" : "Back",
+        headerTintColor: colors.foreground,
+        headerTitleStyle: { fontFamily: "Inter_600SemiBold", fontSize: 17 },
+        headerLeft: openedFromProfile
+          ? () => (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={lang === "it" ? "Torna al profilo" : "Back to profile"}
+                testID="profile-section-back-button"
+                hitSlop={10}
+                onPress={() => {
+                  if (navigation.canGoBack()) navigation.goBack();
+                  else router.replace("/(tabs)/profile");
+                }}
+                style={{ paddingRight: 12 }}
+              >
+                <Feather name="arrow-left" size={21} color={colors.foreground} />
+              </Pressable>
+            )
+          : undefined,
+      };
+    }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen
         name="login"
@@ -72,29 +102,34 @@ function RootLayoutNav() {
       <Stack.Screen
         name="users"
         options={{
-          title: "Gestione utenti",
-          headerBackTitle: "Indietro",
+          title: lang === "it" ? "Gestione utenti" : "User management",
         }}
       />
       <Stack.Screen
         name="admin-settings"
         options={{
-          title: "Impostazioni sistema",
-          headerBackTitle: "Indietro",
+          title: t.adminSettings.title,
         }}
       />
       <Stack.Screen
         name="billing"
-        options={{ title: "Fatturazione", headerBackTitle: "Indietro" }}
+        options={{ title: lang === "it" ? "Fatturazione" : "Billing" }}
       />
       <Stack.Screen
         name="announcements"
-        options={{ title: "Avvisi", headerBackTitle: "Indietro" }}
+        options={{ title: lang === "it" ? "Avvisi" : "Announcements" }}
       />
       <Stack.Screen
         name="superadmin"
-        options={{ title: "Console piattaforma", headerBackTitle: "Indietro" }}
+        options={{ title: lang === "it" ? "Console piattaforma" : "Platform console" }}
       />
+      <Stack.Screen name="notifications" options={{ title: t.notifications.title }} />
+      <Stack.Screen
+        name="ticket-trash"
+        options={{ title: lang === "it" ? "Cestino ticket" : "Ticket trash" }}
+      />
+      <Stack.Screen name="clients/index" options={{ title: t.tabs.clients }} />
+      <Stack.Screen name="time-report" options={{ title: t.tabs.hoursReport }} />
     </Stack>
   );
 }

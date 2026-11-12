@@ -517,6 +517,8 @@ function TabContent() {
         />
       )}
       screenOptions={({ navigation, route }) => {
+        const openedFromProfile =
+          (route.params as { fromProfile?: unknown } | undefined)?.fromProfile === "1";
         const returnTo =
           route.name === "profile"
             ? getProfileReturnRoute(
@@ -548,7 +550,20 @@ function TabContent() {
             route.name === "index" ? () => <DashboardSearchHeader /> : undefined,
           headerTitleAlign: route.name === "index" ? "left" : undefined,
           headerShadowVisible: false,
-          headerLeft: returnTo
+          headerLeft: openedFromProfile
+            ? () => (
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={lang === "it" ? "Torna al profilo" : "Back to profile"}
+                  testID="profile-section-back-button"
+                  hitSlop={10}
+                  onPress={() => navigation.navigate("profile")}
+                  style={styles.headerActionButton}
+                >
+                  <Feather name="arrow-left" size={20} color={colors.foreground} />
+                </TouchableOpacity>
+              )
+            : returnTo
             ? () => (
                 <TouchableOpacity
                   accessibilityRole="button"
@@ -684,7 +699,7 @@ function TabContent() {
             ),
         }}
       />
-      <Tabs.Screen name="reports" options={{ href: null }} />
+      <Tabs.Screen name="reports" options={{ href: null, title: t.tabs.reports }} />
       <Tabs.Screen
         name="profile"
         options={{

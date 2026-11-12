@@ -183,7 +183,6 @@ export default function BillingScreen() {
 
   return <ScrollView style={s.root} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
     <View style={s.heading}>
-      <Text style={s.title}>{it ? "Fatturazione" : "Billing"}</Text>
       <Text style={s.subtitle}>{it ? "Gestisci piano, posti e dati fiscali dell’organizzazione." : "Manage your plan, seats, and organization tax details."}</Text>
     </View>
     {stripeUnavailable ? <View style={s.notice}><Feather name="info" size={18} color={colors.primary} /><Text style={s.noticeText}>{it ? "La gestione online degli abbonamenti non è al momento disponibile. Puoi comunque aggiornare i dati fiscali qui sotto." : "Online subscription management is currently unavailable. You can still update tax details below."}</Text></View> : null}

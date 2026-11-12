@@ -91,7 +91,7 @@ export default function SuperadminScreen() {
 
   return <View style={c.root}>
     <ScrollView contentContainerStyle={c.content}>
-      <View style={c.heading}><Text style={c.title}>{it ? "Console piattaforma" : "Platform console"}</Text><Text style={c.muted}>{it ? "Organizzazioni e segnalazioni di assistenza." : "Organizations and support reports."}</Text></View>
+      <View style={c.heading}><Text style={c.muted}>{it ? "Organizzazioni e segnalazioni di assistenza." : "Organizations and support reports."}</Text></View>
       <View style={c.tabs}>
         <Pressable onPress={() => setTab("organizations")} style={[c.tab, tab === "organizations" && c.tabActive]}><Feather name="briefcase" size={15} color={tab === "organizations" ? colors.primary : colors.mutedForeground} /><Text style={[c.tabText, tab === "organizations" && c.tabTextActive]}>{it ? "Organizzazioni" : "Organizations"}</Text></Pressable>
         <Pressable onPress={() => setTab("reports")} style={[c.tab, tab === "reports" && c.tabActive]}><Feather name="alert-circle" size={15} color={tab === "reports" ? colors.primary : colors.mutedForeground} /><Text style={[c.tabText, tab === "reports" && c.tabTextActive]}>{it ? `Segnalazioni${reportQuery.data?.pendingCount ? ` (${reportQuery.data.pendingCount})` : ""}` : `Reports${reportQuery.data?.pendingCount ? ` (${reportQuery.data.pendingCount})` : ""}`}</Text></Pressable>
