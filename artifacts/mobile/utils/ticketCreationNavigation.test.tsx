@@ -578,14 +578,14 @@ describe("mobile ticket creation navigation", () => {
 
     const locationButton = host.querySelector('[data-testid="dashboard-hero-gps-button"]');
     expect(locationButton?.textContent).toContain("Finding location");
-    expect(locationButton?.textContent).toContain("Roma");
+    expect(host.querySelector('[data-testid="dashboard-hero-location"]')?.textContent).toBe("Roma");
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(15_000);
     });
 
     expect(locationButton?.textContent).not.toContain("Finding location");
-    expect(locationButton?.textContent).toContain("Roma");
+    expect(host.querySelector('[data-testid="dashboard-hero-location"]')?.textContent).toBe("Roma");
     expect(mocks.alert).toHaveBeenCalledOnce();
   });
 
