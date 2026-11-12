@@ -1,0 +1,20 @@
+:root {
+  --profile-bg: #eef4fb;
+  --profile-card: #fffefc;
+  --profile-border: #d4dfec;
+  --profile-foreground: #17304f;
+  --profile-muted: #536981;
+  --profile-muted-bg: #e2eaf3;
+  --profile-primary: #0f62fe;
+  --profile-teal: #21a6a1;
+  --profile-amber: #e2a12c;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Inter, Arial, sans-serif;
+}
