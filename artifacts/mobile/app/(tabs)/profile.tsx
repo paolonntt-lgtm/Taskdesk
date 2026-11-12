@@ -61,6 +61,7 @@ export default function ProfileScreen() {
 
   const initials = user?.name?.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase() ?? "?";
   const isOrganizationAdmin = user?.role === "admin" && user.organizationId != null;
+  const menuAccents = [colors.primary, colors.accent, colors.warning];
 
   const LANGS: { value: Lang; label: string; flag: string }[] = [
     { value: "it", label: "Italiano", flag: "IT" },
@@ -116,6 +117,7 @@ export default function ProfileScreen() {
 
       <View style={s.card}>
         <View style={s.menuSectionHeader}>
+          <View style={s.menuSectionMark} />
           <Text style={s.menuSectionTitle}>{lang === "it" ? "Altri strumenti" : "More tools"}</Text>
         </View>
         {[
@@ -142,7 +144,9 @@ export default function ProfileScreen() {
             accessibilityLabel={item.label}
             testID={`profile-tool-${item.path.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "")}`}
           >
-            <Feather name={item.icon} size={18} color={colors.primary} />
+            <View style={[s.menuIconWrap, { backgroundColor: `${menuAccents[index % menuAccents.length]}18` }]}>
+              <Feather name={item.icon} size={16} color={menuAccents[index % menuAccents.length]} />
+            </View>
             <Text style={s.toolLabel} numberOfLines={2}>{item.label}</Text>
             <Feather name="chevron-right" size={17} color={colors.mutedForeground} />
           </TouchableOpacity>
@@ -151,6 +155,7 @@ export default function ProfileScreen() {
       {isOrganizationAdmin && (
         <>
           <View style={[s.menuSectionHeader, s.menuAdminHeader]}>
+            <View style={[s.menuSectionMark, s.menuAdminMark]} />
             <Text style={s.menuSectionTitle}>{t.profile.administration}</Text>
           </View>
           <TouchableOpacity
@@ -161,7 +166,9 @@ export default function ProfileScreen() {
             accessibilityLabel={t.profile.manageUsers}
             testID="profile-admin-users"
           >
-            <Feather name="users" size={18} color={colors.primary} />
+            <View style={[s.menuIconWrap, { backgroundColor: `${colors.primary}18` }]}>
+              <Feather name="users" size={16} color={colors.primary} />
+            </View>
             <Text style={s.toolLabel} numberOfLines={2}>{t.profile.manageUsers}</Text>
             <Feather name="chevron-right" size={17} color={colors.mutedForeground} />
           </TouchableOpacity>
@@ -173,7 +180,9 @@ export default function ProfileScreen() {
             accessibilityLabel={t.profile.manageSettings}
             testID="profile-admin-settings"
           >
-            <Feather name="settings" size={18} color={colors.primary} />
+            <View style={[s.menuIconWrap, { backgroundColor: `${colors.accent}18` }]}>
+              <Feather name="settings" size={16} color={colors.accent} />
+            </View>
             <Text style={s.toolLabel} numberOfLines={2}>{t.profile.manageSettings}</Text>
             <Feather name="chevron-right" size={17} color={colors.mutedForeground} />
           </TouchableOpacity>
@@ -187,10 +196,12 @@ export default function ProfileScreen() {
             accessibilityState={{ disabled: generatingInvite, busy: generatingInvite }}
             testID="profile-admin-invite"
           >
-            <Feather name="user-plus" size={18} color={colors.primary} />
+            <View style={[s.menuIconWrap, { backgroundColor: `${colors.warning}25` }]}>
+              <Feather name="user-plus" size={16} color={colors.warning} />
+            </View>
             <Text style={s.toolLabel} numberOfLines={2}>{t.profile.inviteCollab}</Text>
             {generatingInvite
-              ? <ActivityIndicator size="small" color={colors.primary} />
+              ? <ActivityIndicator size="small" color={colors.warning} />
               : <Feather name="share-2" size={16} color={colors.mutedForeground} />
             }
           </TouchableOpacity>
@@ -259,11 +270,19 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       textTransform: "uppercase", letterSpacing: 0.5,
     },
   menuSectionHeader: {
-    paddingHorizontal: 16, paddingVertical: 10,
-    backgroundColor: colors.muted + "35",
+    minHeight: 40, flexDirection: "row", alignItems: "center", gap: 9,
+    paddingHorizontal: 14, paddingVertical: 9,
+    backgroundColor: colors.primary + "0B",
   },
   menuAdminHeader: {
     borderTopWidth: 1, borderTopColor: colors.border,
+    backgroundColor: colors.accent + "10",
+  },
+  menuSectionMark: {
+    width: 4, height: 15, borderRadius: 2, backgroundColor: colors.primary,
+  },
+  menuAdminMark: {
+    backgroundColor: colors.accent,
   },
   menuSectionTitle: {
     fontSize: 12, color: colors.mutedForeground,
@@ -272,8 +291,12 @@ const styles = (colors: ReturnType<typeof useColors>) =>
   },
   menuItem: {
     width: "100%", minHeight: 46, flexDirection: "row", alignItems: "center",
-    gap: 12, paddingHorizontal: 16, paddingVertical: 6,
+    gap: 10, paddingHorizontal: 14, paddingVertical: 6,
     borderBottomWidth: 1, borderBottomColor: colors.border,
+  },
+  menuIconWrap: {
+    width: 30, height: 30, alignItems: "center", justifyContent: "center",
+    borderRadius: 9,
   },
   menuItemBorder: { borderBottomWidth: 1 },
   menuItemLast: { borderBottomWidth: 0 },
