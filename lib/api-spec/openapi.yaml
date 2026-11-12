@@ -805,6 +805,36 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+
+  /users/{id}/avatar:
+    get:
+      operationId: getUserAvatar
+      tags: [users]
+      summary: Get a user's team-list avatar
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Avatar URL, or null when the user has no usable photo
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [avatarUrl]
+                properties:
+                  avatarUrl:
+                    type: string
+                    nullable: true
+        "404":
+          description: User is not part of the active team
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
     delete:
       operationId: deleteUser
       tags: [users]

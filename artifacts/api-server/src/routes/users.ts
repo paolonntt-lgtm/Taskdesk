@@ -185,6 +185,66 @@ router.get("/users", requireAuth, async (req, res): Promise<void> => {
   }
 });
 
+router.get("/users/:id/avatar", requireAuth, async (req, res): Promise<void> => {
+  const id = parseInt(String(req.params.id), 10);
+  if (isNaN(id)) {
+    res.status(400).json({ error: "Invalid user ID" });
+    return;
+  }
+
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
+  if (orgId == null) {
+    res.status(403).json({ error: "Account has no organization" });
+    return;
+  }
+
+  res.setHeader("Cache-Control", "no-store");
+  const [user] = currentUser.isSharedWorkspace
+    ? await db
+        .select({ id: usersTable.id, avatarUrl: usersTable.avatarUrl })
+        .from(workspaceMembershipsTable)
+        .innerJoin(usersTable, eq(usersTable.id, workspaceMembershipsTable.userId))
+        .where(and(
+          eq(workspaceMembershipsTable.workspaceOrganizationId, orgId),
+          eq(usersTable.id, id),
+          notLike(usersTable.email, "deleted-%@deleted.local"),
+          eq(usersTable.isSystem, false),
+        ))
+    : await db
+        .select({ id: usersTable.id, avatarUrl: usersTable.avatarUrl })
+        .from(usersTable)
+        .where(and(
+          eq(usersTable.id, id),
+          eq(usersTable.organizationId, orgId),
+          notLike(usersTable.email, "deleted-%@deleted.local"),
+          eq(usersTable.isSystem, false),
+        ));
+
+  if (!user) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+
+  let avatarUrl = user.avatarUrl;
+  if (typeof avatarUrl === "string" && avatarUrl.length > MAX_PROFILE_AVATAR_LENGTH) {
+    const originalAvatarUrl = avatarUrl;
+    avatarUrl = await convertLegacyAvatarToThumbnail(originalAvatarUrl);
+    if (avatarUrl) {
+      await db
+        .update(usersTable)
+        .set({ avatarUrl })
+        .where(and(eq(usersTable.id, id), eq(usersTable.avatarUrl, originalAvatarUrl)));
+    }
+  }
+
+  res.json({
+    avatarUrl: typeof avatarUrl === "string" && avatarUrl.length <= MAX_PROFILE_AVATAR_LENGTH
+      ? avatarUrl
+      : null,
+  });
+});
+
 router.post("/users", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const parsed = CreateUserBody.safeParse(req.body);
   if (!parsed.success) {

@@ -66,6 +66,7 @@ import type {
   GetPersonalTimeTrackingReportParams,
   GetSuperadminOrganizationsParams,
   GetTimeTrackingReportParams,
+  GetUserAvatar200,
   GlobalSearchParams,
   GroupInput,
   GroupMemberInput,
@@ -2379,12 +2380,89 @@ export const useUpdateUser = <TError = ErrorType<ErrorResponse>,
       return useMutation(getUpdateUserMutationOptions(options));
     }
 
+export const getGetUserAvatarUrl = (id: number,) => {
+
+
+
+
+  return `/api/users/${id}/avatar`
+}
+
+/**
+ * @summary Get a user's team-list avatar
+ */
+export const getUserAvatar = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<GetUserAvatar200> => {
+
+  return customFetch<GetUserAvatar200>(getGetUserAvatarUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetUserAvatarQueryKey = (id: number,) => {
+    return [
+    `/api/users/${id}/avatar`
+    ] as const;
+    }
+
+
+export const getGetUserAvatarQueryOptions = <TData = Awaited<ReturnType<typeof getUserAvatar>>, TError = ErrorType<ErrorResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getUserAvatar>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetUserAvatarQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getUserAvatar>>> = ({ signal }) => getUserAvatar(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getUserAvatar>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetUserAvatarQueryResult = NonNullable<Awaited<ReturnType<typeof getUserAvatar>>>
+export type GetUserAvatarQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get a user's team-list avatar
+ */
+
+export function useGetUserAvatar<TData = Awaited<ReturnType<typeof getUserAvatar>>, TError = ErrorType<ErrorResponse>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getUserAvatar>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetUserAvatarQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getDeleteUserUrl = (id: number,) => {
 
 
 
 
-  return `/api/users/${id}`
+  return `/api/users/${id}/avatar`
 }
 
 /**

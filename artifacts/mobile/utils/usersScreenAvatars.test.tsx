@@ -25,7 +25,17 @@ const mocks = vi.hoisted(() => ({
       isActive: true,
       createdAt: "2026-01-01T00:00:00.000Z",
     },
+    {
+      id: 4,
+      name: "Katherine Johnson",
+      email: "katherine@example.test",
+      role: "user",
+      avatarUrl: null,
+      isActive: true,
+      createdAt: "2026-01-01T00:00:00.000Z",
+    },
   ],
+  avatarQueries: [] as Array<{ userId: number; enabled: boolean; teamScopeId: number | null }>,
 }));
 
 vi.mock("react-native", async () => {
@@ -51,15 +61,18 @@ vi.mock("react-native", async () => {
     FlatList: ({
       data,
       renderItem,
+      onViewableItemsChanged,
     }: {
       data: unknown[];
       renderItem: (args: { item: unknown }) => React.ReactNode;
+      onViewableItemsChanged: (args: { viewableItems: Array<{ item: unknown; isViewable: boolean }> }) => void;
     }) => ReactModule.createElement(
       "div",
       { "data-testid": "team-list" },
       ...data.map((item, index) =>
         ReactModule.createElement(ReactModule.Fragment, { key: index }, renderItem({ item })),
       ),
+      ReactModule.createElement(ViewabilityNotifier, { data, onViewableItemsChanged }),
     ),
     Image: ({
       source,
@@ -80,6 +93,21 @@ vi.mock("react-native", async () => {
     TouchableOpacity: component("button"),
     View: component("div"),
   };
+
+  function ViewabilityNotifier({
+    data,
+    onViewableItemsChanged,
+  }: {
+    data: unknown[];
+    onViewableItemsChanged: (args: { viewableItems: Array<{ item: unknown; isViewable: boolean }> }) => void;
+  }) {
+    ReactModule.useEffect(() => {
+      onViewableItemsChanged({
+        viewableItems: data.slice(0, 2).map((item) => ({ item, isViewable: true })),
+      });
+    }, [data, onViewableItemsChanged]);
+    return null;
+  }
 });
 
 vi.mock("@expo/vector-icons", () => ({ Feather: () => null }));
@@ -100,6 +128,21 @@ vi.mock("@tanstack/react-query", () => ({
     refetch: vi.fn(),
   }),
   useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+}));
+vi.mock("@workspace/api-client-react", () => ({
+  useGetUserAvatar: (
+    userId: number,
+    options: { query: { enabled: boolean; queryKey: unknown[] } },
+  ) => {
+    mocks.avatarQueries.push({
+      userId,
+      enabled: options.query.enabled,
+      teamScopeId: options.query.queryKey[1] as number | null,
+    });
+    return {
+      data: userId === 3 ? { avatarUrl: "data:image/jpeg;base64,late-photo" } : { avatarUrl: null },
+    };
+  },
 }));
 vi.mock("@/hooks/useColors", () => ({
   useColors: () => new Proxy({}, { get: () => "#222222" }),
@@ -140,12 +183,25 @@ describe("mobile team profile photos", () => {
     await act(async () => root.render(React.createElement(UsersScreen)));
 
     const photoAvatar = host.querySelector('[data-testid="user-avatar-2"]');
-    const missingPhotoAvatar = host.querySelector('[data-testid="user-avatar-3"]');
+    const onDemandPhotoAvatar = host.querySelector('[data-testid="user-avatar-3"]');
+    const missingPhotoAvatar = host.querySelector('[data-testid="user-avatar-4"]');
     expect(photoAvatar?.querySelector("img")?.getAttribute("src"))
       .toBe("data:image/jpeg;base64,photo");
     expect(photoAvatar?.textContent).toContain("AL");
+    expect(onDemandPhotoAvatar?.querySelector("img")?.getAttribute("src"))
+      .toBe("data:image/jpeg;base64,late-photo");
+    expect(mocks.avatarQueries).toContainEqual({
+      userId: 3,
+      enabled: true,
+      teamScopeId: 7,
+    });
+    expect(mocks.avatarQueries).toContainEqual({
+      userId: 4,
+      enabled: false,
+      teamScopeId: 7,
+    });
     expect(missingPhotoAvatar?.querySelector("img")).toBeNull();
-    expect(missingPhotoAvatar?.textContent).toContain("GH");
+    expect(missingPhotoAvatar?.textContent).toContain("KJ");
 
     await act(async () => {
       photoAvatar?.querySelector("img")?.dispatchEvent(new Event("error"));

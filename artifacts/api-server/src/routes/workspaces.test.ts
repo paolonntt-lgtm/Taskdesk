@@ -237,6 +237,20 @@ describe("shared workspaces", () => {
     expect(initialAssignees.status).toBe(200);
     expect(initialAssignees.cacheControl).toBe("no-store");
     expect(initialAssignees.body.map((user: { id: number }) => user.id)).toEqual([billingAdminId]);
+    const sharedMemberAvatar = await request(
+      `/api/users/${billingAdminId}/avatar`,
+      billingAdminSessionId,
+      workspaceId,
+    );
+    expect(sharedMemberAvatar.status).toBe(200);
+    expect(sharedMemberAvatar.cacheControl).toBe("no-store");
+    expect(sharedMemberAvatar.body).toEqual({ avatarUrl: "data:image/jpeg;base64,billing-admin-photo" });
+    const nonMemberAvatar = await request(
+      `/api/users/${outsiderId}/avatar`,
+      billingAdminSessionId,
+      workspaceId,
+    );
+    expect(nonMemberAvatar.status).toBe(404);
 
     const rejectLastAdminDemotion = await request(
       `/api/workspaces/${workspaceId}/members/${billingAdminId}`,

@@ -728,6 +728,18 @@ export const UpdateUserResponse = zod.object({
 
 
 /**
+ * @summary Get a user's team-list avatar
+ */
+export const GetUserAvatarParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetUserAvatarResponse = zod.object({
+  "avatarUrl": zod.string().nullable()
+})
+
+
+/**
  * @summary Deactivate a user (admin only)
  */
 export const DeleteUserParams = zod.object({

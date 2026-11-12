@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View, Text, Image, FlatList, StyleSheet, TouchableOpacity,
   ActivityIndicator, Alert, Modal, TextInput, ScrollView,
   Platform, KeyboardAvoidingView, Switch,
+  type ViewToken,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useGetUserAvatar } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -34,17 +36,32 @@ const EMPTY_FORM = {
 
 function UserAvatar({
   name,
+  userId,
+  teamScopeId,
   avatarUrl,
   inactive,
+  shouldLoadAvatar,
   testID,
 }: {
   name: string;
+  userId: number;
+  teamScopeId: number | null;
   avatarUrl?: string | null;
   inactive: boolean;
+  shouldLoadAvatar: boolean;
   testID: string;
 }) {
   const colors = useColors();
   const [imageFailed, setImageFailed] = useState(false);
+  const { data: fetchedAvatar } = useGetUserAvatar(userId, {
+    query: {
+      enabled: shouldLoadAvatar && !avatarUrl,
+      retry: false,
+      staleTime: 5 * 60_000,
+      queryKey: ["/api/users", teamScopeId, userId, "avatar"],
+    },
+  });
+  const resolvedAvatarUrl = avatarUrl ?? fetchedAvatar?.avatarUrl;
   const initials = name.split(" ").map((word) => word[0]).slice(0, 2).join("").toUpperCase();
 
   return (
@@ -56,9 +73,9 @@ function UserAvatar({
       ]}
     >
       <Text style={[avatarStyles.initials, { color: colors.primaryForeground }]}>{initials}</Text>
-      {avatarUrl && !imageFailed ? (
+      {resolvedAvatarUrl && !imageFailed ? (
         <Image
-          source={{ uri: avatarUrl }}
+          source={{ uri: resolvedAvatarUrl }}
           style={avatarStyles.image}
           resizeMode="cover"
           accessible={false}
@@ -111,6 +128,15 @@ export default function UsersScreen() {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [visibleUserIds, setVisibleUserIds] = useState<Set<number>>(() => new Set());
+  const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
+    setVisibleUserIds(new Set(
+      viewableItems
+        .filter((token) => token.isViewable)
+        .map((token) => (token.item as User).id),
+    ));
+  }).current;
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 25 }).current;
 
   const { data: users = [], isLoading, refetch } = useQuery({
     queryKey: ["users"],
@@ -266,8 +292,11 @@ export default function UsersScreen() {
           key={`${item.id}:${item.avatarUrl ?? ""}`}
           testID={`user-avatar-${item.id}`}
           name={item.name}
+          userId={item.id}
+          teamScopeId={me?.organizationId ?? null}
           avatarUrl={item.avatarUrl}
           inactive={!isActive}
+          shouldLoadAvatar={visibleUserIds.has(item.id)}
         />
         <View style={s.userInfo}>
           <View style={s.userNameRow}>
@@ -314,6 +343,9 @@ export default function UsersScreen() {
           data={users}
           keyExtractor={(u) => String(u.id)}
           renderItem={renderUser}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={viewabilityConfig}
+          scrollEnabled={users.length > 0}
           contentContainerStyle={[s.list, { paddingBottom: Platform.OS === "web" ? 100 : 20 }]}
           refreshing={false}
           onRefresh={refetch}

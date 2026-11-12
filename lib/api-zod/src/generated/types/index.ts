@@ -81,6 +81,7 @@ export * from './getOrganizationSettings200Profession';
 export * from './getPersonalTimeTrackingReportParams';
 export * from './getSuperadminOrganizationsParams';
 export * from './getTimeTrackingReportParams';
+export * from './getUserAvatar200';
 export * from './globalSearchParams';
 export * from './groupInput';
 export * from './groupMemberInput';

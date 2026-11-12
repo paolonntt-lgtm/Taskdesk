@@ -1746,6 +1746,10 @@ export type WaitForPermissionChanges200 = {
   type: WaitForPermissionChanges200Type;
 };
 
+export type GetUserAvatar200 = {
+  avatarUrl: string | null;
+};
+
 export type ListTicketsParams = {
 status?: string;
 priority?: string;
