@@ -11,10 +11,14 @@ const mocks = vi.hoisted(() => ({
   translations: {
     adminSettings: {
       title: "Impostazioni azienda",
-      mobileIntro: "Organizza i dati aziendali, i ticket e le notifiche in sezioni separate.",
-      organizationTab: "Azienda",
+      adminSettingsEyebrow: "AREA AMMINISTRATORE",
+      mobileIntro: "Impostazioni essenziali, organizzate per tenere tutto sotto controllo.",
+      organizationTab: "Organizzazione",
+      modulesTab: "Moduli",
       ticketDataTab: "Ticket",
       notificationsTab: "Notifiche",
+      organizationDescription: "Identità e terminologia.",
+      modulesDescription: "Strumenti per il team.",
       ticketDataDescription: "Gestisci i valori disponibili quando si classificano i ticket.",
       notificationDescription: "Invia una notifica di prova per verificare che il dispositivo sia configurato correttamente.",
       unsavedChanges: "Modifiche non salvate",
@@ -181,13 +185,15 @@ describe("mobile admin settings navigation", () => {
     host.remove();
   });
 
-  it("separates company, ticket, and notification settings without losing unsaved edits", async () => {
+  it("separates the four approved settings groups without losing unsaved edits", async () => {
     await act(async () => root.render(React.createElement(AdminSettingsScreen)));
 
     expect(host.querySelector('[data-testid="admin-settings-panel-organization"]')).not.toBeNull();
+    expect(host.querySelector('[data-testid="admin-settings-panel-modules"]')).toBeNull();
     expect(host.querySelector('[data-testid="admin-settings-panel-tickets"]')).toBeNull();
     const companyName = host.querySelector<HTMLInputElement>('[data-testid="admin-settings-org-name"]');
     expect(companyName?.value).toBe("TaskDesk");
+    expect(host.querySelector('[data-testid="admin-settings-module-clients"]')).toBeNull();
 
     await act(async () => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(companyName, "TaskDesk Milano");
@@ -202,6 +208,13 @@ describe("mobile admin settings navigation", () => {
 
     await act(async () => host.querySelector<HTMLButtonElement>('[data-testid="admin-settings-tab-notifications"]')?.click());
     expect(host.querySelector('[data-testid="admin-settings-panel-notifications"]')?.textContent).toContain("Test notifiche push");
+
+    await act(async () => host.querySelector<HTMLButtonElement>('[data-testid="admin-settings-tab-modules"]')?.click());
+    expect(host.querySelector('[data-testid="admin-settings-panel-modules"]')).not.toBeNull();
+    expect(host.querySelector('[data-testid="admin-settings-module-clients"]')).not.toBeNull();
+    expect(host.querySelector('[data-testid="admin-settings-module-worked-time"]')).not.toBeNull();
+    expect(host.querySelector('[data-testid="admin-settings-module-tasktrack"]')).not.toBeNull();
+    expect(host.querySelector('[data-testid="open-time-report"]')).toBeNull();
 
     await act(async () => host.querySelector<HTMLButtonElement>('[data-testid="admin-settings-tab-organization"]')?.click());
     expect(host.querySelector<HTMLInputElement>('[data-testid="admin-settings-org-name"]')?.value).toBe("TaskDesk Milano");
@@ -235,5 +248,29 @@ describe("mobile admin settings navigation", () => {
     await act(async () => retry?.click());
     expect(host.querySelector('[data-testid="admin-settings-panel-organization"]')).not.toBeNull();
     expect(host.querySelector('[data-testid="admin-settings-retry-load"]')).toBeNull();
+  });
+
+  it("shows the hours report link only while TaskTrack is enabled", async () => {
+    mocks.apiGet.mockImplementation(async (path: string) => {
+      if (path === "/settings/groups") return { value: ["Support"] };
+      if (path === "/settings/locations") return { value: ["Milan"] };
+      if (path === "/settings/categories") return { value: ["Bug"] };
+      if (path === "/settings/organization") {
+        return {
+          name: "TaskDesk",
+          businessType: "it_support",
+          clientsEnabled: true,
+          workedTimeEnabled: true,
+          timeTrackingModuleEnabled: true,
+          entitySingular: "Cliente",
+          entityPlural: "Clienti",
+        };
+      }
+      throw new Error(`Unexpected settings request: ${path}`);
+    });
+    await act(async () => root.render(React.createElement(AdminSettingsScreen)));
+    await act(async () => host.querySelector<HTMLButtonElement>('[data-testid="admin-settings-tab-modules"]')?.click());
+
+    expect(host.querySelector('[data-testid="open-time-report"]')).not.toBeNull();
   });
 });

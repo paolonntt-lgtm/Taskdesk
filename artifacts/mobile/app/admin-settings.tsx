@@ -16,7 +16,7 @@ import Constants from "expo-constants";
 import { useQueryClient } from "@tanstack/react-query";
 
 type SectionKey = "groups" | "locations" | "categories";
-type SettingsTabKey = "organization" | "tickets" | "notifications";
+type SettingsTabKey = "organization" | "modules" | "tickets" | "notifications";
 type OrganizationSettings = {
   name: string;
   businessType: string | null;
@@ -248,8 +248,8 @@ export default function AdminSettingsScreen() {
 
   const SECTIONS: { key: SectionKey; label: string; icon: React.ComponentProps<typeof Feather>["name"]; color: string }[] = [
     { key: "groups", label: t.adminSettings.groups, icon: "briefcase", color: colors.primary },
-    { key: "locations", label: t.adminSettings.locations, icon: "map-pin", color: "#0d9488" },
-    { key: "categories", label: t.adminSettings.categories, icon: "tag", color: "#7c3aed" },
+    { key: "locations", label: t.adminSettings.locations, icon: "map-pin", color: colors.accent },
+    { key: "categories", label: t.adminSettings.categories, icon: "tag", color: colors.warning },
   ];
 
   if (user?.role !== "admin" || user.organizationId == null) {
@@ -287,18 +287,29 @@ export default function AdminSettingsScreen() {
       <ScrollView
         contentContainerStyle={[s.content, { paddingBottom: Platform.OS === "web" ? 100 : 32 }]}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        <View style={s.intro}>
+        <View style={s.hero}>
+          <View style={s.heroTopline}>
+            <View style={s.adminMark}><Feather name="settings" size={13} color={colors.primaryForeground} /></View>
+            <Text style={s.eyebrow}>{t.adminSettings.adminSettingsEyebrow}</Text>
+          </View>
           <Text style={s.pageTitle}>{t.adminSettings.title}</Text>
           <Text style={s.pageDescription}>{t.adminSettings.mobileIntro}</Text>
         </View>
 
-        <View style={s.tabBar} accessibilityRole="tablist">
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={s.tabBar}
+          accessibilityRole="tablist"
+        >
           {([
             ["organization", t.adminSettings.organizationTab, "home"],
+            ["modules", t.adminSettings.modulesTab, "grid"],
             ["tickets", t.adminSettings.ticketDataTab, "tag"],
             ["notifications", t.adminSettings.notificationsTab, "bell"],
-          ] as const).map(([key, label, icon]) => {
+          ] as const).map(([key, label, icon], index) => {
             const selected = activeTab === key;
             return (
               <TouchableOpacity
@@ -309,22 +320,29 @@ export default function AdminSettingsScreen() {
                 testID={`admin-settings-tab-${key}`}
                 onPress={() => setActiveTab(key)}
                 style={[s.tab, selected && s.tabActive]}
-                activeOpacity={0.8}
+                activeOpacity={0.78}
               >
-                <Feather name={icon} size={15} color={selected ? colors.primary : colors.mutedForeground} />
-                <Text style={[s.tabText, selected && s.tabTextActive]}>{label}</Text>
+                <Text style={[s.tabIndex, selected && s.tabIndexActive]}>{`0${index + 1}`}</Text>
+                <View style={s.tabLabelRow}>
+                  <Feather name={icon} size={14} color={selected ? colors.primary : colors.mutedForeground} />
+                  <Text style={[s.tabText, selected && s.tabTextActive]}>{label}</Text>
+                </View>
               </TouchableOpacity>
             );
           })}
-        </View>
+        </ScrollView>
 
         {activeTab === "organization" && organization && (
-          <View style={s.section} testID="admin-settings-panel-organization">
-            <View style={s.sectionTitleRow}>
+          <View style={s.panel} testID="admin-settings-panel-organization">
+            <View style={s.panelHeading}>
               <View style={[s.sectionIcon, { backgroundColor: colors.primary + "18" }]}>
-                <Feather name="home" size={16} color={colors.primary} />
+                <Feather name="home" size={17} color={colors.primary} />
               </View>
-              <Text style={s.sectionTitle}>{t.adminSettings.organization}</Text>
+              <View style={s.headingCopy}>
+                <Text style={s.sectionTitle}>{t.adminSettings.organization}</Text>
+                <Text style={s.panelDescription}>{t.adminSettings.organizationDescription}</Text>
+              </View>
+              <Text style={s.sectionNumber}>01</Text>
             </View>
             <View style={s.card}>
               <View style={s.orgField}>
@@ -339,8 +357,31 @@ export default function AdminSettingsScreen() {
                   editable={!organizationSaving}
                 />
               </View>
+              <View style={s.divider} />
+              <View style={s.orgField}>
+                <Text style={s.orgLabel}>{t.adminSettings.businessType}</Text>
+                <View style={s.businessTypes}>
+                  {[
+                    ["it_support", t.adminSettings.businessIT],
+                    ["professional_studio", t.adminSettings.businessStudio],
+                    ["agency", t.adminSettings.businessAgency],
+                    ["other", t.adminSettings.businessOther],
+                  ].map(([value, label]) => (
+                    <TouchableOpacity
+                      key={value}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: organization.businessType === value }}
+                      onPress={() => setOrganization((current) => current ? { ...current, businessType: value } : current)}
+                      style={[s.businessType, organization.businessType === value && s.businessTypeActive]}
+                      disabled={organizationSaving}
+                    >
+                      <Text style={[s.businessTypeText, organization.businessType === value && s.businessTypeTextActive]}>{label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
               {organization.clientsEnabled && (
-                <>
+                <View style={s.entityFields}>
                   <View style={s.orgField}>
                     <Text style={s.orgLabel}>{t.adminSettings.entitySingular}</Text>
                     <TextInput
@@ -363,67 +404,9 @@ export default function AdminSettingsScreen() {
                       editable={!organizationSaving}
                     />
                   </View>
-                </>
+                </View>
               )}
-              <Text style={s.orgLabel}>{t.adminSettings.businessType}</Text>
-              <View style={s.businessTypes}>
-                {[
-                  ["it_support", t.adminSettings.businessIT],
-                  ["professional_studio", t.adminSettings.businessStudio],
-                  ["agency", t.adminSettings.businessAgency],
-                  ["other", t.adminSettings.businessOther],
-                ].map(([value, label]) => (
-                  <TouchableOpacity
-                    key={value}
-                    onPress={() => setOrganization((current) => current ? { ...current, businessType: value } : current)}
-                    style={[s.businessType, organization.businessType === value && s.businessTypeActive]}
-                    disabled={organizationSaving}
-                  >
-                    <Text style={[s.businessTypeText, organization.businessType === value && s.businessTypeTextActive]}>{label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-              <View style={s.orgSwitchRow}>
-                <View style={s.orgSwitchText}>
-                  <Text style={s.orgLabel}>{t.adminSettings.clientsEnabled}</Text>
-                  <Text style={s.orgDescription}>{t.adminSettings.clientsEnabledHelp}</Text>
-                </View>
-                <Switch
-                  value={organization.clientsEnabled}
-                  onValueChange={(clientsEnabled) => setOrganization((current) => current ? { ...current, clientsEnabled } : current)}
-                  disabled={organizationSaving}
-                  trackColor={{ true: colors.primary }}
-                />
-              </View>
-              <View style={s.orgSwitchRow}>
-                <View style={s.orgSwitchText}>
-                  <Text style={s.orgLabel}>{t.adminSettings.workedTimeEnabled}</Text>
-                  <Text style={s.orgDescription}>{t.adminSettings.workedTimeEnabledHelp}</Text>
-                </View>
-                <Switch
-                  value={organization.workedTimeEnabled}
-                  onValueChange={(workedTimeEnabled) => setOrganization((current) => current ? { ...current, workedTimeEnabled } : current)}
-                  disabled={organizationSaving}
-                  trackColor={{ true: colors.primary }}
-                />
-              </View>
-              <View style={s.orgSwitchRow}>
-                <View style={s.orgSwitchText}>
-                  <Text style={s.orgLabel}>{t.adminSettings.timeTrackingModuleEnabled}</Text>
-                  <Text style={s.orgDescription}>{t.adminSettings.timeTrackingModuleEnabledHelp}</Text>
-                </View>
-                <Switch
-                  value={organization.timeTrackingModuleEnabled}
-                  onValueChange={(timeTrackingModuleEnabled) => setOrganization((current) => current ? { ...current, timeTrackingModuleEnabled } : current)}
-                  disabled={organizationSaving}
-                  trackColor={{ true: colors.primary }}
-                />
-              </View>
-              {organizationDirty ? (
-                <Text style={s.orgUnsaved} testID="admin-settings-unsaved">
-                  {t.adminSettings.unsavedChanges}
-                </Text>
-              ) : null}
+              {organizationDirty ? <Text style={s.orgUnsaved} testID="admin-settings-unsaved">{t.adminSettings.unsavedChanges}</Text> : null}
               {organizationError ? <Text style={s.orgError}>{organizationError}</Text> : null}
               <TouchableOpacity
                 style={[s.orgSaveBtn, !organizationDirty && s.orgSaveBtnDisabled]}
@@ -431,120 +414,225 @@ export default function AdminSettingsScreen() {
                 disabled={organizationSaving || !organizationDirty}
                 activeOpacity={0.8}
               >
-                {organizationSaving ? <ActivityIndicator color="#fff" size="small" /> : <Feather name="save" size={15} color="#fff" />}
-                <Text style={s.addBtnText}>{organizationSaving ? t.adminSettings.saving : t.adminSettings.saveOrganization}</Text>
+                {organizationSaving ? <ActivityIndicator color={colors.primaryForeground} size="small" /> : <Feather name="check" size={16} color={colors.primaryForeground} />}
+                <Text style={s.saveBtnText}>{organizationSaving ? t.adminSettings.saving : t.adminSettings.saveOrganization}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {activeTab === "modules" && organization && (
+          <View style={s.panel} testID="admin-settings-panel-modules">
+            <View style={s.panelHeading}>
+              <View style={[s.sectionIcon, { backgroundColor: colors.accent + "20" }]}>
+                <Feather name="grid" size={17} color={colors.accent} />
+              </View>
+              <View style={s.headingCopy}>
+                <Text style={s.sectionTitle}>{t.adminSettings.modulesTab}</Text>
+                <Text style={s.panelDescription}>{t.adminSettings.modulesDescription}</Text>
+              </View>
+              <Text style={s.sectionNumber}>02</Text>
+            </View>
+            <View style={s.card}>
+              <View style={s.moduleRow}>
+                <View style={[s.moduleGlyph, { backgroundColor: colors.primary + "14" }]}>
+                  <Feather name="users" size={17} color={colors.primary} />
+                </View>
+                <View style={s.orgSwitchText}>
+                  <Text style={s.orgLabel}>{t.adminSettings.clientsEnabled}</Text>
+                  <Text style={s.orgDescription}>{t.adminSettings.clientsEnabledHelp}</Text>
+                </View>
+                <Switch
+                  testID="admin-settings-module-clients"
+                  value={organization.clientsEnabled}
+                  onValueChange={(clientsEnabled) => setOrganization((current) => current ? { ...current, clientsEnabled } : current)}
+                  disabled={organizationSaving}
+                  trackColor={{ true: colors.primary }}
+                />
+              </View>
+              <View style={s.moduleDivider} />
+              <View style={s.moduleRow}>
+                <View style={[s.moduleGlyph, { backgroundColor: colors.accent + "20" }]}>
+                  <Feather name="clock" size={17} color={colors.accent} />
+                </View>
+                <View style={s.orgSwitchText}>
+                  <Text style={s.orgLabel}>{t.adminSettings.workedTimeEnabled}</Text>
+                  <Text style={s.orgDescription}>{t.adminSettings.workedTimeEnabledHelp}</Text>
+                </View>
+                <Switch
+                  testID="admin-settings-module-worked-time"
+                  value={organization.workedTimeEnabled}
+                  onValueChange={(workedTimeEnabled) => setOrganization((current) => current ? { ...current, workedTimeEnabled } : current)}
+                  disabled={organizationSaving}
+                  trackColor={{ true: colors.primary }}
+                />
+              </View>
+              <View style={s.moduleDivider} />
+              <View style={s.moduleRow}>
+                <View style={[s.moduleGlyph, { backgroundColor: colors.warning + "24" }]}>
+                  <Feather name="activity" size={17} color={colors.warning} />
+                </View>
+                <View style={s.orgSwitchText}>
+                  <Text style={s.orgLabel}>{t.adminSettings.timeTrackingModuleEnabled}</Text>
+                  <Text style={s.orgDescription}>{t.adminSettings.timeTrackingModuleEnabledHelp}</Text>
+                </View>
+                <Switch
+                  testID="admin-settings-module-tasktrack"
+                  value={organization.timeTrackingModuleEnabled}
+                  onValueChange={(timeTrackingModuleEnabled) => setOrganization((current) => current ? { ...current, timeTrackingModuleEnabled } : current)}
+                  disabled={organizationSaving}
+                  trackColor={{ true: colors.primary }}
+                />
+              </View>
+              {organizationDirty ? <Text style={s.orgUnsaved} testID="admin-settings-unsaved">{t.adminSettings.unsavedChanges}</Text> : null}
+              {organizationError ? <Text style={s.orgError}>{organizationError}</Text> : null}
+              <TouchableOpacity
+                style={[s.orgSaveBtn, !organizationDirty && s.orgSaveBtnDisabled]}
+                onPress={() => void saveOrganization()}
+                disabled={organizationSaving || !organizationDirty}
+                activeOpacity={0.8}
+              >
+                {organizationSaving ? <ActivityIndicator color={colors.primaryForeground} size="small" /> : <Feather name="check" size={16} color={colors.primaryForeground} />}
+                <Text style={s.saveBtnText}>{organizationSaving ? t.adminSettings.saving : t.adminSettings.saveOrganization}</Text>
               </TouchableOpacity>
               {organization.timeTrackingModuleEnabled && (
                 <TouchableOpacity
-                  style={[s.orgSaveBtn, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, marginTop: 8 }]}
+                  style={s.reportLink}
                   onPress={() => router.push("/time-report")}
                   activeOpacity={0.8}
                   accessibilityRole="button"
                   testID="open-time-report"
                 >
-                  <Feather name="bar-chart-2" size={15} color={colors.primary} />
-                  <Text style={[s.addBtnText, { color: colors.primary }]}>{lang === "it" ? "Apri rendiconto ore" : "Open hours report"}</Text>
+                  <View style={s.reportIcon}><Feather name="bar-chart-2" size={16} color={colors.primary} /></View>
+                  <Text style={s.reportText}>{lang === "it" ? "Apri rendiconto ore" : "Open hours report"}</Text>
+                  <Feather name="arrow-up-right" size={15} color={colors.primary} />
                 </TouchableOpacity>
               )}
             </View>
           </View>
         )}
 
-        {activeTab === "notifications" && <View style={s.notificationPanel} testID="admin-settings-panel-notifications">
-          <View style={s.sectionTitleRow}>
-            <View style={[s.sectionIcon, { backgroundColor: "#f59e0b18" }]}>
-              <Feather name="bell" size={16} color="#f59e0b" />
+        {activeTab === "notifications" && (
+          <View style={s.panel} testID="admin-settings-panel-notifications">
+            <View style={s.panelHeading}>
+              <View style={[s.sectionIcon, { backgroundColor: colors.warning + "24" }]}>
+                <Feather name="bell" size={17} color={colors.warning} />
+              </View>
+              <View style={s.headingCopy}>
+                <Text style={s.sectionTitle}>{t.adminSettings.notificationsTab}</Text>
+                <Text style={s.panelDescription}>{t.adminSettings.notificationDescription}</Text>
+              </View>
+              <Text style={s.sectionNumber}>04</Text>
             </View>
-            <Text style={s.sectionTitle}>{t.adminSettings.testPushBtn}</Text>
+            <View style={s.noticeCard}>
+              <View style={s.noticeIllustration}>
+                <View style={s.noticeSignal} />
+                <Feather name="bell" size={23} color={colors.warning} />
+              </View>
+              <Text style={s.noticeTitle}>{t.adminSettings.testPushBtn}</Text>
+              <Text style={s.noticeBody}>{t.adminSettings.notificationDescription}</Text>
+              <TouchableOpacity
+                style={[s.testPushBtn, testPushLoading && s.buttonBusy]}
+                onPress={handleTestPush}
+                activeOpacity={0.8}
+                disabled={testPushLoading}
+                accessibilityRole="button"
+                testID="admin-settings-test-push"
+              >
+                {testPushLoading ? (
+                  <ActivityIndicator color={colors.primaryForeground} size="small" />
+                ) : (
+                  <>
+                    <Feather name="send" size={15} color={colors.primaryForeground} />
+                    <Text style={s.testPushBtnText}>{t.adminSettings.testPushBtn}</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
-          <Text style={s.panelDescription}>{t.adminSettings.notificationDescription}</Text>
-          <TouchableOpacity
-            style={[s.testPushBtn, testPushLoading && { opacity: 0.6 }]}
-            onPress={handleTestPush}
-            activeOpacity={0.8}
-            disabled={testPushLoading}
-          >
-            {testPushLoading ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <>
-                <Feather name="send" size={15} color="#fff" />
-                <Text style={s.testPushBtnText}>{t.adminSettings.testPushBtn}</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>}
+        )}
 
         {activeTab === "tickets" && (
-        <View style={s.ticketSettings} testID="admin-settings-panel-tickets">
-          <Text style={s.panelDescription}>{t.adminSettings.ticketDataDescription}</Text>
-          {SECTIONS.map((section) => {
-          const items = dataMap[section.key];
-          const isSaving = saving === section.key;
-          return (
-            <View key={section.key} style={s.section}>
-              <View style={s.sectionHeader}>
-                <View style={s.sectionTitleRow}>
-                  <View style={[s.sectionIcon, { backgroundColor: section.color + "18" }]}>
-                    <Feather name={section.icon} size={16} color={section.color} />
-                  </View>
-                  <Text style={s.sectionTitle}>{section.label}</Text>
-                  <Text style={s.sectionCount}>{items.length} {t.adminSettings.itemsCount}</Text>
-                </View>
-                <TouchableOpacity
-                  style={[s.addBtn, { backgroundColor: section.color }]}
-                  onPress={() => openAdd(section.key)}
-                  activeOpacity={0.8}
-                  disabled={isSaving}
-                >
-                  <Feather name="plus" size={14} color="#fff" />
-                  <Text style={s.addBtnText}>{t.adminSettings.add}</Text>
-                </TouchableOpacity>
+          <View style={s.ticketSettings} testID="admin-settings-panel-tickets">
+            <View style={s.panelHeading}>
+              <View style={[s.sectionIcon, { backgroundColor: colors.primary + "18" }]}>
+                <Feather name="tag" size={17} color={colors.primary} />
               </View>
-
-              <View style={s.card}>
-                {isSaving ? (
-                  <View style={s.savingRow}>
-                    <ActivityIndicator color={colors.primary} size="small" />
-                  </View>
-                ) : items.length === 0 ? (
-                  <View style={s.emptyRow}>
-                    <Text style={s.emptyText}>—</Text>
-                  </View>
-                ) : (
-                  items.map((item, i) => (
-                    <View
-                      key={`${section.key}-${i}`}
-                      style={[s.itemRow, i > 0 && s.itemRowBorder]}
-                    >
-                      <View style={[s.itemDot, { backgroundColor: section.color + "40" }]} />
-                      <Text style={s.itemLabel} numberOfLines={1}>{item}</Text>
-                      <View style={s.itemActions}>
-                        <TouchableOpacity
-                          style={s.iconBtn}
-                          onPress={() => openEdit(section.key, i)}
-                          activeOpacity={0.7}
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        >
-                          <Feather name="edit-2" size={15} color={colors.mutedForeground} />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={s.iconBtn}
-                          onPress={() => handleDelete(section.key, i)}
-                          activeOpacity={0.7}
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        >
-                          <Feather name="trash-2" size={15} color={colors.destructive} />
-                        </TouchableOpacity>
+              <View style={s.headingCopy}>
+                <Text style={s.sectionTitle}>{t.adminSettings.ticketDataTab}</Text>
+                <Text style={s.panelDescription}>{t.adminSettings.ticketDataDescription}</Text>
+              </View>
+              <Text style={s.sectionNumber}>03</Text>
+            </View>
+            {SECTIONS.map((section) => {
+              const items = dataMap[section.key];
+              const isSaving = saving === section.key;
+              return (
+                <View key={section.key} style={s.section}>
+                  <View style={s.sectionHeader}>
+                    <View style={s.sectionTitleRow}>
+                      <View style={[s.sectionIcon, { backgroundColor: section.color + "18" }]}>
+                        <Feather name={section.icon} size={16} color={section.color} />
+                      </View>
+                      <View style={s.headingCopy}>
+                        <Text style={s.sectionTitle}>{section.label}</Text>
+                        <Text style={s.sectionCount}>{items.length} {t.adminSettings.itemsCount}</Text>
                       </View>
                     </View>
-                  ))
-                )}
-              </View>
-            </View>
-          );
-          })}
-        </View>
+                    <TouchableOpacity
+                      style={[s.addBtn, { backgroundColor: section.color }]}
+                      onPress={() => openAdd(section.key)}
+                      activeOpacity={0.8}
+                      disabled={isSaving}
+                      accessibilityRole="button"
+                      testID={`admin-settings-add-${section.key}`}
+                    >
+                      <Feather name="plus" size={14} color={colors.primaryForeground} />
+                      <Text style={s.addBtnText}>{t.adminSettings.add}</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <View style={s.card}>
+                    {isSaving ? (
+                      <View style={s.savingRow}><ActivityIndicator color={colors.primary} size="small" /></View>
+                    ) : items.length === 0 ? (
+                      <View style={s.emptyRow}><Text style={s.emptyText}>—</Text></View>
+                    ) : (
+                      items.map((item, i) => (
+                        <View key={`${section.key}-${i}`} style={[s.itemRow, i > 0 && s.itemRowBorder]}>
+                          <View style={[s.itemDot, { backgroundColor: section.color }]} />
+                          <Text style={s.itemLabel} numberOfLines={1}>{item}</Text>
+                          <View style={s.itemActions}>
+                            <TouchableOpacity
+                              style={s.iconBtn}
+                              onPress={() => openEdit(section.key, i)}
+                              activeOpacity={0.7}
+                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                              accessibilityRole="button"
+                              accessibilityLabel={`${t.adminSettings.rename}: ${item}`}
+                              testID={`admin-settings-edit-${section.key}-${i}`}
+                            >
+                              <Feather name="edit-2" size={15} color={colors.mutedForeground} />
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={s.iconBtn}
+                              onPress={() => handleDelete(section.key, i)}
+                              activeOpacity={0.7}
+                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                              accessibilityRole="button"
+                              accessibilityLabel={`${t.adminSettings.deleteConfirm}: ${item}`}
+                              testID={`admin-settings-delete-${section.key}-${i}`}
+                            >
+                              <Feather name="trash-2" size={15} color={colors.destructive} />
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      ))
+                    )}
+                  </View>
+                </View>
+              );
+            })}
+          </View>
         )}
       </ScrollView>
 
@@ -610,73 +698,95 @@ const styles = (colors: ReturnType<typeof useColors>) =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.background },
     center: { flex: 1, alignItems: "center", justifyContent: "center" },
-    loadErrorPanel: { padding: 24, gap: 12 },
+    loadErrorPanel: { padding: 28, gap: 14 },
     loadErrorText: { color: colors.foreground, fontSize: 15, lineHeight: 22, textAlign: "center", fontFamily: "Inter_500Medium" },
-    retryButton: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: colors.primary, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 11 },
+    retryButton: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: colors.primary, borderRadius: 12, paddingHorizontal: 18, paddingVertical: 12 },
     retryText: { color: colors.primaryForeground, fontSize: 14, fontFamily: "Inter_600SemiBold" },
-    content: { padding: 16, gap: 18 },
-    intro: { gap: 5 },
-    pageTitle: { color: colors.foreground, fontSize: 22, fontFamily: "Inter_700Bold" },
-    pageDescription: { color: colors.mutedForeground, fontSize: 13, lineHeight: 19, fontFamily: "Inter_400Regular" },
+    content: { paddingHorizontal: 18, paddingTop: 16, gap: 20 },
+    hero: {
+      backgroundColor: colors.secondary,
+      borderRadius: 22,
+      paddingHorizontal: 20,
+      paddingTop: 18,
+      paddingBottom: 22,
+      borderWidth: 1,
+      borderColor: colors.border,
+      overflow: "hidden",
+      gap: 8,
+    },
+    heroTopline: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 },
+    adminMark: { width: 25, height: 25, borderRadius: 8, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary },
+    eyebrow: { color: colors.secondaryForeground, fontSize: 10, letterSpacing: 1.35, fontFamily: "Inter_700Bold" },
+    pageTitle: { color: colors.foreground, fontSize: 27, lineHeight: 32, fontFamily: "Inter_700Bold", letterSpacing: -0.6 },
+    pageDescription: { color: colors.mutedForeground, fontSize: 13, lineHeight: 19, fontFamily: "Inter_400Regular", maxWidth: 310 },
     tabBar: {
       flexDirection: "row",
-      backgroundColor: colors.muted,
-      borderRadius: 12,
-      padding: 4,
-      gap: 3,
+      alignItems: "stretch",
+      gap: 8,
+      paddingRight: 18,
     },
     tab: {
-      flex: 1,
-      minHeight: 42,
-      flexDirection: "row",
-      alignItems: "center",
+      minWidth: 102,
+      minHeight: 59,
       justifyContent: "center",
-      gap: 6,
-      paddingHorizontal: 6,
-      borderRadius: 9,
-    },
-    tabActive: {
-      backgroundColor: colors.card,
-      shadowColor: colors.foreground,
-      shadowOpacity: 0.08,
-      shadowRadius: 3,
-      shadowOffset: { width: 0, height: 1 },
-      elevation: 1,
-    },
-    tabText: { color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_500Medium" },
-    tabTextActive: { color: colors.primary, fontFamily: "Inter_600SemiBold" },
-    orgField: { gap: 6 },
-    orgLabel: { color: colors.foreground, fontSize: 13, fontFamily: "Inter_500Medium" },
-    orgDescription: { color: colors.mutedForeground, fontSize: 11, lineHeight: 16, fontFamily: "Inter_400Regular" },
-    orgInput: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 9, paddingHorizontal: 12, paddingVertical: 10, color: colors.foreground, fontSize: 14, fontFamily: "Inter_400Regular" },
-    businessTypes: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
-    businessType: { borderWidth: 1, borderColor: colors.border, borderRadius: 18, paddingHorizontal: 11, paddingVertical: 7, backgroundColor: colors.card },
-    businessTypeActive: { borderColor: colors.primary, backgroundColor: colors.primary + "18" },
-    businessTypeText: { color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_500Medium" },
-    businessTypeTextActive: { color: colors.primary },
-    orgSwitchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10 },
-    orgSwitchText: { flex: 1, gap: 3 },
-    orgError: { color: colors.destructive, fontSize: 12, fontFamily: "Inter_400Regular" },
-    orgUnsaved: { color: colors.primary, fontSize: 12, fontFamily: "Inter_500Medium" },
-    orgSaveBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: colors.primary, borderRadius: 9, paddingVertical: 11 },
-    orgSaveBtnDisabled: { opacity: 0.45 },
-
-    notificationPanel: {
-      gap: 12,
-      padding: 16,
+      gap: 5,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 14,
       backgroundColor: colors.card,
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: 14,
     },
-    panelDescription: { color: colors.mutedForeground, fontSize: 13, lineHeight: 19, fontFamily: "Inter_400Regular" },
-    ticketSettings: { gap: 22 },
+    tabActive: {
+      backgroundColor: colors.secondary,
+      borderColor: colors.primary,
+    },
+    tabIndex: { color: colors.mutedForeground, fontSize: 9, letterSpacing: 1.3, fontFamily: "Inter_700Bold" },
+    tabIndexActive: { color: colors.primary },
+    tabLabelRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+    tabText: { color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_600SemiBold" },
+    tabTextActive: { color: colors.primary, fontFamily: "Inter_700Bold" },
+    panel: { gap: 14 },
+    panelHeading: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 2 },
+    headingCopy: { flex: 1, gap: 3 },
+    sectionNumber: { color: colors.mutedForeground, fontSize: 11, letterSpacing: 1, fontFamily: "Inter_700Bold" },
+    orgField: { gap: 7 },
+    orgLabel: { color: colors.foreground, fontSize: 13, fontFamily: "Inter_600SemiBold" },
+    orgDescription: { color: colors.mutedForeground, fontSize: 11, lineHeight: 16, fontFamily: "Inter_400Regular" },
+    orgInput: { backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 12, color: colors.foreground, fontSize: 14, fontFamily: "Inter_500Medium" },
+    divider: { height: 1, backgroundColor: colors.border },
+    entityFields: { gap: 13, paddingTop: 1 },
+    businessTypes: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    businessType: { borderWidth: 1, borderColor: colors.border, borderRadius: 11, paddingHorizontal: 12, paddingVertical: 9, backgroundColor: colors.background },
+    businessTypeActive: { borderColor: colors.primary, backgroundColor: colors.secondary },
+    businessTypeText: { color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_500Medium" },
+    businessTypeTextActive: { color: colors.primary },
+    orgSwitchText: { flex: 1, gap: 4 },
+    orgError: { color: colors.destructive, fontSize: 12, lineHeight: 17, fontFamily: "Inter_500Medium" },
+    orgUnsaved: { color: colors.primary, fontSize: 12, fontFamily: "Inter_600SemiBold", paddingTop: 2 },
+    orgSaveBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, backgroundColor: colors.primary, borderRadius: 13, paddingVertical: 14, marginTop: 2 },
+    orgSaveBtnDisabled: { opacity: 0.45 },
+    saveBtnText: { color: colors.primaryForeground, fontSize: 14, fontFamily: "Inter_700Bold" },
+    panelDescription: { color: colors.mutedForeground, fontSize: 12, lineHeight: 17, fontFamily: "Inter_400Regular" },
+    moduleRow: { flexDirection: "row", alignItems: "center", gap: 11, paddingVertical: 14 },
+    moduleDivider: { height: 1, backgroundColor: colors.border, marginLeft: 48 },
+    moduleGlyph: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+    reportLink: { marginTop: 2, flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderColor: colors.border, borderRadius: 13, padding: 12, backgroundColor: colors.background },
+    reportIcon: { width: 30, height: 30, borderRadius: 9, backgroundColor: colors.secondary, alignItems: "center", justifyContent: "center" },
+    reportText: { flex: 1, color: colors.primary, fontSize: 13, fontFamily: "Inter_600SemiBold" },
+    noticeCard: { alignItems: "center", gap: 11, paddingHorizontal: 20, paddingTop: 28, paddingBottom: 20, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 20 },
+    noticeIllustration: { width: 74, height: 74, borderRadius: 25, alignItems: "center", justifyContent: "center", backgroundColor: colors.warning + "20", marginBottom: 5 },
+    noticeSignal: { position: "absolute", top: 13, right: 14, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.success },
+    noticeTitle: { color: colors.foreground, fontSize: 17, textAlign: "center", fontFamily: "Inter_700Bold" },
+    noticeBody: { color: colors.mutedForeground, fontSize: 13, lineHeight: 19, textAlign: "center", fontFamily: "Inter_400Regular" },
+    ticketSettings: { gap: 17 },
     testPushBtn: {
       flexDirection: "row" as const, alignItems: "center" as const, justifyContent: "center" as const,
-      gap: 8, backgroundColor: "#f59e0b",
-      paddingVertical: 13, borderRadius: 12,
+      gap: 9, backgroundColor: colors.primary,
+      paddingVertical: 14, borderRadius: 13, paddingHorizontal: 18, width: "100%", marginTop: 7,
     },
-    testPushBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
+    testPushBtnText: { color: colors.primaryForeground, fontSize: 14, fontFamily: "Inter_700Bold" },
+    buttonBusy: { opacity: 0.65 },
 
     section: { gap: 10 },
     sectionHeader: {
@@ -684,20 +794,21 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     },
     sectionTitleRow: { flexDirection: "row", alignItems: "center", gap: 10, flex: 1 },
     sectionIcon: {
-      width: 32, height: 32, borderRadius: 8,
+      width: 38, height: 38, borderRadius: 13,
       alignItems: "center", justifyContent: "center",
     },
-    sectionTitle: { fontSize: 15, fontWeight: "700" as const, color: colors.foreground, fontFamily: "Inter_700Bold" },
-    sectionCount: { fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
+    sectionTitle: { fontSize: 16, color: colors.foreground, fontFamily: "Inter_700Bold" },
+    sectionCount: { fontSize: 11, color: colors.mutedForeground, fontFamily: "Inter_500Medium" },
     addBtn: {
       flexDirection: "row", alignItems: "center", gap: 5,
-      paddingHorizontal: 12, paddingVertical: 7, borderRadius: 18,
+      paddingHorizontal: 13, paddingVertical: 9, borderRadius: 11,
     },
-    addBtnText: { color: "#fff", fontSize: 13, fontFamily: "Inter_600SemiBold" },
+    addBtnText: { color: colors.primaryForeground, fontSize: 12, fontFamily: "Inter_700Bold" },
 
     card: {
-      backgroundColor: colors.card, borderRadius: 14,
+      backgroundColor: colors.card, borderRadius: 18,
       borderWidth: 1, borderColor: colors.border, overflow: "hidden",
+      padding: 16, gap: 16,
     },
     savingRow: { padding: 20, alignItems: "center" },
     emptyRow: { padding: 16, alignItems: "center" },
@@ -705,16 +816,16 @@ const styles = (colors: ReturnType<typeof useColors>) =>
 
     itemRow: {
       flexDirection: "row", alignItems: "center",
-      paddingHorizontal: 16, paddingVertical: 14, gap: 12,
+      paddingHorizontal: 3, paddingVertical: 11, gap: 12,
     },
     itemRowBorder: { borderTopWidth: 1, borderTopColor: colors.border },
-    itemDot: { width: 8, height: 8, borderRadius: 4 },
+    itemDot: { width: 7, height: 7, borderRadius: 4 },
     itemLabel: {
-      flex: 1, fontSize: 14, color: colors.foreground, fontFamily: "Inter_500Medium",
+      flex: 1, fontSize: 14, color: colors.foreground, fontFamily: "Inter_600SemiBold",
     },
     itemActions: { flexDirection: "row", gap: 4 },
     iconBtn: {
-      width: 34, height: 34, borderRadius: 8,
+      width: 34, height: 34, borderRadius: 10,
       alignItems: "center", justifyContent: "center",
       backgroundColor: colors.muted,
     },
@@ -722,27 +833,27 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     modalRoot: { flex: 1, backgroundColor: colors.background },
     modalHeader: {
       flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-      paddingHorizontal: 16, paddingVertical: 14,
+      paddingHorizontal: 18, paddingVertical: 15,
       borderBottomWidth: 1, borderBottomColor: colors.border,
     },
     modalTitle: { fontSize: 16, fontWeight: "600" as const, color: colors.foreground, fontFamily: "Inter_600SemiBold" },
     modalCancel: { paddingVertical: 4, paddingHorizontal: 2 },
     modalCancelText: { fontSize: 15, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
     modalSaveBtn: {
-      backgroundColor: colors.primary, paddingHorizontal: 16,
-      paddingVertical: 7, borderRadius: 20, minWidth: 60, alignItems: "center",
+      backgroundColor: colors.primary, paddingHorizontal: 17,
+      paddingVertical: 9, borderRadius: 12, minWidth: 64, alignItems: "center",
     },
     modalSaveBtnText: { color: colors.primaryForeground, fontSize: 14, fontFamily: "Inter_600SemiBold" },
 
-    modalContent: { padding: 20, gap: 14 },
+    modalContent: { padding: 20, gap: 16 },
     sectionBadge: {
       flexDirection: "row", alignItems: "center", gap: 6,
-      alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12,
+      alignSelf: "flex-start", paddingHorizontal: 11, paddingVertical: 7, borderRadius: 11,
     },
     sectionBadgeText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
     modalInput: {
       backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
-      borderRadius: 10, paddingHorizontal: 14, paddingVertical: 13,
+      borderRadius: 13, paddingHorizontal: 14, paddingVertical: 14,
       fontSize: 16, color: colors.foreground, fontFamily: "Inter_400Regular",
     },
     modalInputError: { borderColor: colors.destructive },
