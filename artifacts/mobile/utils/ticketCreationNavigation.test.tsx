@@ -68,6 +68,7 @@ const mocks = vi.hoisted(() => ({
   locationPermission: { granted: false, canAskAgain: true, status: "undetermined" },
   requestLocationPermission: vi.fn(async () => ({ granted: false, canAskAgain: true, status: "undetermined" })),
   hasLocationServices: vi.fn(async () => true),
+  getLastKnownPosition: vi.fn(async () => null),
   getCurrentPosition: vi.fn(async () => ({ coords: { latitude: 45.4642, longitude: 9.19 } })),
   reverseGeocode: vi.fn(async () => [{ city: "Milano", country: "Italia" }]),
 }));
@@ -76,6 +77,7 @@ vi.mock("expo-location", () => ({
   Accuracy: { Balanced: 3 },
   useForegroundPermissions: () => [mocks.locationPermission, mocks.requestLocationPermission],
   hasServicesEnabledAsync: mocks.hasLocationServices,
+  getLastKnownPositionAsync: mocks.getLastKnownPosition,
   getCurrentPositionAsync: mocks.getCurrentPosition,
   reverseGeocodeAsync: mocks.reverseGeocode,
 }));
@@ -467,6 +469,8 @@ describe("mobile ticket creation navigation", () => {
     mocks.requestLocationPermission.mockResolvedValue({ granted: false, canAskAgain: true, status: "undetermined" });
     mocks.hasLocationServices.mockReset();
     mocks.hasLocationServices.mockResolvedValue(true);
+    mocks.getLastKnownPosition.mockReset();
+    mocks.getLastKnownPosition.mockResolvedValue(null);
     mocks.getCurrentPosition.mockReset();
     mocks.getCurrentPosition.mockResolvedValue({ coords: { latitude: 45.4642, longitude: 9.19 } });
     mocks.reverseGeocode.mockReset();
@@ -606,6 +610,24 @@ describe("mobile ticket creation navigation", () => {
     expect(locationButton?.textContent).not.toContain("Finding location");
     expect(host.querySelector('[data-testid="dashboard-hero-location"]')?.textContent).toBe("Roma");
     expect(mocks.alert).not.toHaveBeenCalled();
+  });
+
+  it("stops the GPS spinner if the device services check hangs", async () => {
+    mocks.locationPermission = { granted: true, canAskAgain: false, status: "granted" };
+    mocks.hasLocationServices.mockImplementation(() => new Promise(() => {}));
+    vi.useFakeTimers();
+    await render(DashboardScreen);
+
+    const locationButton = host.querySelector('[data-testid="dashboard-hero-gps-button"]');
+    expect(locationButton?.textContent).toContain("Finding location");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+
+    expect(locationButton?.textContent).not.toContain("Finding location");
+    expect(mocks.getCurrentPosition).not.toHaveBeenCalled();
+    expect(mocks.alert).toHaveBeenCalledOnce();
   });
 
   it("shows the TaskDesk logo and search field in the Dashboard header", async () => {

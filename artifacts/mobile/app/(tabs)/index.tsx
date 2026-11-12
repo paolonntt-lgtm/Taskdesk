@@ -18,6 +18,8 @@ import { getGetCurrentWeatherQueryKey, useGetCurrentWeather } from "@workspace/a
 const WEATHER_CONSENT_KEY = "taskdesk.dashboard.weather-consent.v1";
 const LOCATION_FIX_TIMEOUT_MS = 15_000;
 const REVERSE_GEOCODE_TIMEOUT_MS = 5_000;
+const LOCATION_PERMISSION_TIMEOUT_MS = 60_000;
+const LOCATION_SERVICES_TIMEOUT_MS = 5_000;
 
 type WeatherConsent = "loading" | "unknown" | "accepted" | "declined";
 type WeatherIconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
@@ -202,12 +204,11 @@ export default function DashboardScreen() {
   };
 
   const captureGpsLocation = async (askSystemPermission = false) => {
-    setIsGettingLocation(true);
     try {
       const permission = locationPermission?.granted
         ? locationPermission
         : askSystemPermission && locationPermission?.canAskAgain
-          ? await requestLocationPermission()
+          ? await withTimeout(requestLocationPermission(), LOCATION_PERMISSION_TIMEOUT_MS)
           : locationPermission;
       if (!permission?.granted) {
         if (permission && !permission.canAskAgain) {
@@ -224,15 +225,26 @@ export default function DashboardScreen() {
         return;
       }
 
-      if (!(await Location.hasServicesEnabledAsync())) {
+      setIsGettingLocation(true);
+      if (!(await withTimeout(Location.hasServicesEnabledAsync(), LOCATION_SERVICES_TIMEOUT_MS))) {
         Alert.alert(t.dashboard.locationDisclosureTitle, t.dashboard.locationUnavailable);
         return;
       }
 
-      const position = await withTimeout(
-        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
-        LOCATION_FIX_TIMEOUT_MS,
-      );
+      let position: Location.LocationObject;
+      try {
+        position = await withTimeout(
+          Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+          LOCATION_FIX_TIMEOUT_MS,
+        );
+      } catch (currentPositionError) {
+        const lastKnownPosition = await withTimeout(
+          Location.getLastKnownPositionAsync({ maxAge: 5 * 60 * 1000, requiredAccuracy: 5_000 }),
+          2_500,
+        ).catch(() => null);
+        if (!lastKnownPosition) throw currentPositionError;
+        position = lastKnownPosition;
+      }
       setGpsCoordinates({
         latitude: Math.round(position.coords.latitude * 100) / 100,
         longitude: Math.round(position.coords.longitude * 100) / 100,
