@@ -7,9 +7,14 @@ export interface CurrentWeather {
   conditionCode: number;
   isDay: boolean;
   observedAt: string;
+  locationName: string | null;
 }
 
 interface WeatherApiResponse {
+  location?: {
+    name?: string;
+    country?: string;
+  };
   current?: {
     temp_c?: number;
     feelslike_c?: number;
@@ -99,6 +104,10 @@ export async function getCurrentWeather(
     conditionCode: conditionCode!,
     isDay: current.is_day === 1,
     observedAt: current.last_updated,
+    locationName: [payload.location?.name, payload.location?.country]
+      .map((value) => value?.trim())
+      .filter((value): value is string => Boolean(value))
+      .join(", ") || null,
   };
 
   if (weatherCache.size >= MAX_CACHE_ENTRIES) {

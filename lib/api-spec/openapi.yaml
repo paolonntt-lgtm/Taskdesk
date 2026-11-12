@@ -3966,7 +3966,7 @@ components:
   schemas:
     CurrentWeather:
       type: object
-      required: [temperatureC, feelsLikeC, conditionText, conditionCode, isDay, observedAt]
+      required: [temperatureC, feelsLikeC, conditionText, conditionCode, isDay, observedAt, locationName]
       properties:
         temperatureC:
           type: number
@@ -3980,6 +3980,9 @@ components:
           type: boolean
         observedAt:
           type: string
+        locationName:
+          type: string
+          nullable: true
     TicketDriveFolderInput:
       type: object
       required: [folderId]

@@ -13,6 +13,7 @@ describe("getCurrentWeather", () => {
 
   it("rounds coordinates, localizes the request, and caches briefly", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      location: { name: "Milano", country: "Italia" },
       current: {
         temp_c: 18.6,
         feelslike_c: 17.8,
@@ -33,6 +34,7 @@ describe("getCurrentWeather", () => {
       conditionCode: 1003,
       isDay: true,
       observedAt: "2026-11-12 10:00",
+      locationName: "Milano, Italia",
     });
     expect(second).toEqual(first);
     expect(fetchMock).toHaveBeenCalledTimes(1);
