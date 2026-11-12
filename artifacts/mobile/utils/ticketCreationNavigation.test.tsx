@@ -306,6 +306,8 @@ vi.mock("@/contexts/LanguageContext", () => ({
         weatherLoading: "Weather…",
         weatherRetry: "Tap to retry",
         weatherUnavailable: "Weather unavailable",
+        useGpsLocation: "Use GPS location",
+        refreshGpsLocation: "Refresh GPS location",
         searchPlaceholder: "Search Taskdesk",
         open: "Open",
         inProgress: "In progress",
@@ -565,6 +567,45 @@ describe("mobile ticket creation navigation", () => {
     });
     expect(mocks.alert).not.toHaveBeenCalled();
     expect(mocks.requestLocationPermission).not.toHaveBeenCalled();
+  });
+
+  it("stops the GPS spinner and keeps the profile location if GPS never responds", async () => {
+    mocks.user.mainLocation = "Roma";
+    mocks.locationPermission = { granted: true, canAskAgain: false, status: "granted" };
+    mocks.getCurrentPosition.mockImplementation(() => new Promise(() => {}));
+    vi.useFakeTimers();
+    await render(DashboardScreen);
+
+    const locationButton = host.querySelector('[data-testid="dashboard-hero-gps-button"]');
+    expect(locationButton?.textContent).toContain("Finding location");
+    expect(locationButton?.textContent).toContain("Roma");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15_000);
+    });
+
+    expect(locationButton?.textContent).not.toContain("Finding location");
+    expect(locationButton?.textContent).toContain("Roma");
+    expect(mocks.alert).toHaveBeenCalledOnce();
+  });
+
+  it("stops the GPS spinner when reverse geocoding does not respond", async () => {
+    mocks.user.mainLocation = "Roma";
+    mocks.locationPermission = { granted: true, canAskAgain: false, status: "granted" };
+    mocks.reverseGeocode.mockImplementation(() => new Promise(() => {}));
+    vi.useFakeTimers();
+    await render(DashboardScreen);
+
+    const locationButton = host.querySelector('[data-testid="dashboard-hero-gps-button"]');
+    expect(locationButton?.textContent).toContain("Finding location");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+
+    expect(locationButton?.textContent).not.toContain("Finding location");
+    expect(host.querySelector('[data-testid="dashboard-hero-location"]')?.textContent).toBe("Roma");
+    expect(mocks.alert).not.toHaveBeenCalled();
   });
 
   it("shows the TaskDesk logo and search field in the Dashboard header", async () => {

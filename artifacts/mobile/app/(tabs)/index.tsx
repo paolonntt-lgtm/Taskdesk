@@ -16,9 +16,27 @@ import { apiGet, PRIORITY_COLORS } from "@/utils/api";
 import { getGetCurrentWeatherQueryKey, useGetCurrentWeather } from "@workspace/api-client-react";
 
 const WEATHER_CONSENT_KEY = "taskdesk.dashboard.weather-consent.v1";
+const LOCATION_FIX_TIMEOUT_MS = 15_000;
+const REVERSE_GEOCODE_TIMEOUT_MS = 5_000;
 
 type WeatherConsent = "loading" | "unknown" | "accepted" | "declined";
 type WeatherIconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
+
+function withTimeout<T>(operation: Promise<T>, timeoutMs: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("Location lookup timed out")), timeoutMs);
+    operation.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
 
 function weatherIconName(code: number, isDay: boolean): WeatherIconName {
   if (code === 1000) return isDay ? "weather-sunny" : "weather-night";
@@ -211,18 +229,22 @@ export default function DashboardScreen() {
         return;
       }
 
-      const position = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
+      const position = await withTimeout(
+        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+        LOCATION_FIX_TIMEOUT_MS,
+      );
       setGpsCoordinates({
         latitude: Math.round(position.coords.latitude * 100) / 100,
         longitude: Math.round(position.coords.longitude * 100) / 100,
       });
       try {
-        const [address] = await Location.reverseGeocodeAsync({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        });
+        const [address] = await withTimeout(
+          Location.reverseGeocodeAsync({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          }),
+          REVERSE_GEOCODE_TIMEOUT_MS,
+        );
         const area = address?.city ?? address?.subregion ?? address?.region;
         if (area) setGpsLocation([area, address?.country].filter(Boolean).join(", "));
       } catch {
