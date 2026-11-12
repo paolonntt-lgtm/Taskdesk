@@ -2,6 +2,7 @@
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import ProfileScreen from "../app/(tabs)/profile";
 import ClientsScreen from "../app/(tabs)/clients-tab";
 import TabLayout from "../app/(tabs)/_layout";
 import TicketsScreen from "../app/(tabs)/tickets";
@@ -174,6 +175,10 @@ vi.mock("expo-router", async () => {
 });
 
 vi.mock("expo-blur", () => ({ BlurView: () => null }));
+vi.mock("expo-haptics", () => ({
+  impactAsync: vi.fn(),
+  ImpactFeedbackStyle: { Light: "light", Medium: "medium" },
+}));
 vi.mock("expo-symbols", () => ({ SymbolView: () => null }));
 vi.mock("@expo/vector-icons", () => ({ Feather: () => null }));
 vi.mock("react-native-safe-area-context", () => ({
@@ -183,7 +188,16 @@ vi.mock("@/hooks/useColors", () => ({
   useColors: () => new Proxy({}, { get: () => "#222222" }),
 }));
 vi.mock("@/contexts/AuthContext", () => ({
-  useAuth: () => ({ user: { id: 1, role: "admin", organizationId: 7 } }),
+  useAuth: () => ({
+    user: {
+      id: 1,
+      name: "Paolo Prosperi",
+      email: "paolo@example.com",
+      role: "admin",
+      organizationId: 7,
+    },
+    logout: vi.fn(),
+  }),
 }));
 vi.mock("@/contexts/LanguageContext", () => ({
   useLanguage: () => ({
@@ -199,6 +213,23 @@ vi.mock("@/contexts/LanguageContext", () => ({
         clients: "Clients",
         profile: "Profile",
         reports: "Reports",
+      },
+      profile: {
+        settings: "Settings",
+        languageLabel: "App language",
+        admin: "Administrator",
+        user: "User",
+        administration: "Administration",
+        manageUsers: "User management",
+        manageSettings: "Manage settings",
+        inviteCollab: "Invite collaborator",
+        inviteShareMsg: "Join TaskDesk:",
+        inviteError: "Could not create invite",
+        logout: "Sign out",
+        logoutTitle: "Sign out",
+        logoutMessage: "Do you want to sign out?",
+        logoutCancel: "Cancel",
+        logoutConfirm: "Sign out",
       },
       dashboard: { searchPlaceholder: "Search" },
       tickets: {
@@ -301,6 +332,18 @@ describe("mobile list position after returning from Profile", () => {
     mocks.ticketQueryFn = undefined;
     mocks.dashboardTickets = [];
     mocks.apiGet.mockClear();
+  });
+
+  it("shows the email under the profile identity and keeps language under Settings", async () => {
+    await act(async () => root.render(React.createElement(ProfileScreen)));
+
+    expect(host.textContent).toContain("Paolo Prosperi");
+    expect(host.textContent).toContain("paolo@example.com");
+    expect(host.textContent).toContain("Settings");
+    expect(host.textContent).toContain("App language");
+    expect(host.textContent).not.toContain("Account information");
+    expect(host.textContent).not.toContain("Ticketing system");
+    expect(host.textContent).not.toContain("Version");
   });
 
   afterEach(async () => {

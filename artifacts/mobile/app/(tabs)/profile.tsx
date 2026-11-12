@@ -63,17 +63,6 @@ export default function ProfileScreen() {
   const isOrganizationAdmin = user?.role === "admin" && user.organizationId != null;
   const menuAccents = [colors.primary, colors.accent, colors.warning];
 
-  const infoItems = [
-    { icon: "mail" as const, label: t.profile.email, value: user?.email ?? "" },
-    {
-      icon: "shield" as const,
-      label: t.profile.role,
-      value: user?.isSuperAdmin
-        ? (lang === "it" ? "Superamministratore" : "Superadmin")
-        : user?.role === "admin" ? t.profile.admin : t.profile.user,
-    },
-  ];
-
   const LANGS: { value: Lang; label: string; flag: string }[] = [
     { value: "it", label: "Italiano", flag: "IT" },
     { value: "en", label: "English", flag: "EN" },
@@ -95,24 +84,16 @@ export default function ProfileScreen() {
             {user?.isSuperAdmin ? (lang === "it" ? "Superamministratore" : "Superadmin") : user?.role === "admin" ? t.profile.admin : t.profile.user}
           </Text>
         </View>
-      </View>
-
-      <View style={s.card}>
-        <Text style={s.cardTitle}>{t.profile.accountInfo}</Text>
-        {infoItems.map((item, i) => (
-          <View key={item.label} style={[s.infoRow, i < infoItems.length - 1 && s.infoRowBorder]}>
-            <View style={s.infoLeft}>
-              <Feather name={item.icon} size={16} color={colors.mutedForeground} />
-              <Text style={s.infoLabel}>{item.label}</Text>
-            </View>
-            <Text style={s.infoValue} numberOfLines={1}>{item.value}</Text>
+        {!!user?.email && (
+          <View style={s.emailLine}>
+            <Feather name="mail" size={14} color={colors.mutedForeground} />
+            <Text style={s.emailText} numberOfLines={1}>{user.email}</Text>
           </View>
-        ))}
+        )}
       </View>
 
-      {/* Language selector */}
       <View style={s.card}>
-        <Text style={s.cardTitle}>{t.profile.language}</Text>
+        <Text style={s.cardTitle}>{t.profile.settings}</Text>
         <View style={[s.infoRow, { gap: 8 }]}>
           <View style={s.infoLeft}>
             <Feather name="globe" size={16} color={colors.mutedForeground} />
@@ -131,24 +112,6 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             ))}
           </View>
-        </View>
-      </View>
-
-      <View style={s.card}>
-        <Text style={s.cardTitle}>{t.profile.app}</Text>
-        <View style={s.infoRow}>
-          <View style={s.infoLeft}>
-            <Feather name="info" size={16} color={colors.mutedForeground} />
-            <Text style={s.infoLabel}>{t.profile.version}</Text>
-          </View>
-          <Text style={s.infoValue}>1.0.0</Text>
-        </View>
-        <View style={[s.infoRow, s.infoRowBorder, { borderTopWidth: 1 }]}>
-          <View style={s.infoLeft}>
-            <Feather name="check-square" size={16} color={colors.primary} />
-            <Text style={s.infoLabel}>TaskDesk</Text>
-          </View>
-          <Text style={s.infoValue}>{t.profile.ticketingSystem}</Text>
         </View>
       </View>
 
@@ -302,6 +265,14 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     roleBadgeAdmin: { backgroundColor: colors.primary + "22" },
     roleText: { fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_500Medium" },
     roleTextAdmin: { color: colors.primary },
+    emailLine: {
+      flexDirection: "row", alignItems: "center", justifyContent: "center",
+      gap: 7, marginTop: 10, maxWidth: "100%",
+    },
+    emailText: {
+      flexShrink: 1, fontSize: 14, color: colors.mutedForeground,
+      fontFamily: "Inter_500Medium",
+    },
     card: {
       backgroundColor: colors.card, borderRadius: 14,
       borderWidth: 1, borderColor: colors.border, overflow: "hidden",
@@ -322,23 +293,23 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     backgroundColor: colors.primary, marginLeft: 16,
   },
   toolList: {
-    flexDirection: "column", paddingHorizontal: 12, paddingVertical: 12, gap: 9,
+    flexDirection: "column", paddingHorizontal: 12, paddingVertical: 10, gap: 6,
   },
   toolRow: {
-    width: "100%", minHeight: 68, flexDirection: "row", alignItems: "center",
-    gap: 12, paddingHorizontal: 12, paddingVertical: 10,
-    borderWidth: 1, borderLeftWidth: 4, borderRadius: 14,
+    width: "100%", minHeight: 54, flexDirection: "row", alignItems: "center",
+    gap: 10, paddingHorizontal: 10, paddingVertical: 7,
+    borderWidth: 1, borderLeftWidth: 3, borderRadius: 12,
   },
   toolIconWrap: {
-    width: 42, height: 42, borderRadius: 13, borderWidth: 1,
+    width: 34, height: 34, borderRadius: 11, borderWidth: 1,
     alignItems: "center", justifyContent: "center",
   },
   toolLabel: {
-    flex: 1, fontSize: 15, lineHeight: 20, color: colors.foreground,
+    flex: 1, fontSize: 14, lineHeight: 18, color: colors.foreground,
     fontFamily: "Inter_600SemiBold",
   },
   toolArrow: {
-    width: 32, height: 32, borderRadius: 11,
+    width: 26, height: 26, borderRadius: 9,
     alignItems: "center", justifyContent: "center",
   },
     infoRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 14 },

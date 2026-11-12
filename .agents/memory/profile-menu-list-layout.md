@@ -1,10 +1,10 @@
 ---
-name: Profile menu list layout
-description: User-approved layout for the mobile Profile tools and admin menus.
+name: Profile screen information and menu layout
+description: User-approved information hierarchy and action-list treatment for the mobile Profile screen.
 ---
 
-Keep “Altri strumenti” and “Amministrazione” as single-column action lists, not grids. Restyle the rows with clear visual accents while keeping the existing item order and access rules.
+Keep the email directly below the user's name and role. Do not show separate Account information or App cards. Place the language selector under a Settings heading. Keep “Altri strumenti” and “Amministrazione” as compact, single-column action lists, not grids.
 
-**Why:** The user explicitly said a list is preferred and rejected the grid layout.
+**Why:** The user explicitly requested this Profile layout and rejected a grid for the menu.
 
-**How to apply:** When changing these Profile menus, use vertical rows and vary their visual treatment without changing their actions or visibility.
+**How to apply:** Preserve the email placement, Settings grouping, omitted cards, compact vertical rows, item order, and access rules when changing this screen.
