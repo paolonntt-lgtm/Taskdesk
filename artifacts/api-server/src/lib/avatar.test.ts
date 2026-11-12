@@ -1,5 +1,7 @@
+import sharp from "sharp";
 import { describe, expect, it } from "vitest";
 import {
+  convertLegacyAvatarToThumbnail,
   limitTeamAvatarPayload,
   MAX_PROFILE_AVATAR_LENGTH,
   MAX_TEAM_AVATAR_PAYLOAD_LENGTH,
@@ -27,5 +29,32 @@ describe("limitTeamAvatarPayload", () => {
     ]);
 
     expect(result.map((user) => user.avatarUrl)).toEqual([null, "small-photo"]);
+  });
+});
+
+describe("convertLegacyAvatarToThumbnail", () => {
+  it("converts an oversized image into a compact team-list thumbnail", async () => {
+    const pixels = Buffer.alloc(400 * 400 * 3);
+    for (let i = 0; i < pixels.length; i++) pixels[i] = (i * 73 + (i >> 4)) % 256;
+    const original = await sharp(pixels, {
+      raw: { width: 400, height: 400, channels: 3 },
+    }).jpeg({ quality: 100 }).toBuffer();
+    const source = `data:image/jpeg;base64,${original.toString("base64")}`;
+    expect(source.length).toBeGreaterThan(MAX_PROFILE_AVATAR_LENGTH);
+
+    const thumbnail = await convertLegacyAvatarToThumbnail(source);
+
+    expect(thumbnail).not.toBeNull();
+    expect(thumbnail!.length).toBeLessThanOrEqual(MAX_PROFILE_AVATAR_LENGTH);
+    const converted = await sharp(Buffer.from(thumbnail!.split(",")[1], "base64")).metadata();
+    expect(converted.width).toBeLessThanOrEqual(256);
+    expect(converted.height).toBeLessThanOrEqual(256);
+  });
+
+  it("leaves unsupported and corrupt legacy image data unchanged", async () => {
+    await expect(convertLegacyAvatarToThumbnail("data:image/svg+xml;base64,PHN2Zz4="))
+      .resolves.toBeNull();
+    await expect(convertLegacyAvatarToThumbnail("data:image/jpeg;base64,not-an-image"))
+      .resolves.toBeNull();
   });
 });

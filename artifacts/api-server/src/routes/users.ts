@@ -13,7 +13,7 @@ import {
 } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { CreateUserBody, UpdateUserBody } from "@workspace/api-zod";
-import { randomBytes } from "crypto";
+import { createHash, randomBytes } from "crypto";
 import { hashPassword } from "./auth";
 import { destroySessionsForUser } from "../lib/session";
 import { getSeatUsage, buildSeatLimitError } from "../seatService";
@@ -25,9 +25,15 @@ import {
 } from "../lib/groupPermissions";
 import { notifyPermissionChanged } from "../lib/permissionEvents";
 import { disconnectOneDriveUser } from "../lib/onedriveGraph";
-import { limitTeamAvatarPayload } from "../lib/avatar";
+import {
+  convertLegacyAvatarToThumbnail,
+  limitTeamAvatarPayload,
+  MAX_PROFILE_AVATAR_LENGTH,
+} from "../lib/avatar";
 
 const router: IRouter = Router();
+const avatarConversionsInFlight = new Set<number>();
+const unconvertibleAvatars = new Map<number, string>();
 
 const userFields = {
   id: usersTable.id,
@@ -53,6 +59,43 @@ async function isTimeTrackingModuleEnabled(organizationId: number | null): Promi
     .from(organizationsTable)
     .where(eq(organizationsTable.id, organizationId));
   return organization?.enabled === true;
+}
+
+function scheduleLegacyAvatarConversion(userId: number, avatarUrl: string): void {
+  if (
+    avatarUrl.length <= MAX_PROFILE_AVATAR_LENGTH
+    || avatarConversionsInFlight.has(userId)
+  ) {
+    return;
+  }
+
+  avatarConversionsInFlight.add(userId);
+  setImmediate(() => {
+    const avatarFingerprint = createHash("sha256").update(avatarUrl).digest("hex");
+    if (unconvertibleAvatars.get(userId) === avatarFingerprint) {
+      avatarConversionsInFlight.delete(userId);
+      return;
+    }
+
+    void convertLegacyAvatarToThumbnail(avatarUrl)
+      .then(async (thumbnail) => {
+        if (!thumbnail) {
+          unconvertibleAvatars.set(userId, avatarFingerprint);
+          return;
+        }
+
+        await db
+          .update(usersTable)
+          .set({ avatarUrl: thumbnail })
+          .where(and(eq(usersTable.id, userId), eq(usersTable.avatarUrl, avatarUrl)));
+      })
+      .catch((error) => {
+        console.error(`Failed to convert legacy avatar for user ${userId}`, error);
+      })
+      .finally(() => {
+        avatarConversionsInFlight.delete(userId);
+      });
+  });
 }
 
 router.get("/users", requireAuth, async (req, res): Promise<void> => {
@@ -134,6 +177,12 @@ router.get("/users", requireAuth, async (req, res): Promise<void> => {
     };
   });
   res.json(limitTeamAvatarPayload(responseUsers));
+
+  for (const user of responseUsers) {
+    if (typeof user.avatarUrl === "string" && user.avatarUrl.length > MAX_PROFILE_AVATAR_LENGTH) {
+      scheduleLegacyAvatarConversion(user.id, user.avatarUrl);
+    }
+  }
 });
 
 router.post("/users", requireAuth, requireAdmin, async (req, res): Promise<void> => {

@@ -28,6 +28,7 @@
     "pino": "^9",
     "pino-http": "^10",
     "resend": "4.0.0",
+    "sharp": "^0.35.5",
     "stripe": "catalog:",
     "stripe-replit-sync": "catalog:",
     "zod": "catalog:"
