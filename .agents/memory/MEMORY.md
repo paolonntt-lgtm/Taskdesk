@@ -77,3 +77,4 @@
 - [Gym client profile](gym-client-profile.md) — Keep gym profiles focused on member details, the approved Italian ticket categories, and optional membership numbers.
 - [Self-service account deletion](self-service-account-deletion.md) — Anonymize and deactivate only the account, retain organization records and billing, and block deletion by the last administrator.
 - [Mobile admin settings organization](mobile-admin-settings-organization.md) — Keep four settings sections and the approved vivid blue, teal, and amber visual direction.
+- [Profile menu list layout](profile-menu-list-layout.md) — Keep Profile tools and admin options as a colorful single-column list, not a grid.
