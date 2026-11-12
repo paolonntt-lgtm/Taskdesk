@@ -12,6 +12,7 @@ export interface CurrentWeather {
   conditionCode: number;
   isDay: boolean;
   observedAt: string;
+  locationName: string | null;
 }
 
 export interface TicketDriveFolderInput {

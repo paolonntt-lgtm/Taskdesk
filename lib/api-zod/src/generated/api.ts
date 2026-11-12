@@ -31,7 +31,8 @@ export const GetCurrentWeatherResponse = zod.object({
   "conditionText": zod.string(),
   "conditionCode": zod.int(),
   "isDay": zod.boolean(),
-  "observedAt": zod.string()
+  "observedAt": zod.string(),
+  "locationName": zod.string().nullable()
 })
 
 

@@ -53,7 +53,7 @@ const mocks = vi.hoisted(() => ({
     queryKey: unknown[];
     queryFn: () => Promise<unknown>;
   },
-  platformOS: "ios" as "ios" | "android",
+  platformOS: "ios" as "ios" | "android" | "web",
   screenWidth: 390,
   language: "en" as "en" | "it",
   notifications: [{ id: 1, isRead: false }, { id: 2, isRead: false }] as {
@@ -628,6 +628,22 @@ describe("mobile ticket creation navigation", () => {
     expect(locationButton?.textContent).not.toContain("Finding location");
     expect(mocks.getCurrentPosition).not.toHaveBeenCalled();
     expect(mocks.alert).toHaveBeenCalledOnce();
+  });
+
+  it("uses browser geolocation and shows approximate coordinates without external geocoding", async () => {
+    mocks.platformOS = "web";
+    mocks.locationPermission = { granted: false, canAskAgain: true, status: "undetermined" };
+    await render(DashboardScreen);
+
+    const locationButton = host.querySelector<HTMLButtonElement>('[data-testid="dashboard-hero-gps-button"]');
+    expect(locationButton).not.toBeNull();
+    await act(async () => locationButton?.click());
+    const disclosureButtons = mocks.alert.mock.calls[0]?.[2] as Array<{ onPress?: () => void }> | undefined;
+    await act(async () => disclosureButtons?.[1]?.onPress?.());
+
+    expect(host.querySelector('[data-testid="dashboard-hero-location"]')?.textContent).toBe("45.46, 9.19");
+    expect(mocks.reverseGeocode).not.toHaveBeenCalled();
+    expect(mocks.requestLocationPermission).not.toHaveBeenCalled();
   });
 
   it("shows the TaskDesk logo and search field in the Dashboard header", async () => {

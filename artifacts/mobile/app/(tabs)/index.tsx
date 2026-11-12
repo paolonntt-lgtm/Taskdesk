@@ -112,7 +112,9 @@ export default function DashboardScreen() {
   const [gpsCoordinates, setGpsCoordinates] = useState<{ latitude: number; longitude: number } | null>(null);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [weatherConsent, setWeatherConsent] = useState<WeatherConsent>("loading");
-  const [locationPermission, requestLocationPermission] = Location.useForegroundPermissions();
+  const [locationPermission, requestLocationPermission] = Location.useForegroundPermissions({
+    get: Platform.OS !== "web",
+  });
   const locationPromptedThisMount = useRef(false);
   const locationPromptActive = useRef(false);
   const weatherPromptActive = useRef(false);
@@ -181,7 +183,6 @@ export default function DashboardScreen() {
     month: "short",
   }).format(now).replace(/\.$/, "");
   const mainLocation = user?.mainLocation?.trim();
-  const displayLocation = gpsLocation || mainLocation;
   const weatherParams = {
     lat: gpsCoordinates?.latitude ?? 0,
     lon: gpsCoordinates?.longitude ?? 0,
@@ -196,6 +197,9 @@ export default function DashboardScreen() {
       retry: 1,
     },
   });
+  const displayLocation = Platform.OS === "web"
+    ? weatherQuery.data?.locationName || gpsLocation || mainLocation
+    : gpsLocation || weatherQuery.data?.locationName || mainLocation;
 
   const onRefresh = () => {
     void refetchStats();
@@ -205,11 +209,13 @@ export default function DashboardScreen() {
 
   const captureGpsLocation = async (askSystemPermission = false) => {
     try {
-      const permission = locationPermission?.granted
-        ? locationPermission
-        : askSystemPermission && locationPermission?.canAskAgain
-          ? await withTimeout(requestLocationPermission(), LOCATION_PERMISSION_TIMEOUT_MS)
-          : locationPermission;
+      const permission = Platform.OS === "web"
+        ? { granted: true, canAskAgain: true }
+        : locationPermission?.granted
+          ? locationPermission
+          : askSystemPermission && locationPermission?.canAskAgain
+            ? await withTimeout(requestLocationPermission(), LOCATION_PERMISSION_TIMEOUT_MS)
+            : locationPermission;
       if (!permission?.granted) {
         if (permission && !permission.canAskAgain) {
           Alert.alert(t.dashboard.locationDisclosureTitle, t.dashboard.locationPermissionDenied, [
@@ -245,22 +251,28 @@ export default function DashboardScreen() {
         if (!lastKnownPosition) throw currentPositionError;
         position = lastKnownPosition;
       }
-      setGpsCoordinates({
+      const roundedCoordinates = {
         latitude: Math.round(position.coords.latitude * 100) / 100,
         longitude: Math.round(position.coords.longitude * 100) / 100,
-      });
-      try {
-        const [address] = await withTimeout(
-          Location.reverseGeocodeAsync({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-          }),
-          REVERSE_GEOCODE_TIMEOUT_MS,
-        );
-        const area = address?.city ?? address?.subregion ?? address?.region;
-        if (area) setGpsLocation([area, address?.country].filter(Boolean).join(", "));
-      } catch {
-        setGpsLocation(mainLocation || null);
+      };
+      setGpsCoordinates(roundedCoordinates);
+      if (Platform.OS === "web") {
+        setGpsLocation(`${roundedCoordinates.latitude.toFixed(2)}, ${roundedCoordinates.longitude.toFixed(2)}`);
+      } else {
+        try {
+          const [address] = await withTimeout(
+            Location.reverseGeocodeAsync({
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+            }),
+            REVERSE_GEOCODE_TIMEOUT_MS,
+          );
+          const area = address?.city ?? address?.subregion ?? address?.region;
+          if (area) setGpsLocation([area, address?.country].filter(Boolean).join(", "));
+          else setGpsLocation(mainLocation || null);
+        } catch {
+          setGpsLocation(mainLocation || null);
+        }
       }
     } catch {
       Alert.alert(t.dashboard.locationDisclosureTitle, t.dashboard.locationUnavailable);
@@ -337,7 +349,7 @@ export default function DashboardScreen() {
   }, [weatherConsent, gpsCoordinates, user?.id, lang]);
 
   const handleWeatherPress = () => {
-    if (Platform.OS === "web" || weatherConsent === "loading") return;
+    if (weatherConsent === "loading") return;
     if (!gpsCoordinates) {
       if (locationPermission?.granted) void captureGpsLocation();
       else askForGpsLocation();
@@ -425,25 +437,23 @@ export default function DashboardScreen() {
                 </Text>
               </View>
             ) : null}
-            {Platform.OS !== "web" ? (
-              <TouchableOpacity
-                style={s.heroMetaItem}
-                onPress={askForGpsLocation}
-                disabled={isGettingLocation || !locationPermission}
-                activeOpacity={0.7}
-                accessibilityRole="button"
-                testID="dashboard-hero-gps-button"
-              >
+            <TouchableOpacity
+              style={s.heroMetaItem}
+              onPress={askForGpsLocation}
+              disabled={isGettingLocation || (Platform.OS !== "web" && !locationPermission)}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              testID="dashboard-hero-gps-button"
+            >
+              {isGettingLocation
+                ? <ActivityIndicator size="small" color={colors.primaryForeground} />
+                : <Feather name="map-pin" size={12} color={colors.primaryForeground} />}
+              <Text style={s.heroMetaText}>
                 {isGettingLocation
-                  ? <ActivityIndicator size="small" color={colors.primaryForeground} />
-                  : <Feather name="map-pin" size={12} color={colors.primaryForeground} />}
-                <Text style={s.heroMetaText}>
-                  {isGettingLocation
-                    ? (lang === "it" ? "Ricerca posizione…" : "Finding location…")
-                    : gpsLocation ? t.dashboard.refreshGpsLocation : t.dashboard.useGpsLocation}
-                </Text>
-              </TouchableOpacity>
-            ) : null}
+                  ? (lang === "it" ? "Ricerca posizione…" : "Finding location…")
+                  : gpsLocation ? t.dashboard.refreshGpsLocation : t.dashboard.useGpsLocation}
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
         <TouchableOpacity
