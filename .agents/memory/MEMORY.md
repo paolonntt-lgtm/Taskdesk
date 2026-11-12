@@ -78,3 +78,4 @@
 - [Self-service account deletion](self-service-account-deletion.md) — Anonymize and deactivate only the account, retain organization records and billing, and block deletion by the last administrator.
 - [Mobile admin settings organization](mobile-admin-settings-organization.md) — Keep four settings sections and the approved vivid blue, teal, and amber visual direction.
 - [Profile screen information and menu layout](profile-menu-list-layout.md) — Show email under identity, group language under Settings, omit Account/App cards, and keep compact vertical menus.
+- [Ritorno dopo creazione ticket mobile](ticket-create-back-navigation.md) — Dal dettaglio di un ticket appena creato, Indietro torna all’elenco, non al modulo.

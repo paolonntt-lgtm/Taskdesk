@@ -19,6 +19,7 @@ import {
   processPendingTicketAttachments,
   savePendingTicketAttachments,
 } from "@/utils/pendingTicketAttachments";
+import { getCreatedTicketDetailHref } from "@/utils/ticketCreationNavigation";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import * as Haptics from "expo-haptics";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
@@ -332,14 +333,14 @@ export default function NewTicketScreen() {
       qc.invalidateQueries({ queryKey: ["clients"] });
       setLoading(false);
       setUploading(false);
-      router.push(`/ticket/${ticket.id}`);
+      router.push(getCreatedTicketDetailHref(ticket.id) as any);
     } catch (e: any) {
       if (createdTicketId != null) {
         qc.invalidateQueries({ queryKey: ["tickets"] });
         setLoading(false);
         setUploading(false);
         Alert.alert(t.newTicket.createdButIncomplete, e.message || t.newTicket.uploadFileError);
-        router.push(`/ticket/${createdTicketId}`);
+        router.push(getCreatedTicketDetailHref(createdTicketId) as any);
       } else {
         Alert.alert(t.newTicket.errorCreate, e.message || t.newTicket.errorCreateMsg);
       }

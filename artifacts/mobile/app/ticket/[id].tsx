@@ -2,11 +2,11 @@ import React, { useEffect, useState } from "react";
 import {
   View, Text, ScrollView, StyleSheet,
   TouchableOpacity, TextInput, ActivityIndicator,
-  Alert, Platform, Modal, KeyboardAvoidingView, Pressable,
+  Alert, Platform, Modal, KeyboardAvoidingView, Pressable, BackHandler,
 } from "react-native";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -34,6 +34,7 @@ import {
   canEditTicketDetails,
   canViewTicketTrackedTime,
 } from "@/utils/ticketDetailRules";
+import { getTicketDetailBackHref } from "@/utils/ticketCreationNavigation";
 
 type RecurrenceFreq = "daily" | "weekly" | "monthly" | "yearly";
 
@@ -106,9 +107,49 @@ export default function TicketDetailScreen() {
   const { user } = useAuth();
   const { t, lang } = useLanguage();
   const { statuses: orgStatuses, isClosedKey, getLabelForKey } = useTicketStatuses();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, returnTo } = useLocalSearchParams<{ id: string; returnTo?: string | string[] }>();
   const qc = useQueryClient();
   const s = styles(colors);
+  const ticketListBackHref = getTicketDetailBackHref(returnTo);
+  const handleBack = () => {
+    if (ticketListBackHref) {
+      router.dismissTo(ticketListBackHref);
+      return;
+    }
+    router.back();
+  };
+  const stackScreen = (
+    <Stack.Screen
+      options={{
+        headerBackVisible: !ticketListBackHref,
+        gestureEnabled: !ticketListBackHref,
+        headerLeft: ticketListBackHref
+          ? () => (
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel={t.ticketDetail.goBack}
+                testID="ticket-detail-back-to-list"
+                onPress={handleBack}
+                style={{ flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 8, paddingRight: 12 }}
+              >
+                <Feather name="chevron-left" size={22} color={colors.primary} />
+                <Text style={{ color: colors.primary, fontFamily: "Inter_500Medium", fontSize: 15 }}>
+                  {t.ticketDetail.goBack}
+                </Text>
+              </TouchableOpacity>
+            )
+          : undefined,
+      }}
+    />
+  );
+  useEffect(() => {
+    if (!ticketListBackHref || Platform.OS !== "android") return;
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      router.dismissTo(ticketListBackHref);
+      return true;
+    });
+    return () => subscription.remove();
+  }, [ticketListBackHref]);
   const organizationSettingsQuery = useQuery({
     queryKey: ["mobile-organization-settings", user?.organizationId],
     queryFn: () => apiGet<{ workedTimeEnabled?: boolean; timeTrackingModuleEnabled?: boolean }>("/settings/organization"),
@@ -571,20 +612,26 @@ export default function TicketDetailScreen() {
 
   if (isLoading) {
     return (
-      <View style={s.center}>
-        <ActivityIndicator color={colors.primary} size="large" />
-      </View>
+      <>
+        {stackScreen}
+        <View style={s.center}>
+          <ActivityIndicator color={colors.primary} size="large" />
+        </View>
+      </>
     );
   }
   if (!ticket) {
     return (
-      <View style={s.center}>
-        <Feather name="alert-circle" size={32} color={colors.destructive} />
-        <Text style={s.errorText}>{t.ticketDetail.notFound}</Text>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-          <Text style={s.backBtnText}>{t.ticketDetail.goBack}</Text>
-        </TouchableOpacity>
-      </View>
+      <>
+        {stackScreen}
+        <View style={s.center}>
+          <Feather name="alert-circle" size={32} color={colors.destructive} />
+          <Text style={s.errorText}>{t.ticketDetail.notFound}</Text>
+          <TouchableOpacity onPress={handleBack} style={s.backBtn}>
+            <Text style={s.backBtnText}>{t.ticketDetail.goBack}</Text>
+          </TouchableOpacity>
+        </View>
+      </>
     );
   }
 
@@ -633,6 +680,7 @@ export default function TicketDetailScreen() {
 
   return (
     <>
+      {stackScreen}
       <KeyboardAwareScrollView
         style={s.root}
         contentContainerStyle={[s.content, { paddingBottom: Platform.OS === "web" ? 100 : 24 }]}
