@@ -1,26 +1,32 @@
 import React, { useState } from "react";
 import {
-  View, Text, StyleSheet, TouchableOpacity,
+  View, Text, Image, StyleSheet, TouchableOpacity, Linking,
   ScrollView, Alert, Platform, Share, ActivityIndicator,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
+import * as ImageManipulator from "expo-image-manipulator";
 import { router } from "expo-router";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Lang } from "@/i18n/translations";
 import * as Haptics from "expo-haptics";
-import { apiPost } from "@/utils/api";
+import { apiPatch, apiPost } from "@/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { apiGet } from "@/utils/api";
 import { getOptionalProfileMenuItems, type MobileOrganizationSettings } from "@/utils/profileMenu";
 
 export default function ProfileScreen() {
   const colors = useColors();
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const { t, lang, setLang } = useLanguage();
   const s = styles(colors);
   const [generatingInvite, setGeneratingInvite] = useState(false);
+  const [avatarOverride, setAvatarOverride] = useState<string | null | undefined>(undefined);
+  const [avatarSaving, setAvatarSaving] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [mediaPermission, requestMediaPermission] = ImagePicker.useMediaLibraryPermissions();
   const organizationSettings = useQuery({
     queryKey: ["mobile-profile-organization-settings", user?.organizationId],
     queryFn: () => apiGet<MobileOrganizationSettings>("/settings/organization"),
@@ -46,6 +52,92 @@ export default function ProfileScreen() {
     }
   };
 
+  const saveAvatar = async (avatarUrl: string | null) => {
+    setAvatarSaving(true);
+    setAvatarError(null);
+    try {
+      const result = await apiPatch<{ user?: { avatarUrl?: string | null } }>("/auth/profile", { avatarUrl });
+      const savedAvatarUrl = result.user?.avatarUrl ?? avatarUrl;
+      setAvatarOverride(savedAvatarUrl);
+      updateUser({ avatarUrl: savedAvatarUrl });
+    } catch {
+      setAvatarError(t.profile.photoUpdateError);
+    } finally {
+      setAvatarSaving(false);
+    }
+  };
+
+  const handlePickAvatar = async () => {
+    setAvatarError(null);
+    if (!mediaPermission?.granted) {
+      let permission;
+      try {
+        permission = await requestMediaPermission();
+      } catch {
+        setAvatarError(t.profile.photoUpdateError);
+        return;
+      }
+      if (!permission.granted) {
+        if (Platform.OS !== "web" && !permission.canAskAgain) {
+          Alert.alert(t.profile.photoPermissionTitle, t.profile.photoPermissionMessage, [
+            { text: t.profile.logoutCancel, style: "cancel" },
+            { text: t.profile.photoOpenSettings, onPress: () => { void Linking.openSettings().catch(() => {}); } },
+          ]);
+        } else {
+          Alert.alert(t.profile.photoPermissionTitle, t.profile.photoPermissionMessage);
+        }
+        return;
+      }
+    }
+
+    try {
+      const selection = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+      });
+      if (selection.canceled) return;
+
+      const asset = selection.assets[0];
+      if (!asset) return;
+      if (asset.fileSize && asset.fileSize > 10 * 1024 * 1024) {
+        setAvatarError(t.profile.photoSizeError);
+        return;
+      }
+
+      setAvatarSaving(true);
+      let avatarUrl: string | null = null;
+      for (const compress of [0.82, 0.68, 0.54, 0.4]) {
+        const image = await ImageManipulator.manipulateAsync(
+          asset.uri,
+          [{ resize: { width: 1024 } }],
+          { compress, format: ImageManipulator.SaveFormat.JPEG, base64: true },
+        );
+        if (image.base64 && image.base64.length < 1_900_000) {
+          avatarUrl = `data:image/jpeg;base64,${image.base64}`;
+          break;
+        }
+      }
+      if (!avatarUrl) {
+        setAvatarError(t.profile.photoSizeError);
+        setAvatarSaving(false);
+        return;
+      }
+      await saveAvatar(avatarUrl);
+    } catch {
+      setAvatarError(t.profile.photoUpdateError);
+      setAvatarSaving(false);
+    }
+  };
+
+  const confirmRemoveAvatar = () => {
+    Alert.alert(t.profile.photoRemoveTitle, t.profile.photoRemoveConfirm, [
+      { text: t.profile.logoutCancel, style: "cancel" },
+      { text: t.profile.photoRemove, style: "destructive", onPress: () => { void saveAvatar(null); } },
+    ]);
+  };
+
   const handleLogout = () => {
     Alert.alert(t.profile.logoutTitle, t.profile.logoutMessage, [
       { text: t.profile.logoutCancel, style: "cancel" },
@@ -60,6 +152,7 @@ export default function ProfileScreen() {
   };
 
   const initials = user?.name?.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase() ?? "?";
+  const avatarUrl = avatarOverride === undefined ? user?.avatarUrl ?? null : avatarOverride;
   const isOrganizationAdmin = user?.role === "admin" && user.organizationId != null;
   const menuAccents = [colors.primary, colors.accent, colors.warning];
   const openSection = (path: string) =>
@@ -77,9 +170,49 @@ export default function ProfileScreen() {
       showsVerticalScrollIndicator={false}
     >
       <View style={s.avatarSection}>
-        <View style={s.avatar}>
-          <Text style={s.initials}>{initials}</Text>
+        <TouchableOpacity
+          style={s.avatarButton}
+          onPress={() => void handlePickAvatar()}
+          disabled={avatarSaving}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel={avatarUrl ? t.profile.photoChange : t.profile.photoAdd}
+          accessibilityState={{ disabled: avatarSaving, busy: avatarSaving }}
+          testID="profile-avatar-button"
+        >
+          {avatarUrl
+            ? <Image source={{ uri: avatarUrl }} style={s.avatar} resizeMode="cover" />
+            : <View style={s.avatar}><Text style={s.initials}>{initials}</Text></View>
+          }
+          <View style={s.avatarCameraBadge}>
+            <Feather name="camera" size={14} color={colors.primaryForeground} />
+          </View>
+        </TouchableOpacity>
+        <View style={s.avatarActions}>
+          <TouchableOpacity
+            onPress={() => void handlePickAvatar()}
+            disabled={avatarSaving}
+            accessibilityRole="button"
+          >
+            <Text style={s.avatarActionText}>{avatarUrl ? t.profile.photoChange : t.profile.photoAdd}</Text>
+          </TouchableOpacity>
+          {avatarUrl ? (
+            <TouchableOpacity
+              onPress={confirmRemoveAvatar}
+              disabled={avatarSaving}
+              accessibilityRole="button"
+            >
+              <Text style={s.avatarRemoveText}>{t.profile.photoRemove}</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
+        {avatarSaving ? (
+          <View style={s.avatarStatus}>
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text style={s.avatarStatusText}>{t.profile.photoUploading}</Text>
+          </View>
+        ) : null}
+        {avatarError ? <Text style={s.avatarError} accessibilityRole="alert">{avatarError}</Text> : null}
         <Text style={s.name}>{user?.name}</Text>
         <View style={[s.roleBadge, (user?.role === "admin" || user?.isSuperAdmin) && s.roleBadgeAdmin]}>
           <Text style={[s.roleText, (user?.role === "admin" || user?.isSuperAdmin) && s.roleTextAdmin]}>
@@ -237,12 +370,26 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     root: { flex: 1, backgroundColor: colors.background },
     content: { padding: 20, gap: 16 },
     avatarSection: { alignItems: "center", paddingVertical: 24 },
+    avatarButton: {
+      width: 80, height: 80, marginBottom: 9,
+    },
     avatar: {
       width: 80, height: 80, borderRadius: 40,
       backgroundColor: colors.primary,
-      alignItems: "center", justifyContent: "center",
-      marginBottom: 12,
+      alignItems: "center", justifyContent: "center", overflow: "hidden",
     },
+    avatarCameraBadge: {
+      position: "absolute", right: 0, bottom: 0,
+      width: 27, height: 27, borderRadius: 14,
+      alignItems: "center", justifyContent: "center",
+      backgroundColor: colors.primary, borderWidth: 2, borderColor: colors.background,
+    },
+    avatarActions: { flexDirection: "row", alignItems: "center", gap: 16, marginBottom: 8 },
+    avatarActionText: { color: colors.primary, fontSize: 13, fontFamily: "Inter_600SemiBold" },
+    avatarRemoveText: { color: colors.destructive, fontSize: 13, fontFamily: "Inter_500Medium" },
+    avatarStatus: { flexDirection: "row", alignItems: "center", gap: 7, marginBottom: 8 },
+    avatarStatusText: { color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular" },
+    avatarError: { color: colors.destructive, fontSize: 12, marginBottom: 8, textAlign: "center" },
     initials: { fontSize: 28, fontWeight: "700" as const, color: colors.primaryForeground, fontFamily: "Inter_700Bold" },
     name: { fontSize: 22, fontWeight: "700" as const, color: colors.foreground, marginBottom: 8, fontFamily: "Inter_700Bold" },
     roleBadge: {

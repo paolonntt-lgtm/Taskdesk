@@ -39,6 +39,14 @@
       ],
       "expo-font",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "TaskDesk accede alle foto solo per impostare la tua immagine profilo. / TaskDesk accesses photos only to set your profile picture.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ],
+      [
         "expo-location",
         {
           "locationWhenInUsePermission": "TaskDesk uses location only while the app is open to show your area on the dashboard. Coordinates are not saved. / TaskDesk usa la posizione solo con l’app aperta per mostrare la zona nella dashboard. Le coordinate non vengono salvate."

@@ -21,6 +21,7 @@ interface User {
   clientsEnabled?: boolean;
   workedTimeEnabled?: boolean;
   mainLocation?: string | null;
+  avatarUrl?: string | null;
   groupPermissions?: string[];
   isActive: boolean;
   createdAt: string;
@@ -33,6 +34,7 @@ interface AuthContextType {
   requestPasswordReset: (email: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  updateUser: (updates: Partial<User>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -162,8 +164,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   };
 
+  const updateUser = (updates: Partial<User>) => {
+    setUser((current) => current ? { ...current, ...updates } : current);
+  };
+
   return (
-      <AuthContext.Provider value={{ user, isLoading, login, requestPasswordReset, register, logout }}>
+      <AuthContext.Provider value={{ user, isLoading, login, requestPasswordReset, register, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

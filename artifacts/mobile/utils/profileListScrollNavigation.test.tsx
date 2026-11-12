@@ -24,6 +24,10 @@ const mocks = vi.hoisted(() => ({
     assignee?: { name: string };
   }>,
   apiGet: vi.fn(() => Promise.resolve([])),
+  apiPatch: vi.fn(),
+  updateUser: vi.fn(),
+  launchImageLibraryAsync: vi.fn(),
+  manipulateAsync: vi.fn(),
 }));
 
 vi.mock("react-native", async () => {
@@ -180,6 +184,14 @@ vi.mock("expo-router", async () => {
 });
 
 vi.mock("expo-blur", () => ({ BlurView: () => null }));
+vi.mock("expo-image-picker", () => ({
+  useMediaLibraryPermissions: () => [{ granted: true }, vi.fn()],
+  launchImageLibraryAsync: mocks.launchImageLibraryAsync,
+}));
+vi.mock("expo-image-manipulator", () => ({
+  manipulateAsync: mocks.manipulateAsync,
+  SaveFormat: { JPEG: "jpeg" },
+}));
 vi.mock("expo-haptics", () => ({
   impactAsync: vi.fn(),
   ImpactFeedbackStyle: { Light: "light", Medium: "medium" },
@@ -202,6 +214,7 @@ vi.mock("@/contexts/AuthContext", () => ({
       organizationId: 7,
     },
     logout: vi.fn(),
+      updateUser: mocks.updateUser,
   }),
 }));
 vi.mock("@/contexts/LanguageContext", () => ({
@@ -222,6 +235,17 @@ vi.mock("@/contexts/LanguageContext", () => ({
       profile: {
         settings: "Settings",
         languageLabel: "App language",
+        photoAdd: "Add photo",
+        photoChange: "Change photo",
+        photoRemove: "Remove photo",
+        photoRemoveTitle: "Remove profile photo?",
+        photoRemoveConfirm: "You can add it again at any time.",
+        photoPermissionTitle: "Photo access",
+        photoPermissionMessage: "Allow access to choose a photo.",
+        photoOpenSettings: "Open settings",
+        photoSizeError: "This image is too large.",
+        photoUpdateError: "Could not update the photo.",
+        photoUploading: "Saving photo…",
         admin: "Administrator",
         user: "User",
         administration: "Administration",
@@ -256,7 +280,7 @@ vi.mock("@/hooks/useTicketStatuses", () => ({
 vi.mock("@/utils/api", () => ({
   PRIORITY_COLORS: { urgent: "#f00", high: "#f80", normal: "#08f", low: "#888" },
   apiGet: mocks.apiGet,
-  apiPatch: vi.fn(),
+  apiPatch: mocks.apiPatch,
   apiPost: vi.fn(),
 }));
 vi.mock("@tanstack/react-query", () => ({
@@ -338,6 +362,16 @@ describe("mobile list position after returning from Profile", () => {
     mocks.ticketQueryFn = undefined;
     mocks.dashboardTickets = [];
     mocks.apiGet.mockClear();
+    mocks.apiPatch.mockReset();
+    mocks.apiPatch.mockResolvedValue({ user: { avatarUrl: "data:image/jpeg;base64,abc" } });
+    mocks.updateUser.mockClear();
+    mocks.launchImageLibraryAsync.mockReset();
+    mocks.launchImageLibraryAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: "file://profile.jpg", fileSize: 1024 }],
+    });
+    mocks.manipulateAsync.mockReset();
+    mocks.manipulateAsync.mockResolvedValue({ base64: "abc" });
     mocks.routerPush.mockClear();
   });
 
@@ -369,6 +403,32 @@ describe("mobile list position after returning from Profile", () => {
       pathname: "/reports",
       params: { fromProfile: "1" },
     });
+  });
+
+  it("compresses and saves a selected profile photo", async () => {
+    await act(async () => root.render(React.createElement(ProfileScreen)));
+    const avatarButton = host.querySelector('[data-testid="profile-avatar-button"]');
+    expect(avatarButton?.getAttribute("aria-label")).toBe("Add photo");
+
+    await act(async () => {
+      avatarButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(mocks.launchImageLibraryAsync).toHaveBeenCalledWith(expect.objectContaining({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+    }));
+    expect(mocks.manipulateAsync).toHaveBeenCalled();
+    expect(mocks.apiPatch).toHaveBeenCalledWith("/auth/profile", {
+      avatarUrl: "data:image/jpeg;base64,abc",
+    });
+    expect(mocks.updateUser).toHaveBeenCalledWith({
+      avatarUrl: "data:image/jpeg;base64,abc",
+    });
+    expect(
+      host.querySelector('[data-testid="profile-avatar-button"]')?.getAttribute("aria-label"),
+    ).toBe("Change photo");
   });
 
   it("shows a back button that returns from a Profile section", async () => {
