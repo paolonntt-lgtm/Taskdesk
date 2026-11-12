@@ -133,7 +133,7 @@ export function SingleList() {
         .single-row-last {
           border-bottom: 0;
         }
-        .single-row span {
+        .single-row > span:not(.single-icon-wrap) {
           flex: 1;
         }
         .single-row-blue {
