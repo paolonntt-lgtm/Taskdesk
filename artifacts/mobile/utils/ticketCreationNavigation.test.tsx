@@ -13,6 +13,8 @@ const mocks = vi.hoisted(() => ({
   organizationSettingsLoading: false,
   settingsRefetch: vi.fn(),
   appStateChange: null as null | ((nextAppState: string) => void),
+  weatherConsentValue: "declined" as string | null,
+  weatherStorageSet: vi.fn(),
   clients: [] as { id: number; name: string; alias?: string | null; email?: string | null; phone?: string | null }[],
   clientResultsByOrganization: null as null | Record<
     number,
@@ -76,6 +78,13 @@ vi.mock("expo-location", () => ({
   hasServicesEnabledAsync: mocks.hasLocationServices,
   getCurrentPositionAsync: mocks.getCurrentPosition,
   reverseGeocodeAsync: mocks.reverseGeocode,
+}));
+
+vi.mock("@react-native-async-storage/async-storage", () => ({
+  default: {
+    getItem: vi.fn(async () => mocks.weatherConsentValue),
+    setItem: mocks.weatherStorageSet,
+  },
 }));
 
 vi.mock("react-native", async () => {
@@ -289,6 +298,14 @@ vi.mock("@/contexts/LanguageContext", () => ({
         goodMorning: "Good morning",
         goodAfternoon: "Good afternoon",
         goodEvening: "Good evening",
+        weatherConsentTitle: "Enable weather?",
+        weatherConsentMessage: "Send approximate location for weather.",
+        weatherContinue: "Enable weather",
+        weatherNotNow: "Not now",
+        weatherTapToEnable: "Tap to enable",
+        weatherLoading: "Weather…",
+        weatherRetry: "Tap to retry",
+        weatherUnavailable: "Weather unavailable",
         searchPlaceholder: "Search Taskdesk",
         open: "Open",
         inProgress: "In progress",
@@ -320,6 +337,7 @@ vi.mock("@tanstack/react-query", () => ({
     queryFn: () => Promise<unknown>;
     enabled?: boolean;
   }) => {
+    const isWeather = queryKey[0] === "/api/weather/current";
     const isOrganizationSettings = queryKey[0] === "mobile-organization-settings";
     const isTicketSearch = queryKey[0] === "mobile-dashboard-ticket-search";
     if (queryKey[0] === "mobile-dashboard-client-search") {
@@ -331,42 +349,48 @@ vi.mock("@tanstack/react-query", () => ({
     return {
       data: isOrganizationSettings
         ? mocks.organizationSettings
-        : queryKey[0] === "mobile-dashboard-client-search"
-          ? mocks.searchResultsByQuery[JSON.stringify(queryKey)] ?? {
-              search: String(queryKey[2] ?? ""),
-              results:
-                typeof queryKey[1] === "number" && mocks.clientResultsByOrganization
-                  ? mocks.clientResultsByOrganization[queryKey[1]] ?? []
-                  : mocks.clients,
-            }
-          : isTicketSearch
+        : isWeather
+          ? undefined
+          : queryKey[0] === "mobile-dashboard-client-search"
             ? mocks.searchResultsByQuery[JSON.stringify(queryKey)] ?? {
                 search: String(queryKey[2] ?? ""),
                 results:
-                  typeof queryKey[1] === "number" && mocks.ticketSearchResultsByOrganization
-                    ? mocks.ticketSearchResultsByOrganization[queryKey[1]] ?? []
-                    : mocks.ticketSearchResults,
+                  typeof queryKey[1] === "number" && mocks.clientResultsByOrganization
+                    ? mocks.clientResultsByOrganization[queryKey[1]] ?? []
+                    : mocks.clients,
               }
-            : queryKey[0] === "recent-tickets"
-              ? mocks.recentTickets
-              : mocks.notifications,
-      isLoading:
+            : isTicketSearch
+              ? mocks.searchResultsByQuery[JSON.stringify(queryKey)] ?? {
+                  search: String(queryKey[2] ?? ""),
+                  results:
+                    typeof queryKey[1] === "number" && mocks.ticketSearchResultsByOrganization
+                      ? mocks.ticketSearchResultsByOrganization[queryKey[1]] ?? []
+                      : mocks.ticketSearchResults,
+                }
+              : queryKey[0] === "recent-tickets"
+                ? mocks.recentTickets
+                : mocks.notifications,
+      isLoading: !isWeather && (
         (queryKey[0] === "mobile-dashboard-client-search" && mocks.clientSearchLoading) ||
         isTicketSearch && mocks.ticketSearchLoading ||
-        isOrganizationSettings && mocks.organizationSettingsLoading,
-      isFetching:
+        isOrganizationSettings && mocks.organizationSettingsLoading
+      ),
+      isFetching: !isWeather && (
         (queryKey[0] === "mobile-dashboard-client-search" && mocks.clientSearchLoading) ||
-        isOrganizationSettings && mocks.organizationSettingsLoading,
+        isOrganizationSettings && mocks.organizationSettingsLoading
+      ),
       isSuccess:
         isOrganizationSettings &&
         !mocks.organizationSettingsError &&
         !mocks.organizationSettingsLoading,
       isError:
-        isOrganizationSettings
-          ? mocks.organizationSettingsError
-          : isTicketSearch
-            ? mocks.ticketSearchError
-            : queryKey[0] === "mobile-dashboard-client-search" && mocks.clientSearchError,
+        isWeather
+          ? false
+          : isOrganizationSettings
+            ? mocks.organizationSettingsError
+            : isTicketSearch
+              ? mocks.ticketSearchError
+              : queryKey[0] === "mobile-dashboard-client-search" && mocks.clientSearchError,
       isRefetchError:
         isOrganizationSettings && mocks.organizationSettingsRefetchError,
       refetch: isOrganizationSettings
@@ -403,6 +427,8 @@ describe("mobile ticket creation navigation", () => {
     mocks.organizationSettingsLoading = false;
     mocks.settingsRefetch.mockReset();
     mocks.appStateChange = null;
+    mocks.weatherConsentValue = "declined";
+    mocks.weatherStorageSet.mockReset();
     mocks.clients = [];
     mocks.clientResultsByOrganization = null;
     mocks.clientSearchQuery = null;

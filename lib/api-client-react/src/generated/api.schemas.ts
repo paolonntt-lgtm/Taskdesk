@@ -5,6 +5,15 @@
  * Internal Ticketing System API
  * OpenAPI spec version: 0.1.0
  */
+export interface CurrentWeather {
+  temperatureC: number;
+  feelsLikeC: number;
+  conditionText: string;
+  conditionCode: number;
+  isDay: boolean;
+  observedAt: string;
+}
+
 export interface TicketDriveFolderInput {
   /**
      * @minLength 1
@@ -1603,6 +1612,28 @@ export interface WorkspaceInvitationResendResponse {
   emailSent: boolean;
   email?: string;
 }
+
+export type GetCurrentWeatherParams = {
+/**
+ * @minimum -90
+ * @maximum 90
+ */
+lat: number;
+/**
+ * @minimum -180
+ * @maximum 180
+ */
+lon: number;
+lang: GetCurrentWeatherLang;
+};
+
+export type GetCurrentWeatherLang = typeof GetCurrentWeatherLang[keyof typeof GetCurrentWeatherLang];
+
+
+export const GetCurrentWeatherLang = {
+  it: 'it',
+  en: 'en',
+} as const;
 
 export type GlobalSearchParams = {
 /**

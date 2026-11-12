@@ -3,15 +3,36 @@ import {
   Alert, AppState, Linking, View, Text, ScrollView, StyleSheet,
   TouchableOpacity, ActivityIndicator, RefreshControl, Platform, useWindowDimensions,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
 import { useQuery } from "@tanstack/react-query";
-import { Feather } from "@expo/vector-icons";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { apiGet, PRIORITY_COLORS } from "@/utils/api";
+import { getGetCurrentWeatherQueryKey, useGetCurrentWeather } from "@workspace/api-client-react";
+
+const WEATHER_CONSENT_KEY = "taskdesk.dashboard.weather-consent.v1";
+
+type WeatherConsent = "loading" | "unknown" | "accepted" | "declined";
+type WeatherIconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
+
+function weatherIconName(code: number, isDay: boolean): WeatherIconName {
+  if (code === 1000) return isDay ? "weather-sunny" : "weather-night";
+  if (code === 1003) return "weather-partly-cloudy";
+  if ([1030, 1135, 1147].includes(code)) return "weather-fog";
+  if ([1087, 1273, 1276, 1279, 1282].includes(code)) return "weather-lightning-rainy";
+  if ([1066, 1069, 1072, 1114, 1117, 1210, 1213, 1216, 1219, 1222, 1225, 1255, 1258, 1261, 1264].includes(code)) {
+    return "weather-snowy";
+  }
+  if ([1063, 1150, 1153, 1168, 1171, 1180, 1183, 1186, 1189, 1192, 1195, 1198, 1201, 1240, 1243, 1246].includes(code)) {
+    return "weather-rainy";
+  }
+  return "weather-cloudy";
+}
 
 interface DashboardStats {
   openTickets: number;
@@ -68,11 +89,15 @@ export default function DashboardScreen() {
   const s = styles(colors);
   const [now, setNow] = useState<Date>(() => new Date());
   const [gpsLocation, setGpsLocation] = useState<string | null>(null);
+  const [gpsCoordinates, setGpsCoordinates] = useState<{ latitude: number; longitude: number } | null>(null);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
+  const [weatherConsent, setWeatherConsent] = useState<WeatherConsent>("loading");
   const [locationPermission, requestLocationPermission] = Location.useForegroundPermissions();
   const locationPromptedThisMount = useRef(false);
   const locationPromptActive = useRef(false);
+  const weatherPromptActive = useRef(false);
   const onAppResume = useRef<() => void>(() => {});
+  const weatherConsentKey = user?.id ? `${WEATHER_CONSENT_KEY}.${user.id}` : null;
 
   useEffect(() => {
     const refreshClock = () => setNow(new Date());
@@ -90,6 +115,24 @@ export default function DashboardScreen() {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    setWeatherConsent("loading");
+    if (!weatherConsentKey) {
+      setWeatherConsent("unknown");
+      return;
+    }
+    AsyncStorage.getItem(weatherConsentKey)
+      .then((value) => {
+        if (cancelled) return;
+        setWeatherConsent(value === "accepted" || value === "declined" ? value : "unknown");
+      })
+      .catch(() => {
+        if (!cancelled) setWeatherConsent("unknown");
+      });
+    return () => { cancelled = true; };
+  }, [weatherConsentKey]);
+
   const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery({
     queryKey: ["dashboard-stats"],
     queryFn: () => apiGet<DashboardStats>("/stats/dashboard"),
@@ -101,8 +144,6 @@ export default function DashboardScreen() {
     queryFn: () => apiGet<Ticket[]>("/stats/recent-tickets"),
     enabled: !!user,
   });
-
-  const onRefresh = () => { refetchStats(); refetchTickets(); };
 
   const greetingHour = now.getHours();
   const greeting =
@@ -121,6 +162,26 @@ export default function DashboardScreen() {
   }).format(now).replace(/\.$/, "");
   const mainLocation = user?.mainLocation?.trim();
   const displayLocation = gpsLocation || mainLocation;
+  const weatherParams = {
+    lat: gpsCoordinates?.latitude ?? 0,
+    lon: gpsCoordinates?.longitude ?? 0,
+    lang: lang === "it" ? "it" as const : "en" as const,
+  };
+  const weatherQuery = useGetCurrentWeather(weatherParams, {
+    query: {
+      queryKey: getGetCurrentWeatherQueryKey(weatherParams),
+      enabled: weatherConsent === "accepted" && gpsCoordinates !== null,
+      staleTime: 30 * 60 * 1000,
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  });
+
+  const onRefresh = () => {
+    void refetchStats();
+    void refetchTickets();
+    if (weatherConsent === "accepted" && gpsCoordinates) void weatherQuery.refetch();
+  };
 
   const captureGpsLocation = async (askSystemPermission = false) => {
     setIsGettingLocation(true);
@@ -152,6 +213,10 @@ export default function DashboardScreen() {
 
       const position = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
+      });
+      setGpsCoordinates({
+        latitude: Math.round(position.coords.latitude * 100) / 100,
+        longitude: Math.round(position.coords.longitude * 100) / 100,
       });
       try {
         const [address] = await Location.reverseGeocodeAsync({
@@ -192,6 +257,63 @@ export default function DashboardScreen() {
         },
       },
     ], { cancelable: true, onDismiss: () => { locationPromptActive.current = false; } });
+  };
+
+  const saveWeatherConsent = (consent: "accepted" | "declined") => {
+    setWeatherConsent(consent);
+    if (weatherConsentKey) void AsyncStorage.setItem(weatherConsentKey, consent).catch(() => {});
+  };
+
+  const askForWeatherConsent = () => {
+    if (weatherPromptActive.current || !gpsCoordinates || !weatherConsentKey) return;
+    weatherPromptActive.current = true;
+    Alert.alert(
+      t.dashboard.weatherConsentTitle,
+      t.dashboard.weatherConsentMessage,
+      [
+        {
+          text: t.dashboard.weatherNotNow,
+          style: "cancel",
+          onPress: () => {
+            weatherPromptActive.current = false;
+            saveWeatherConsent("declined");
+          },
+        },
+        {
+          text: t.dashboard.weatherContinue,
+          onPress: () => {
+            weatherPromptActive.current = false;
+            saveWeatherConsent("accepted");
+          },
+        },
+      ],
+      { cancelable: false },
+    );
+  };
+
+  useEffect(() => {
+    if (
+      weatherConsent === "unknown" &&
+      gpsCoordinates &&
+      user?.id &&
+      !weatherPromptActive.current
+    ) {
+      askForWeatherConsent();
+    }
+  }, [weatherConsent, gpsCoordinates, user?.id, lang]);
+
+  const handleWeatherPress = () => {
+    if (Platform.OS === "web" || weatherConsent === "loading") return;
+    if (!gpsCoordinates) {
+      if (locationPermission?.granted) void captureGpsLocation();
+      else askForGpsLocation();
+      return;
+    }
+    if (weatherConsent !== "accepted") {
+      askForWeatherConsent();
+      return;
+    }
+    void weatherQuery.refetch();
   };
 
   onAppResume.current = () => {
@@ -290,20 +412,57 @@ export default function DashboardScreen() {
             ) : null}
           </View>
         </View>
-        <View style={s.greetingArtwork} pointerEvents="none">
+        <TouchableOpacity
+          style={s.greetingArtwork}
+          onPress={handleWeatherPress}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel={
+            weatherQuery.data
+              ? `${weatherQuery.data.temperatureC}°, ${weatherQuery.data.conditionText}. WeatherAPI.com`
+              : t.dashboard.weatherTapToEnable
+          }
+          testID="dashboard-weather-card"
+        >
           <LinearGradient
-            colors={greetingIcon === "moon" ? [colors.primary, colors.accent] : [colors.warning, colors.destructive]}
+            colors={weatherQuery.data || greetingIcon === "moon"
+              ? [colors.primary, colors.accent]
+              : [colors.warning, colors.destructive]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={s.greetingIllustration}
           >
-            <Feather
-              name={greetingIcon as "sunrise" | "sun" | "moon"}
-              size={38}
-              color={colors.primaryForeground}
-            />
+            {weatherQuery.data ? (
+              <>
+                <MaterialCommunityIcons
+                  name={weatherIconName(weatherQuery.data.conditionCode, weatherQuery.data.isDay)}
+                  size={27}
+                  color={colors.primaryForeground}
+                />
+                <Text style={s.weatherTemperature}>{weatherQuery.data.temperatureC}°</Text>
+                <Text style={s.weatherCondition} numberOfLines={1}>{weatherQuery.data.conditionText}</Text>
+                <Text style={s.weatherAttribution}>WeatherAPI.com</Text>
+              </>
+            ) : (
+              <>
+                {weatherQuery.isLoading && weatherConsent === "accepted"
+                  ? <ActivityIndicator size="small" color={colors.primaryForeground} />
+                  : <Feather
+                      name={greetingIcon as "sunrise" | "sun" | "moon"}
+                      size={30}
+                      color={colors.primaryForeground}
+                    />}
+                <Text style={s.weatherHint} numberOfLines={2}>
+                  {weatherQuery.isError
+                    ? t.dashboard.weatherRetry
+                    : weatherQuery.isLoading
+                      ? t.dashboard.weatherLoading
+                      : t.dashboard.weatherTapToEnable}
+                </Text>
+              </>
+            )}
           </LinearGradient>
-        </View>
+        </TouchableOpacity>
       </LinearGradient>
 
       {statsLoading ? (
@@ -506,6 +665,37 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       shadowOpacity: 0.18,
       shadowRadius: 10,
       elevation: 4,
+    },
+    weatherTemperature: {
+      marginTop: -2,
+      fontSize: 17,
+      lineHeight: 19,
+      color: colors.primaryForeground,
+      fontFamily: "Inter_700Bold",
+    },
+    weatherCondition: {
+      maxWidth: 70,
+      fontSize: 8,
+      lineHeight: 10,
+      color: colors.primaryForeground,
+      opacity: 0.9,
+      fontFamily: "Inter_500Medium",
+    },
+    weatherAttribution: {
+      fontSize: 5.5,
+      lineHeight: 7,
+      color: colors.primaryForeground,
+      opacity: 0.78,
+      fontFamily: "Inter_400Regular",
+    },
+    weatherHint: {
+      maxWidth: 66,
+      textAlign: "center",
+      fontSize: 8,
+      lineHeight: 10,
+      color: colors.primaryForeground,
+      opacity: 0.9,
+      fontFamily: "Inter_500Medium",
     },
     loadingRow: { height: 120, alignItems: "center", justifyContent: "center" },
     statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 20 },

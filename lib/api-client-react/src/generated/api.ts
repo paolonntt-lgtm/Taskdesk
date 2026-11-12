@@ -50,6 +50,7 @@ import type {
   CreateNoteBody,
   CreateTicketBody,
   CreateUserBody,
+  CurrentWeather,
   DailyReportDetail,
   DashboardStats,
   DownloadSharedOneDriveItemParams,
@@ -62,6 +63,7 @@ import type {
   ForgotPasswordBody,
   GetCalendarParams,
   GetClient200,
+  GetCurrentWeatherParams,
   GetOrganizationSettings200,
   GetPersonalTimeTrackingReportParams,
   GetSuperadminOrganizationsParams,
@@ -182,6 +184,90 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getGetCurrentWeatherUrl = (params: GetCurrentWeatherParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/weather/current?${stringifiedParams}` : `/api/weather/current`
+}
+
+/**
+ * @summary Get current weather for approximate coordinates
+ */
+export const getCurrentWeather = async (params: GetCurrentWeatherParams, options?: Parameters<typeof customFetch>[1]): Promise<CurrentWeather> => {
+
+  return customFetch<CurrentWeather>(getGetCurrentWeatherUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCurrentWeatherQueryKey = (params?: GetCurrentWeatherParams,) => {
+    return [
+    `/api/weather/current`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetCurrentWeatherQueryOptions = <TData = Awaited<ReturnType<typeof getCurrentWeather>>, TError = ErrorType<void>>(params: GetCurrentWeatherParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCurrentWeather>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCurrentWeatherQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCurrentWeather>>> = ({ signal }) => getCurrentWeather(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCurrentWeather>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCurrentWeatherQueryResult = NonNullable<Awaited<ReturnType<typeof getCurrentWeather>>>
+export type GetCurrentWeatherQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get current weather for approximate coordinates
+ */
+
+export function useGetCurrentWeather<TData = Awaited<ReturnType<typeof getCurrentWeather>>, TError = ErrorType<void>>(
+ params: GetCurrentWeatherParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCurrentWeather>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCurrentWeatherQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListWorkspaceInvitationsUrl = (id: number,) => {
 

@@ -51,8 +51,50 @@ tags:
     description: Global search
   - name: drive
     description: Google Drive folder references and metadata navigation
+  - name: weather
+    description: Current weather for the authenticated dashboard user
 
 paths:
+  /weather/current:
+    get:
+      operationId: getCurrentWeather
+      tags: [weather]
+      summary: Get current weather for approximate coordinates
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema:
+            type: number
+            minimum: -90
+            maximum: 90
+        - name: lon
+          in: query
+          required: true
+          schema:
+            type: number
+            minimum: -180
+            maximum: 180
+        - name: lang
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [it, en]
+      responses:
+        "200":
+          description: Current weather for the requested area
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentWeather"
+        "400":
+          description: Invalid coordinates or language
+        "401":
+          description: Not authenticated
+        "503":
+          description: Weather provider is unavailable
+
   /workspaces/{id}/invitations:
     get:
       operationId: listWorkspaceInvitations
@@ -3907,6 +3949,22 @@ paths:
 
 components:
   schemas:
+    CurrentWeather:
+      type: object
+      required: [temperatureC, feelsLikeC, conditionText, conditionCode, isDay, observedAt]
+      properties:
+        temperatureC:
+          type: number
+        feelsLikeC:
+          type: number
+        conditionText:
+          type: string
+        conditionCode:
+          type: integer
+        isDay:
+          type: boolean
+        observedAt:
+          type: string
     TicketDriveFolderInput:
       type: object
       required: [folderId]

@@ -49,6 +49,7 @@ import onedriveCopiesRouter from "./onedriveCopies";
 import onedriveClientArchiveRouter from "./onedriveClientArchive";
 import workspacesRouter from "./workspaces";
 import gymAccessRouter from "./gymAccess";
+import weatherRouter from "./weather";
 
 const router: IRouter = Router();
 
@@ -102,5 +103,6 @@ router.use(dailyReportsRouter);
 router.use(announcementsRouter);
 router.use(timeTrackingRouter);
 router.use(gymAccessRouter);
+router.use(weatherRouter);
 
 export default router;

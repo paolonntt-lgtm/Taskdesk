@@ -9,6 +9,33 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Get current weather for approximate coordinates
+ */
+export const getCurrentWeatherQueryLatMin = -90;
+export const getCurrentWeatherQueryLatMax = 90;
+
+export const getCurrentWeatherQueryLonMin = -180;
+export const getCurrentWeatherQueryLonMax = 180;
+
+
+
+export const GetCurrentWeatherQueryParams = zod.object({
+  "lat": zod.coerce.number().min(getCurrentWeatherQueryLatMin).max(getCurrentWeatherQueryLatMax),
+  "lon": zod.coerce.number().min(getCurrentWeatherQueryLonMin).max(getCurrentWeatherQueryLonMax),
+  "lang": zod.enum(['it', 'en'])
+})
+
+export const GetCurrentWeatherResponse = zod.object({
+  "temperatureC": zod.number(),
+  "feelsLikeC": zod.number(),
+  "conditionText": zod.string(),
+  "conditionCode": zod.int(),
+  "isDay": zod.boolean(),
+  "observedAt": zod.string()
+})
+
+
+/**
  * @summary List pending personal invitations for a workspace
  */
 export const ListWorkspaceInvitationsParams = zod.object({
