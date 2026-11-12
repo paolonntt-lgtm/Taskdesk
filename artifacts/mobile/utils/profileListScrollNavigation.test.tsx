@@ -26,6 +26,7 @@ const mocks = vi.hoisted(() => ({
   apiGet: vi.fn(() => Promise.resolve([])),
   apiPatch: vi.fn(),
   updateUser: vi.fn(),
+  setQueryData: vi.fn(),
   launchImageLibraryAsync: vi.fn(),
   manipulateAsync: vi.fn(),
 }));
@@ -282,6 +283,8 @@ vi.mock("@/utils/api", () => ({
   apiGet: mocks.apiGet,
   apiPatch: mocks.apiPatch,
   apiPost: vi.fn(),
+  getUserAvatarQueryKey: (teamScopeId: number | null, userId: number) =>
+    ["/api/users", teamScopeId, userId, "avatar"],
 }));
 vi.mock("@tanstack/react-query", () => ({
   useQuery: ({
@@ -341,7 +344,7 @@ vi.mock("@tanstack/react-query", () => ({
     }
     return { data: undefined, isLoading: false };
   },
-  useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+  useQueryClient: () => ({ invalidateQueries: vi.fn(), setQueryData: mocks.setQueryData }),
 }));
 
 describe("mobile list position after returning from Profile", () => {
@@ -365,6 +368,7 @@ describe("mobile list position after returning from Profile", () => {
     mocks.apiPatch.mockReset();
     mocks.apiPatch.mockResolvedValue({ user: { avatarUrl: "data:image/jpeg;base64,abc" } });
     mocks.updateUser.mockClear();
+    mocks.setQueryData.mockClear();
     mocks.launchImageLibraryAsync.mockReset();
     mocks.launchImageLibraryAsync.mockResolvedValue({
       canceled: false,
@@ -426,6 +430,10 @@ describe("mobile list position after returning from Profile", () => {
     expect(mocks.updateUser).toHaveBeenCalledWith({
       avatarUrl: "data:image/jpeg;base64,abc",
     });
+    expect(mocks.setQueryData).toHaveBeenCalledExactlyOnceWith(
+      ["/api/users", 7, 1, "avatar"],
+      { avatarUrl: "data:image/jpeg;base64,abc" },
+    );
     expect(
       host.querySelector('[data-testid="profile-avatar-button"]')?.getAttribute("aria-label"),
     ).toBe("Change photo");

@@ -12,15 +12,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Lang } from "@/i18n/translations";
 import * as Haptics from "expo-haptics";
-import { apiPatch, apiPost } from "@/utils/api";
-import { useQuery } from "@tanstack/react-query";
-import { apiGet } from "@/utils/api";
+import { apiGet, apiPatch, apiPost, getUserAvatarQueryKey } from "@/utils/api";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getOptionalProfileMenuItems, type MobileOrganizationSettings } from "@/utils/profileMenu";
 
 export default function ProfileScreen() {
   const colors = useColors();
   const { user, logout, updateUser } = useAuth();
   const { t, lang, setLang } = useLanguage();
+  const queryClient = useQueryClient();
   const s = styles(colors);
   const [generatingInvite, setGeneratingInvite] = useState(false);
   const [avatarOverride, setAvatarOverride] = useState<string | null | undefined>(undefined);
@@ -60,6 +60,12 @@ export default function ProfileScreen() {
       const savedAvatarUrl = result.user?.avatarUrl ?? avatarUrl;
       setAvatarOverride(savedAvatarUrl);
       updateUser({ avatarUrl: savedAvatarUrl });
+      if (user?.id != null && user.organizationId != null) {
+        queryClient.setQueryData(
+          getUserAvatarQueryKey(user.organizationId, user.id),
+          { avatarUrl: savedAvatarUrl },
+        );
+      }
     } catch {
       setAvatarError(t.profile.photoUpdateError);
     } finally {

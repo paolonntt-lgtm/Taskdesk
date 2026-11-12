@@ -11,7 +11,9 @@ import { useGetUserAvatar } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { apiGet, apiPost, apiPatch, apiDelete, LOCATIONS } from "@/utils/api";
+import {
+  apiGet, apiPost, apiPatch, apiDelete, getUserAvatarQueryKey, LOCATIONS,
+} from "@/utils/api";
 import * as Haptics from "expo-haptics";
 
 interface User {
@@ -58,10 +60,10 @@ function UserAvatar({
       enabled: shouldLoadAvatar && !avatarUrl,
       retry: false,
       staleTime: 5 * 60_000,
-      queryKey: ["/api/users", teamScopeId, userId, "avatar"],
+      queryKey: getUserAvatarQueryKey(teamScopeId, userId),
     },
   });
-  const resolvedAvatarUrl = avatarUrl ?? fetchedAvatar?.avatarUrl;
+  const resolvedAvatarUrl = fetchedAvatar ? fetchedAvatar.avatarUrl : avatarUrl;
   const initials = name.split(" ").map((word) => word[0]).slice(0, 2).join("").toUpperCase();
 
   return (

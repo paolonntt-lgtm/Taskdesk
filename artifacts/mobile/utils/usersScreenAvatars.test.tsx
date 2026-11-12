@@ -140,7 +140,11 @@ vi.mock("@workspace/api-client-react", () => ({
       teamScopeId: options.query.queryKey[1] as number | null,
     });
     return {
-      data: userId === 3 ? { avatarUrl: "data:image/jpeg;base64,late-photo" } : { avatarUrl: null },
+      data: userId === 3
+        ? { avatarUrl: "data:image/jpeg;base64,late-photo" }
+        : userId === 2
+          ? { avatarUrl: "data:image/jpeg;base64,refreshed-photo" }
+          : undefined,
     };
   },
 }));
@@ -159,6 +163,8 @@ vi.mock("@/utils/api", () => ({
   apiGet: vi.fn(() => Promise.resolve({ value: [] })),
   apiPatch: vi.fn(),
   apiPost: vi.fn(),
+  getUserAvatarQueryKey: (teamScopeId: number | null, userId: number) =>
+    ["/api/users", teamScopeId, userId, "avatar"],
 }));
 
 describe("mobile team profile photos", () => {
@@ -186,7 +192,7 @@ describe("mobile team profile photos", () => {
     const onDemandPhotoAvatar = host.querySelector('[data-testid="user-avatar-3"]');
     const missingPhotoAvatar = host.querySelector('[data-testid="user-avatar-4"]');
     expect(photoAvatar?.querySelector("img")?.getAttribute("src"))
-      .toBe("data:image/jpeg;base64,photo");
+      .toBe("data:image/jpeg;base64,refreshed-photo");
     expect(photoAvatar?.textContent).toContain("AL");
     expect(onDemandPhotoAvatar?.querySelector("img")?.getAttribute("src"))
       .toBe("data:image/jpeg;base64,late-photo");

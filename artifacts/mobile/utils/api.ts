@@ -4,6 +4,10 @@ const BASE_URL = Platform.OS !== "web" && process.env.EXPO_PUBLIC_DOMAIN
   ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
   : "";
 
+export function getUserAvatarQueryKey(teamScopeId: number | null, userId: number) {
+  return ["/api/users", teamScopeId, userId, "avatar"] as const;
+}
+
 export async function apiFetch(path: string, options: RequestInit = {}) {
   const url = `${BASE_URL}/api${path}`;
   const res = await fetch(url, {
