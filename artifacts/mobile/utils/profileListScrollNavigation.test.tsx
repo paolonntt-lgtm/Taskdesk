@@ -344,6 +344,9 @@ describe("mobile list position after returning from Profile", () => {
     expect(host.textContent).not.toContain("Account information");
     expect(host.textContent).not.toContain("Ticketing system");
     expect(host.textContent).not.toContain("Version");
+    expect(
+      host.querySelector('[data-testid="profile-tool-reports"]')?.parentElement,
+    ).toBe(host.querySelector('[data-testid="profile-admin-users"]')?.parentElement);
   });
 
   afterEach(async () => {

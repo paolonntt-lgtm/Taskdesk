@@ -61,7 +61,6 @@ export default function ProfileScreen() {
 
   const initials = user?.name?.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase() ?? "?";
   const isOrganizationAdmin = user?.role === "admin" && user.organizationId != null;
-  const menuAccents = [colors.primary, colors.accent, colors.warning];
 
   const LANGS: { value: Lang; label: string; flag: string }[] = [
     { value: "it", label: "Italiano", flag: "IT" },
@@ -116,11 +115,9 @@ export default function ProfileScreen() {
       </View>
 
       <View style={s.card}>
-        <View style={s.menuSectionHeading}>
-          <View style={s.menuHeadingMark} />
-          <Text style={s.cardTitle}>{lang === "it" ? "Altri strumenti" : "More tools"}</Text>
+        <View style={s.menuSectionHeader}>
+          <Text style={s.menuSectionTitle}>{lang === "it" ? "Altri strumenti" : "More tools"}</Text>
         </View>
-        <View style={s.toolList}>
         {[
           { label: t.tabs.reports, icon: "bar-chart-2" as const, path: "/reports" },
           ...getOptionalProfileMenuItems({
@@ -135,94 +132,71 @@ export default function ProfileScreen() {
             { label: lang === "it" ? "Fatturazione" : "Billing", icon: "credit-card" as const, path: "/billing" },
             { label: lang === "it" ? "Avvisi" : "Announcements", icon: "bell" as const, path: "/announcements" },
           ] : []),
-        ].map((item, index) => {
-          const accent = menuAccents[index % menuAccents.length];
-          return (
+        ].map((item, index, items) => (
           <TouchableOpacity
             key={item.path}
-            style={[s.toolRow, { backgroundColor: `${accent}14`, borderColor: `${accent}42`, borderLeftColor: accent }]}
+            style={[s.menuItem, index === items.length - 1 && !isOrganizationAdmin && s.menuItemLast]}
             onPress={() => router.push(item.path as any)}
             activeOpacity={0.7}
             accessibilityRole="button"
             accessibilityLabel={item.label}
             testID={`profile-tool-${item.path.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "")}`}
           >
-            <View style={[s.toolIconWrap, { backgroundColor: `${accent}24`, borderColor: `${accent}50` }]}>
-              <Feather name={item.icon} size={19} color={accent} />
-            </View>
+            <Feather name={item.icon} size={18} color={colors.primary} />
             <Text style={s.toolLabel} numberOfLines={2}>{item.label}</Text>
-            <View style={[s.toolArrow, { backgroundColor: `${accent}22` }]}>
-              <Feather name="chevron-right" size={17} color={accent} />
-            </View>
+            <Feather name="chevron-right" size={17} color={colors.mutedForeground} />
           </TouchableOpacity>
-          );
-        })}
-        </View>
-      </View>
+        ))}
 
       {isOrganizationAdmin && (
-        <View style={s.card}>
-          <View style={s.menuSectionHeading}>
-            <View style={[s.menuHeadingMark, { backgroundColor: colors.warning }]} />
-            <Text style={s.cardTitle}>{t.profile.administration}</Text>
+        <>
+          <View style={[s.menuSectionHeader, s.menuAdminHeader]}>
+            <Text style={s.menuSectionTitle}>{t.profile.administration}</Text>
           </View>
-          <View style={s.toolList}>
-            <TouchableOpacity
-              style={[s.toolRow, { backgroundColor: `${colors.primary}14`, borderColor: `${colors.primary}42`, borderLeftColor: colors.primary }]}
-              onPress={() => router.push("/users" as any)}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel={t.profile.manageUsers}
-              testID="profile-admin-users"
-            >
-              <View style={[s.toolIconWrap, { backgroundColor: `${colors.primary}24`, borderColor: `${colors.primary}50` }]}>
-                <Feather name="users" size={19} color={colors.primary} />
-              </View>
-              <Text style={s.toolLabel} numberOfLines={2}>{t.profile.manageUsers}</Text>
-              <View style={[s.toolArrow, { backgroundColor: `${colors.primary}22` }]}>
-                <Feather name="chevron-right" size={17} color={colors.primary} />
-              </View>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[s.toolRow, { backgroundColor: `${colors.accent}14`, borderColor: `${colors.accent}42`, borderLeftColor: colors.accent }]}
-              onPress={() => router.push("/admin-settings" as any)}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel={t.profile.manageSettings}
-              testID="profile-admin-settings"
-            >
-              <View style={[s.toolIconWrap, { backgroundColor: `${colors.accent}24`, borderColor: `${colors.accent}50` }]}>
-                <Feather name="settings" size={19} color={colors.accent} />
-              </View>
-              <Text style={s.toolLabel} numberOfLines={2}>{t.profile.manageSettings}</Text>
-              <View style={[s.toolArrow, { backgroundColor: `${colors.accent}22` }]}>
-                <Feather name="chevron-right" size={17} color={colors.accent} />
-              </View>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[s.toolRow, { backgroundColor: `${colors.warning}18`, borderColor: `${colors.warning}48`, borderLeftColor: colors.warning }]}
-              onPress={handleGenerateInvite}
-              activeOpacity={0.7}
-              disabled={generatingInvite}
-              accessibilityRole="button"
-              accessibilityLabel={t.profile.inviteCollab}
-              accessibilityState={{ disabled: generatingInvite, busy: generatingInvite }}
-              testID="profile-admin-invite"
-            >
-              <View style={[s.toolIconWrap, { backgroundColor: `${colors.warning}28`, borderColor: `${colors.warning}55` }]}>
-                <Feather name="user-plus" size={19} color={colors.warning} />
-              </View>
-              <Text style={s.toolLabel} numberOfLines={2}>{t.profile.inviteCollab}</Text>
-              <View style={[s.toolArrow, { backgroundColor: `${colors.warning}25` }]}>
-                {generatingInvite
-                  ? <ActivityIndicator size="small" color={colors.warning} />
-                  : <Feather name="share-2" size={15} color={colors.warning} />
-                }
-              </View>
-            </TouchableOpacity>
-          </View>
-        </View>
+          <TouchableOpacity
+            style={[s.menuItem, s.menuItemBorder]}
+            onPress={() => router.push("/users" as any)}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={t.profile.manageUsers}
+            testID="profile-admin-users"
+          >
+            <Feather name="users" size={18} color={colors.primary} />
+            <Text style={s.toolLabel} numberOfLines={2}>{t.profile.manageUsers}</Text>
+            <Feather name="chevron-right" size={17} color={colors.mutedForeground} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[s.menuItem, s.menuItemBorder]}
+            onPress={() => router.push("/admin-settings" as any)}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={t.profile.manageSettings}
+            testID="profile-admin-settings"
+          >
+            <Feather name="settings" size={18} color={colors.primary} />
+            <Text style={s.toolLabel} numberOfLines={2}>{t.profile.manageSettings}</Text>
+            <Feather name="chevron-right" size={17} color={colors.mutedForeground} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[s.menuItem, s.menuItemLast]}
+            onPress={handleGenerateInvite}
+            activeOpacity={0.7}
+            disabled={generatingInvite}
+            accessibilityRole="button"
+            accessibilityLabel={t.profile.inviteCollab}
+            accessibilityState={{ disabled: generatingInvite, busy: generatingInvite }}
+            testID="profile-admin-invite"
+          >
+            <Feather name="user-plus" size={18} color={colors.primary} />
+            <Text style={s.toolLabel} numberOfLines={2}>{t.profile.inviteCollab}</Text>
+            {generatingInvite
+              ? <ActivityIndicator size="small" color={colors.primary} />
+              : <Feather name="share-2" size={16} color={colors.mutedForeground} />
+            }
+          </TouchableOpacity>
+        </>
       )}
+      </View>
 
       {user?.isSuperAdmin && (
         <View style={s.card}>
@@ -284,33 +258,28 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       backgroundColor: colors.muted + "55",
       textTransform: "uppercase", letterSpacing: 0.5,
     },
-  menuSectionHeading: {
-    flexDirection: "row", alignItems: "center", gap: 10,
-    backgroundColor: colors.muted + "55",
+  menuSectionHeader: {
+    paddingHorizontal: 16, paddingVertical: 10,
+    backgroundColor: colors.muted + "35",
   },
-  menuHeadingMark: {
-    width: 4, height: 16, borderRadius: 3,
-    backgroundColor: colors.primary, marginLeft: 16,
+  menuAdminHeader: {
+    borderTopWidth: 1, borderTopColor: colors.border,
   },
-  toolList: {
-    flexDirection: "column", paddingHorizontal: 10, paddingVertical: 8, gap: 4,
+  menuSectionTitle: {
+    fontSize: 12, color: colors.mutedForeground,
+    fontFamily: "Inter_600SemiBold",
+    textTransform: "uppercase", letterSpacing: 0.5,
   },
-  toolRow: {
+  menuItem: {
     width: "100%", minHeight: 46, flexDirection: "row", alignItems: "center",
-    gap: 8, paddingHorizontal: 9, paddingVertical: 5,
-    borderWidth: 1, borderLeftWidth: 3, borderRadius: 11,
+    gap: 12, paddingHorizontal: 16, paddingVertical: 6,
+    borderBottomWidth: 1, borderBottomColor: colors.border,
   },
-  toolIconWrap: {
-    width: 28, height: 28, borderRadius: 9, borderWidth: 1,
-    alignItems: "center", justifyContent: "center",
-  },
+  menuItemBorder: { borderBottomWidth: 1 },
+  menuItemLast: { borderBottomWidth: 0 },
   toolLabel: {
     flex: 1, fontSize: 14, lineHeight: 18, color: colors.foreground,
-    fontFamily: "Inter_600SemiBold",
-  },
-  toolArrow: {
-    width: 22, height: 22, borderRadius: 8,
-    alignItems: "center", justifyContent: "center",
+    fontFamily: "Inter_500Medium",
   },
     infoRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 14 },
     infoRowBorder: { borderTopWidth: 1, borderTopColor: colors.border },
