@@ -251,6 +251,12 @@ export default function AdminSettingsScreen() {
     { key: "locations", label: t.adminSettings.locations, icon: "map-pin", color: colors.accent },
     { key: "categories", label: t.adminSettings.categories, icon: "tag", color: colors.warning },
   ];
+  const tabTones = [
+    { base: colors.primary, wash: colors.primary + "24", selectedText: colors.primaryForeground },
+    { base: colors.accent, wash: colors.accent + "26", selectedText: colors.accentForeground },
+    { base: colors.warning, wash: colors.warning + "30", selectedText: colors.warningForeground },
+    { base: colors.secondaryForeground, wash: colors.secondary, selectedText: colors.primaryForeground },
+  ];
 
   if (user?.role !== "admin" || user.organizationId == null) {
     return <View style={s.center}><Text style={s.emptyText}>{user?.role === "admin" ? t.adminSettings.organizationRequired : t.adminSettings.adminOnly}</Text></View>;
@@ -290,7 +296,11 @@ export default function AdminSettingsScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={s.pageHeader}>
-          <View style={s.headerAccent} />
+          <View style={s.headerGraphic} pointerEvents="none">
+            <View style={s.graphicTeal} />
+            <View style={s.graphicAmber} />
+            <View style={s.graphicBlue} />
+          </View>
           <View style={s.headerContent}>
             <View style={s.headerCopy}>
               <Text style={s.eyebrow}>{t.adminSettings.adminSettingsEyebrow}</Text>
@@ -298,13 +308,8 @@ export default function AdminSettingsScreen() {
               <Text style={s.pageDescription}>{t.adminSettings.mobileIntro}</Text>
             </View>
             <View style={s.headerMark}>
-              <Feather name="sliders" size={19} color={colors.primaryForeground} />
+              <Feather name="sliders" size={19} color={colors.primary} />
             </View>
-          </View>
-          <View style={s.headerRule}>
-            <View style={s.headerRuleBlue} />
-            <View style={s.headerRuleTeal} />
-            <View style={s.headerRuleAmber} />
           </View>
         </View>
 
@@ -316,6 +321,7 @@ export default function AdminSettingsScreen() {
             ["notifications", t.adminSettings.notificationsTab, "bell"],
           ] as const).map(([key, label, icon], index) => {
             const selected = activeTab === key;
+            const tone = tabTones[index];
             return (
               <TouchableOpacity
                 key={key}
@@ -324,14 +330,25 @@ export default function AdminSettingsScreen() {
                 accessibilityLabel={label}
                 testID={`admin-settings-tab-${key}`}
                 onPress={() => setActiveTab(key)}
-                style={[s.tab, selected && s.tabActive]}
+                style={[
+                  s.tab,
+                  { backgroundColor: selected ? tone.base : tone.wash, borderColor: tone.base },
+                ]}
                 activeOpacity={0.78}
               >
-                <View style={[s.tabGlyph, selected && s.tabGlyphActive]}>
-                  <Feather name={icon} size={15} color={selected ? colors.primaryForeground : index === 1 ? colors.accent : index === 3 ? colors.warning : colors.primary} />
+                <View style={[s.tabGlyph, { backgroundColor: selected ? colors.card + "2A" : tone.base }]}>
+                  <Feather name={icon} size={15} color={selected ? tone.selectedText : index === 2 ? colors.warningForeground : colors.primaryForeground} />
                 </View>
-                <Text style={[s.tabText, selected && s.tabTextActive]} numberOfLines={1}>{label}</Text>
-                <View style={[s.tabIndicator, selected && s.tabIndicatorActive]} />
+                <Text
+                  style={[
+                    s.tabText,
+                    { color: selected ? tone.selectedText : tone.base, fontFamily: selected ? "Inter_700Bold" : "Inter_600SemiBold" },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {label}
+                </Text>
+                <View style={[s.tabIndicator, { backgroundColor: selected ? tone.selectedText : tone.base }]} />
               </TouchableOpacity>
             );
           })}
@@ -709,49 +726,42 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     retryText: { color: colors.primaryForeground, fontSize: 14, fontFamily: "Inter_600SemiBold" },
     content: { paddingHorizontal: 16, paddingTop: 12, gap: 18 },
     pageHeader: {
-      backgroundColor: colors.card,
-      borderWidth: 1,
-      borderColor: colors.border,
+      minHeight: 158,
+      backgroundColor: colors.primary,
       borderRadius: 14,
       overflow: "hidden",
+      justifyContent: "center",
     },
-    headerAccent: { height: 5, backgroundColor: colors.primary },
-    headerContent: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingTop: 15, paddingBottom: 14 },
-    headerCopy: { flex: 1, gap: 4 },
-    headerMark: { width: 44, height: 44, borderRadius: 13, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" },
-    eyebrow: { color: colors.accent, fontSize: 9, letterSpacing: 1.3, fontFamily: "Inter_700Bold" },
-    pageTitle: { color: colors.foreground, fontSize: 23, lineHeight: 28, fontFamily: "Inter_700Bold", letterSpacing: -0.45 },
-    pageDescription: { color: colors.mutedForeground, fontSize: 12, lineHeight: 17, fontFamily: "Inter_400Regular" },
-    headerRule: { height: 3, flexDirection: "row" },
-    headerRuleBlue: { flex: 5, backgroundColor: colors.primary },
-    headerRuleTeal: { flex: 2, backgroundColor: colors.accent },
-    headerRuleAmber: { flex: 1, backgroundColor: colors.warning },
+    headerGraphic: { ...StyleSheet.absoluteFill, overflow: "hidden" },
+    graphicTeal: { position: "absolute", width: 150, height: 150, borderRadius: 75, right: -25, top: 14, backgroundColor: colors.accent, opacity: 0.92 },
+    graphicAmber: { position: "absolute", width: 57, height: 57, borderRadius: 14, right: 93, top: -18, backgroundColor: colors.warning, transform: [{ rotate: "22deg" }] },
+    graphicBlue: { position: "absolute", width: 43, height: 43, borderRadius: 12, right: 28, bottom: -14, backgroundColor: colors.secondary, transform: [{ rotate: "18deg" }] },
+    headerContent: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 17, paddingVertical: 19 },
+    headerCopy: { flex: 1, gap: 5, zIndex: 1 },
+    headerMark: { width: 43, height: 43, borderRadius: 13, backgroundColor: colors.primaryForeground, alignItems: "center", justifyContent: "center", zIndex: 1 },
+    eyebrow: { color: colors.warning, fontSize: 9, letterSpacing: 1.3, fontFamily: "Inter_700Bold" },
+    pageTitle: { color: colors.primaryForeground, fontSize: 23, lineHeight: 28, fontFamily: "Inter_700Bold", letterSpacing: -0.45 },
+    pageDescription: { color: colors.primaryForeground, opacity: 0.9, fontSize: 12, lineHeight: 17, fontFamily: "Inter_400Regular" },
     tabBar: {
       flexDirection: "row",
       flexWrap: "wrap",
-      gap: 8,
+      gap: 9,
     },
     tab: {
       width: "47%",
-      minHeight: 57,
+      minHeight: 62,
       flexDirection: "row",
       alignItems: "center",
-      gap: 9,
-      paddingHorizontal: 10,
-      paddingVertical: 9,
-      backgroundColor: colors.card,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: 11,
+      gap: 8,
+      paddingHorizontal: 9,
+      paddingVertical: 10,
+      borderWidth: 1.5,
+      borderRadius: 10,
       overflow: "hidden",
     },
-    tabActive: { backgroundColor: colors.secondary, borderColor: colors.primary },
-    tabGlyph: { width: 31, height: 31, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: colors.muted },
-    tabGlyphActive: { backgroundColor: colors.primary },
+    tabGlyph: { width: 32, height: 32, borderRadius: 9, alignItems: "center", justifyContent: "center" },
     tabText: { flex: 1, color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_600SemiBold" },
-    tabTextActive: { color: colors.primary, fontFamily: "Inter_700Bold" },
-    tabIndicator: { width: 3, height: 19, borderRadius: 2, backgroundColor: "transparent" },
-    tabIndicatorActive: { backgroundColor: colors.accent },
+    tabIndicator: { width: 3, height: 24, borderRadius: 2 },
     panel: { gap: 13 },
     panelHeading: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 2, borderLeftWidth: 3, borderLeftColor: colors.accent, paddingLeft: 10 },
     headingCopy: { flex: 1, gap: 3 },
