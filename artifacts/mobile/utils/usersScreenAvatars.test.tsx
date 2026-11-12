@@ -36,6 +36,9 @@ const mocks = vi.hoisted(() => ({
     },
   ],
   avatarQueries: [] as Array<{ userId: number; enabled: boolean; teamScopeId: number | null }>,
+  pageHasNext: false,
+  fetchNextPage: vi.fn(),
+  refetch: vi.fn(),
 }));
 
 vi.mock("react-native", async () => {
@@ -62,10 +65,14 @@ vi.mock("react-native", async () => {
       data,
       renderItem,
       onViewableItemsChanged,
+      onEndReached,
+      onRefresh,
     }: {
       data: unknown[];
       renderItem: (args: { item: unknown }) => React.ReactNode;
       onViewableItemsChanged: (args: { viewableItems: Array<{ item: unknown; isViewable: boolean }> }) => void;
+      onEndReached: () => void;
+      onRefresh: () => void;
     }) => ReactModule.createElement(
       "div",
       { "data-testid": "team-list" },
@@ -73,6 +80,14 @@ vi.mock("react-native", async () => {
         ReactModule.createElement(ReactModule.Fragment, { key: index }, renderItem({ item })),
       ),
       ReactModule.createElement(ViewabilityNotifier, { data, onViewableItemsChanged }),
+      ReactModule.createElement("button", {
+        "data-testid": "load-next-team-page",
+        onClick: onEndReached,
+      }),
+      ReactModule.createElement("button", {
+        "data-testid": "refresh-team-list",
+        onClick: onRefresh,
+      }),
     ),
     Image: ({
       source,
@@ -121,13 +136,33 @@ vi.mock("expo-haptics", () => ({
 }));
 vi.mock("@tanstack/react-query", () => ({
   useQuery: ({ queryKey }: { queryKey: string[] }) => ({
-    data: queryKey[0] === "users"
-      ? mocks.users
-      : { timeTrackingModuleEnabled: false },
+    data: { timeTrackingModuleEnabled: false },
     isLoading: false,
     refetch: vi.fn(),
   }),
-  useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+  useInfiniteQuery: (() => {
+    const data = {
+      pages: [{
+        users: mocks.users,
+        totalCount: mocks.users.length,
+        activeCount: mocks.users.filter((user) => user.isActive).length,
+        nextCursor: "next-page",
+      }],
+    };
+    return () => ({
+      data,
+      isLoading: false,
+      isRefetching: false,
+      isFetchingNextPage: false,
+      hasNextPage: mocks.pageHasNext,
+      fetchNextPage: mocks.fetchNextPage,
+      refetch: mocks.refetch,
+    });
+  })(),
+  useQueryClient: () => ({
+    invalidateQueries: vi.fn(),
+    resetQueries: vi.fn(),
+  }),
 }));
 vi.mock("@workspace/api-client-react", () => ({
   useGetUserAvatar: (
@@ -173,6 +208,9 @@ describe("mobile team profile photos", () => {
 
   beforeEach(() => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    mocks.pageHasNext = false;
+    mocks.fetchNextPage.mockReset();
+    mocks.refetch.mockReset();
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 375 });
     host = document.createElement("div");
     host.style.width = "375px";
@@ -208,11 +246,33 @@ describe("mobile team profile photos", () => {
     });
     expect(missingPhotoAvatar?.querySelector("img")).toBeNull();
     expect(missingPhotoAvatar?.textContent).toContain("KJ");
+    expect(host.textContent).toContain("3 attivo · 3 tot.");
 
     await act(async () => {
       photoAvatar?.querySelector("img")?.dispatchEvent(new Event("error"));
     });
     expect(photoAvatar?.querySelector("img")).toBeNull();
     expect(photoAvatar?.textContent).toContain("AL");
+  });
+
+  it("requests another page when the directory reaches its end", async () => {
+    mocks.pageHasNext = true;
+    await act(async () => root.render(React.createElement(UsersScreen)));
+
+    await act(async () => {
+      host.querySelector<HTMLButtonElement>('[data-testid="load-next-team-page"]')?.click();
+    });
+
+    expect(mocks.fetchNextPage).toHaveBeenCalledTimes(1);
+  });
+
+  it("refreshes the loaded directory pages on pull-to-refresh", async () => {
+    await act(async () => root.render(React.createElement(UsersScreen)));
+
+    await act(async () => {
+      host.querySelector<HTMLButtonElement>('[data-testid="refresh-team-list"]')?.click();
+    });
+
+    expect(mocks.refetch).toHaveBeenCalledTimes(1);
   });
 });

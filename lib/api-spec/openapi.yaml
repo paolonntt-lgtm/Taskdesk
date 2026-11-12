@@ -737,16 +737,31 @@ paths:
     get:
       operationId: listUsers
       tags: [users]
-      summary: List all users
+      summary: List users, optionally in stable pages
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
       responses:
         "200":
-          description: List of users
+          description: User list or a page when pagination parameters are supplied
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/User"
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: "#/components/schemas/User"
+                  - $ref: "#/components/schemas/UserPage"
     post:
       operationId: createUser
       tags: [users]
@@ -4360,6 +4375,22 @@ components:
           type: string
       required:
         - user
+
+    UserPage:
+      type: object
+      properties:
+        users:
+          type: array
+          items:
+            $ref: "#/components/schemas/User"
+        totalCount:
+          type: integer
+        activeCount:
+          type: integer
+        nextCursor:
+          type: string
+          nullable: true
+      required: [users, totalCount, activeCount, nextCursor]
 
     User:
       type: object

@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, or, notLike, and, inArray, count } from "drizzle-orm";
+import { eq, gt, or, notLike, and, inArray, count, sql } from "drizzle-orm";
 import {
   db,
   usersTable,
@@ -34,6 +34,36 @@ import {
 const router: IRouter = Router();
 const avatarConversionsInFlight = new Set<number>();
 const unconvertibleAvatars = new Map<number, string>();
+const DEFAULT_TEAM_PAGE_SIZE = 50;
+const MAX_TEAM_PAGE_SIZE = 100;
+
+interface TeamCursor {
+  name: string;
+  id: number;
+}
+
+function parseTeamCursor(value: unknown): TeamCursor | null | "invalid" {
+  if (value === undefined) return null;
+  if (typeof value !== "string" || !value) return "invalid";
+
+  try {
+    const parsed = JSON.parse(Buffer.from(value, "base64url").toString("utf8"));
+    if (
+      typeof parsed?.name !== "string"
+      || !Number.isSafeInteger(parsed?.id)
+      || parsed.id <= 0
+    ) {
+      return "invalid";
+    }
+    return { name: parsed.name, id: parsed.id };
+  } catch {
+    return "invalid";
+  }
+}
+
+function encodeTeamCursor(user: { name: string; id: number }): string {
+  return Buffer.from(JSON.stringify({ name: user.name, id: user.id })).toString("base64url");
+}
 
 const userFields = {
   id: usersTable.id,
@@ -103,14 +133,44 @@ router.get("/users", requireAuth, async (req, res): Promise<void> => {
   const orgId = currentUser.organizationId;
   const exposeHourlyCompensation =
     currentUser.role === "admin" && await isTimeTrackingModuleEnabled(orgId);
+  const paginated = req.query.limit !== undefined || req.query.cursor !== undefined;
+  const rawLimit = req.query.limit;
+  const limit = rawLimit === undefined
+    ? DEFAULT_TEAM_PAGE_SIZE
+    : typeof rawLimit === "string" && /^\d+$/.test(rawLimit)
+      ? Number(rawLimit)
+      : NaN;
+  const cursor = parseTeamCursor(req.query.cursor);
 
   if (orgId == null) {
     res.status(403).json({ error: "Account has no organization" });
     return;
   }
 
-  const users = currentUser.isSharedWorkspace
-    ? await db.select({ ...userFields, workspaceRole: workspaceMembershipsTable.role,
+  if (
+    (paginated && (!Number.isInteger(limit) || limit < 1 || limit > MAX_TEAM_PAGE_SIZE))
+    || cursor === "invalid"
+  ) {
+    res.status(400).json({ error: "Invalid team pagination parameters" });
+    return;
+  }
+
+  const userConditions = [
+    notLike(usersTable.email, "deleted-%@deleted.local"),
+    eq(usersTable.isSystem, false),
+    currentUser.isSharedWorkspace
+      ? undefined
+      : eq(usersTable.organizationId, orgId),
+  ];
+  const cursorCondition = cursor
+    ? or(
+        gt(usersTable.name, cursor.name),
+        and(eq(usersTable.name, cursor.name), gt(usersTable.id, cursor.id)),
+      )
+    : undefined;
+
+  const usersQuery = currentUser.isSharedWorkspace
+    ? db.select({ ...userFields, workspaceRole: workspaceMembershipsTable.role,
         workspacePermissionOverrides: workspaceMembershipsTable.permissionOverrides,
         billingOrganizationName: organizationsTable.name })
       .from(workspaceMembershipsTable)
@@ -118,22 +178,43 @@ router.get("/users", requireAuth, async (req, res): Promise<void> => {
       .leftJoin(organizationsTable, eq(organizationsTable.id, usersTable.organizationId))
       .where(and(
         eq(workspaceMembershipsTable.workspaceOrganizationId, orgId),
-        notLike(usersTable.email, "deleted-%@deleted.local"),
-        eq(usersTable.isSystem, false),
+        ...userConditions,
+        cursorCondition,
       ))
-      .orderBy(usersTable.name)
-    : await db.select({ ...userFields, workspaceRole: usersTable.role,
+      .orderBy(usersTable.name, usersTable.id)
+    : db.select({ ...userFields, workspaceRole: usersTable.role,
         workspacePermissionOverrides: usersTable.permissionOverrides, billingOrganizationName: organizationsTable.name })
       .from(usersTable)
       .leftJoin(organizationsTable, eq(organizationsTable.id, usersTable.organizationId))
-      .where(and(
-        notLike(usersTable.email, "deleted-%@deleted.local"),
-        eq(usersTable.isSystem, false),
-        eq(usersTable.organizationId, orgId),
-      ))
-      .orderBy(usersTable.name);
+      .where(and(...userConditions, cursorCondition))
+      .orderBy(usersTable.name, usersTable.id);
 
-  const memberships = users.length > 0
+  const users = paginated
+    ? await usersQuery.limit(limit + 1)
+    : await usersQuery;
+  const hasMore = paginated && users.length > limit;
+  const pageUsers = paginated ? users.slice(0, limit) : users;
+
+  const countQuery = currentUser.isSharedWorkspace
+    ? db.select({
+        totalCount: count(),
+        activeCount: sql<number>`count(*) filter (where ${usersTable.isActive} = true)`,
+      })
+      .from(workspaceMembershipsTable)
+      .innerJoin(usersTable, eq(usersTable.id, workspaceMembershipsTable.userId))
+      .where(and(
+        eq(workspaceMembershipsTable.workspaceOrganizationId, orgId),
+        ...userConditions,
+      ))
+    : db.select({
+        totalCount: count(),
+        activeCount: sql<number>`count(*) filter (where ${usersTable.isActive} = true)`,
+      })
+      .from(usersTable)
+      .where(and(...userConditions));
+  const [teamCounts] = paginated ? await countQuery : [undefined];
+
+  const memberships = pageUsers.length > 0
     ? await db
         .select({
           userId: groupMembersTable.userId,
@@ -145,7 +226,7 @@ router.get("/users", requireAuth, async (req, res): Promise<void> => {
         .innerJoin(groupsTable, eq(groupMembersTable.groupId, groupsTable.id))
         .where(
           and(
-            inArray(groupMembersTable.userId, users.map((u) => u.id)),
+            inArray(groupMembersTable.userId, pageUsers.map((u) => u.id)),
             eq(groupsTable.organizationId, orgId),
           )
         )
@@ -161,7 +242,7 @@ router.get("/users", requireAuth, async (req, res): Promise<void> => {
   // The active workspace is selected by X-Workspace-ID, not the URL. Do not
   // let the browser reuse a different workspace's user list from its HTTP cache.
   res.setHeader("Cache-Control", "no-store");
-  const responseUsers = users.map((u) => {
+  const responseUsers = pageUsers.map((u) => {
     const groupMemberships = byUser.get(u.id) ?? [];
     const inherited = [...new Set(groupMemberships.flatMap((group) => group.permissions))];
     const permissionOverrides = parsePermissionOverrides((u as any).workspacePermissionOverrides ?? u.permissionOverrides);
@@ -176,7 +257,17 @@ router.get("/users", requireAuth, async (req, res): Promise<void> => {
       permissionOverrides,
     };
   });
-  res.json(limitTeamAvatarPayload(responseUsers));
+  const limitedResponseUsers = limitTeamAvatarPayload(responseUsers);
+  res.json(paginated
+    ? {
+        users: limitedResponseUsers,
+        totalCount: teamCounts?.totalCount ?? 0,
+        activeCount: Number(teamCounts?.activeCount ?? 0),
+        nextCursor: hasMore && pageUsers.length > 0
+          ? encodeTeamCursor(pageUsers[pageUsers.length - 1])
+          : null,
+      }
+    : limitedResponseUsers);
 
   for (const user of responseUsers) {
     if (typeof user.avatarUrl === "string" && user.avatarUrl.length > MAX_PROFILE_AVATAR_LENGTH) {

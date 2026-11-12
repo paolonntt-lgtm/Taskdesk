@@ -1,4 +1,4 @@
-import { getListUsersQueryKey, useListUsers } from '@workspace/api-client-react';
+import { getListUsersQueryKey, useListUsers, type User } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 
@@ -61,7 +61,7 @@ export function useWorkspaceCollaborators(
     return () => window.removeEventListener('workspace-members-changed', onWorkspaceMembersChanged);
   }, [queryClient, workspaceId]);
 
-  return useListUsers({
+  return useListUsers<User[]>(undefined, {
     query: {
       queryKey: [...getListUsersQueryKey(), workspaceId],
       enabled: enabled && workspaceId != null,

@@ -368,6 +368,13 @@ export interface LoginResponse {
   message?: string;
 }
 
+export interface UserPage {
+  users: User[];
+  totalCount: number;
+  activeCount: number;
+  nextCursor: string | null;
+}
+
 export type CreateUserBodyRole = typeof CreateUserBodyRole[keyof typeof CreateUserBodyRole];
 
 
@@ -1775,6 +1782,15 @@ export const WaitForPermissionChanges200Type = {
 
 export type WaitForPermissionChanges200 = {
   type: WaitForPermissionChanges200Type;
+};
+
+export type ListUsersParams = {
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+limit?: number;
+cursor?: string;
 };
 
 export type GetUserAvatar200 = {

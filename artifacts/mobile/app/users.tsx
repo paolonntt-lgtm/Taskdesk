@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   View, Text, Image, FlatList, StyleSheet, TouchableOpacity,
   ActivityIndicator, Alert, Modal, TextInput, ScrollView,
@@ -6,8 +6,8 @@ import {
   type ViewToken,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useGetUserAvatar } from "@workspace/api-client-react";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
+import { listUsers, useGetUserAvatar, type UserPage } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -28,6 +28,8 @@ interface User {
   hourlyCompensated?: boolean;
   createdAt: string;
 }
+
+const TEAM_PAGE_SIZE = 50;
 
 type ModalMode = "create" | "edit";
 
@@ -140,10 +142,43 @@ export default function UsersScreen() {
   }).current;
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 25 }).current;
 
-  const { data: users = [], isLoading, refetch } = useQuery({
-    queryKey: ["users"],
-    queryFn: () => apiGet<User[]>("/users"),
+  const {
+    data: userPages,
+    isLoading,
+    isRefetching,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+    refetch,
+  } = useInfiniteQuery({
+    queryKey: ["users", "directory", me?.organizationId],
+    queryFn: async ({ pageParam }): Promise<UserPage> => {
+      const response = await listUsers({
+        limit: TEAM_PAGE_SIZE,
+        ...(typeof pageParam === "string" ? { cursor: pageParam } : {}),
+      });
+      if (Array.isArray(response)) {
+        throw new Error("The team directory request did not return a page.");
+      }
+      return response;
+    },
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
+  const users = useMemo(
+    () => userPages?.pages.flatMap((page) => page.users) ?? [],
+    [userPages],
+  );
+  const totalCount = userPages?.pages[0]?.totalCount ?? 0;
+  const activeCount = userPages?.pages[0]?.activeCount ?? 0;
+
+  const refreshUserQueries = () => {
+    void qc.resetQueries({
+      queryKey: ["users", "directory", me?.organizationId],
+      exact: true,
+    });
+    void qc.invalidateQueries({ queryKey: ["users"], exact: true });
+  };
   const { data: organizationSettings } = useQuery<{ timeTrackingModuleEnabled?: boolean }>({
     queryKey: ["mobile-organization-settings", me?.organizationId],
     queryFn: () => apiGet("/settings/organization"),
@@ -231,7 +266,7 @@ export default function UsersScreen() {
         if (form.password) body.password = form.password;
         await apiPatch(`/users/${editingUser.id}`, body);
       }
-      qc.invalidateQueries({ queryKey: ["users"] });
+      refreshUserQueries();
       setModalOpen(false);
       resetForm();
     } catch (err: any) {
@@ -264,7 +299,7 @@ export default function UsersScreen() {
               } else {
                 await apiPatch(`/users/${u.id}`, { isActive: true });
               }
-              qc.invalidateQueries({ queryKey: ["users"] });
+              refreshUserQueries();
             } catch (err: any) {
               Alert.alert(t.users.error, err.message);
             }
@@ -278,8 +313,6 @@ export default function UsersScreen() {
     setForm((f) => ({ ...f, [key]: val }));
     setErrors((prev) => ({ ...prev, [key]: "" }));
   };
-
-  const activeCount = users.filter((u) => u.isActive !== false).length;
 
   const renderUser = ({ item }: { item: User }) => {
     const isActive = item.isActive !== false;
@@ -331,7 +364,7 @@ export default function UsersScreen() {
   return (
     <View style={s.root}>
       <View style={s.header}>
-        <Text style={s.subtitle}>{activeCount} {t.users.active.toLowerCase()} · {users.length} tot.</Text>
+        <Text style={s.subtitle}>{activeCount} {t.users.active.toLowerCase()} · {totalCount} tot.</Text>
         <TouchableOpacity style={s.addBtn} onPress={openCreate} activeOpacity={0.8}>
           <Feather name="user-plus" size={16} color={colors.primaryForeground} />
           <Text style={s.addBtnText}>{t.users.addUser}</Text>
@@ -349,8 +382,15 @@ export default function UsersScreen() {
           viewabilityConfig={viewabilityConfig}
           scrollEnabled={users.length > 0}
           contentContainerStyle={[s.list, { paddingBottom: Platform.OS === "web" ? 100 : 20 }]}
-          refreshing={false}
+          refreshing={isRefetching && !isFetchingNextPage}
           onRefresh={refetch}
+          onEndReached={() => {
+            if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
+          }}
+          onEndReachedThreshold={0.4}
+          ListFooterComponent={isFetchingNextPage
+            ? <ActivityIndicator color={colors.primary} style={{ paddingVertical: 16 }} />
+            : null}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={s.empty}>

@@ -85,6 +85,7 @@ import type {
   ListSharedOneDriveFolderItemsParams,
   ListTicketDriveFolderItemsParams,
   ListTicketsParams,
+  ListUsersParams,
   LoginRequest,
   LoginResponse,
   NoteWithAuthor,
@@ -148,6 +149,7 @@ import type {
   UpdateUserBody,
   UploadSharedOneDriveFileParams,
   User,
+  UserPage,
   WaitForPermissionChanges200,
   WorkedHoursUpdate,
   WorkedHoursUpdateResult,
@@ -2077,20 +2079,27 @@ export function useWaitForPermissionChanges<TData = Awaited<ReturnType<typeof wa
 
 
 
-export const getListUsersUrl = () => {
+export const getListUsersUrl = (params?: ListUsersParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/users`
+  return stringifiedParams.length > 0 ? `/api/users?${stringifiedParams}` : `/api/users`
 }
 
 /**
- * @summary List all users
+ * @summary List users, optionally in stable pages
  */
-export const listUsers = async ( options?: Parameters<typeof customFetch>[1]): Promise<User[]> => {
+export const listUsers = async (params?: ListUsersParams, options?: Parameters<typeof customFetch>[1]): Promise<User[] | UserPage> => {
 
-  return customFetch<User[]>(getListUsersUrl(),
+  return customFetch<User[] | UserPage>(getListUsersUrl(params),
   {
     ...options,
     method: 'GET'
@@ -2103,23 +2112,23 @@ export const listUsers = async ( options?: Parameters<typeof customFetch>[1]): P
 
 
 
-export const getListUsersQueryKey = () => {
+export const getListUsersQueryKey = (params?: ListUsersParams,) => {
     return [
-    `/api/users`
+    `/api/users`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getListUsersQueryOptions = <TData = Awaited<ReturnType<typeof listUsers>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listUsers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getListUsersQueryOptions = <TData = Awaited<ReturnType<typeof listUsers>>, TError = ErrorType<unknown>>(params?: ListUsersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listUsers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListUsersQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getListUsersQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listUsers>>> = ({ signal }) => listUsers({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listUsers>>> = ({ signal }) => listUsers(params, { signal, ...requestOptions });
 
 
 
@@ -2133,15 +2142,15 @@ export type ListUsersQueryError = ErrorType<unknown>
 
 
 /**
- * @summary List all users
+ * @summary List users, optionally in stable pages
  */
 
 export function useListUsers<TData = Awaited<ReturnType<typeof listUsers>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listUsers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ params?: ListUsersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listUsers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getListUsersQueryOptions(options)
+  const queryOptions = getListUsersQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

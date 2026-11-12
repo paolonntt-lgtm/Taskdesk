@@ -555,9 +555,18 @@ export const WaitForPermissionChangesResponse = zod.object({
 
 
 /**
- * @summary List all users
+ * @summary List users, optionally in stable pages
  */
-export const ListUsersResponseItem = zod.object({
+export const listUsersQueryLimitMax = 100;
+
+
+
+export const ListUsersQueryParams = zod.object({
+  "limit": zod.coerce.number().int().min(1).max(listUsersQueryLimitMax).optional(),
+  "cursor": zod.coerce.string().optional()
+})
+
+export const ListUsersResponse = zod.union([zod.array(zod.object({
   "id": zod.int(),
   "name": zod.string(),
   "email": zod.string(),
@@ -589,8 +598,44 @@ export const ListUsersResponseItem = zod.object({
   "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'assign_time_tracked_tickets', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
   "effectivePermissions": zod.array(zod.enum(['change_status', 'assign_time_tracked_tickets', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
   "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional()
-})
-export const ListUsersResponse = zod.array(ListUsersResponseItem)
+})),zod.object({
+  "users": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "role": zod.enum(['admin', 'user']),
+  "preferredLanguage": zod.enum(['it', 'en']).nullish(),
+  "mainLocation": zod.string().nullish(),
+  "group": zod.string().nullish(),
+  "groups": zod.array(zod.string()).nullish(),
+  "avatarUrl": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "isAvailable": zod.boolean(),
+  "hourlyCompensated": zod.boolean().optional(),
+  "createdAt": zod.coerce.date(),
+  "onboardingDone": zod.boolean().nullish(),
+  "businessType": zod.string().nullish(),
+  "profession": zod.string().nullish(),
+  "trialEndsAt": zod.coerce.date().nullish(),
+  "stripeSubscriptionId": zod.string().nullish(),
+  "trialStatus": zod.object({
+  "isInTrial": zod.boolean(),
+  "isExpired": zod.boolean(),
+  "daysLeft": zod.int()
+}).nullish(),
+  "isSuperAdmin": zod.boolean().nullish(),
+  "clientsEnabled": zod.boolean().nullish(),
+  "organizationId": zod.int().nullish(),
+  "organizationName": zod.string().nullish(),
+  "groupPermissions": zod.array(zod.enum(['change_status', 'assign_time_tracked_tickets', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'assign_time_tracked_tickets', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "effectivePermissions": zod.array(zod.enum(['change_status', 'assign_time_tracked_tickets', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional()
+})),
+  "totalCount": zod.int(),
+  "activeCount": zod.int(),
+  "nextCursor": zod.string().nullable()
+})])
 
 
 /**
