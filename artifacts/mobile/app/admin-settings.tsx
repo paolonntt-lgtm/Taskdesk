@@ -289,21 +289,26 @@ export default function AdminSettingsScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={s.hero}>
-          <View style={s.heroTopline}>
-            <View style={s.adminMark}><Feather name="settings" size={13} color={colors.primaryForeground} /></View>
-            <Text style={s.eyebrow}>{t.adminSettings.adminSettingsEyebrow}</Text>
+        <View style={s.pageHeader}>
+          <View style={s.headerAccent} />
+          <View style={s.headerContent}>
+            <View style={s.headerCopy}>
+              <Text style={s.eyebrow}>{t.adminSettings.adminSettingsEyebrow}</Text>
+              <Text style={s.pageTitle}>{t.adminSettings.title}</Text>
+              <Text style={s.pageDescription}>{t.adminSettings.mobileIntro}</Text>
+            </View>
+            <View style={s.headerMark}>
+              <Feather name="sliders" size={19} color={colors.primaryForeground} />
+            </View>
           </View>
-          <Text style={s.pageTitle}>{t.adminSettings.title}</Text>
-          <Text style={s.pageDescription}>{t.adminSettings.mobileIntro}</Text>
+          <View style={s.headerRule}>
+            <View style={s.headerRuleBlue} />
+            <View style={s.headerRuleTeal} />
+            <View style={s.headerRuleAmber} />
+          </View>
         </View>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={s.tabBar}
-          accessibilityRole="tablist"
-        >
+        <View style={s.tabBar} accessibilityRole="tablist">
           {([
             ["organization", t.adminSettings.organizationTab, "home"],
             ["modules", t.adminSettings.modulesTab, "grid"],
@@ -322,15 +327,15 @@ export default function AdminSettingsScreen() {
                 style={[s.tab, selected && s.tabActive]}
                 activeOpacity={0.78}
               >
-                <Text style={[s.tabIndex, selected && s.tabIndexActive]}>{`0${index + 1}`}</Text>
-                <View style={s.tabLabelRow}>
-                  <Feather name={icon} size={14} color={selected ? colors.primary : colors.mutedForeground} />
-                  <Text style={[s.tabText, selected && s.tabTextActive]}>{label}</Text>
+                <View style={[s.tabGlyph, selected && s.tabGlyphActive]}>
+                  <Feather name={icon} size={15} color={selected ? colors.primaryForeground : index === 1 ? colors.accent : index === 3 ? colors.warning : colors.primary} />
                 </View>
+                <Text style={[s.tabText, selected && s.tabTextActive]} numberOfLines={1}>{label}</Text>
+                <View style={[s.tabIndicator, selected && s.tabIndicatorActive]} />
               </TouchableOpacity>
             );
           })}
-        </ScrollView>
+        </View>
 
         {activeTab === "organization" && organization && (
           <View style={s.panel} testID="admin-settings-panel-organization">
@@ -657,7 +662,7 @@ export default function AdminSettingsScreen() {
                 disabled={saving !== null}
               >
                 {saving !== null
-                  ? <ActivityIndicator color="#fff" size="small" />
+                  ? <ActivityIndicator color={colors.primaryForeground} size="small" />
                   : <Text style={s.modalSaveBtnText}>{t.adminSettings.save}</Text>
                 }
               </TouchableOpacity>
@@ -697,118 +702,119 @@ export default function AdminSettingsScreen() {
 const styles = (colors: ReturnType<typeof useColors>) =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.background },
-    center: { flex: 1, alignItems: "center", justifyContent: "center" },
+    center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.background },
     loadErrorPanel: { padding: 28, gap: 14 },
     loadErrorText: { color: colors.foreground, fontSize: 15, lineHeight: 22, textAlign: "center", fontFamily: "Inter_500Medium" },
-    retryButton: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: colors.primary, borderRadius: 12, paddingHorizontal: 18, paddingVertical: 12 },
+    retryButton: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: colors.primary, borderRadius: 10, paddingHorizontal: 18, paddingVertical: 12 },
     retryText: { color: colors.primaryForeground, fontSize: 14, fontFamily: "Inter_600SemiBold" },
-    content: { paddingHorizontal: 18, paddingTop: 16, gap: 20 },
-    hero: {
-      backgroundColor: colors.secondary,
-      borderRadius: 22,
-      paddingHorizontal: 20,
-      paddingTop: 18,
-      paddingBottom: 22,
-      borderWidth: 1,
-      borderColor: colors.border,
-      overflow: "hidden",
-      gap: 8,
-    },
-    heroTopline: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 },
-    adminMark: { width: 25, height: 25, borderRadius: 8, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary },
-    eyebrow: { color: colors.secondaryForeground, fontSize: 10, letterSpacing: 1.35, fontFamily: "Inter_700Bold" },
-    pageTitle: { color: colors.foreground, fontSize: 27, lineHeight: 32, fontFamily: "Inter_700Bold", letterSpacing: -0.6 },
-    pageDescription: { color: colors.mutedForeground, fontSize: 13, lineHeight: 19, fontFamily: "Inter_400Regular", maxWidth: 310 },
-    tabBar: {
-      flexDirection: "row",
-      alignItems: "stretch",
-      gap: 8,
-      paddingRight: 18,
-    },
-    tab: {
-      minWidth: 102,
-      minHeight: 59,
-      justifyContent: "center",
-      gap: 5,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      borderRadius: 14,
+    content: { paddingHorizontal: 16, paddingTop: 12, gap: 18 },
+    pageHeader: {
       backgroundColor: colors.card,
       borderWidth: 1,
       borderColor: colors.border,
+      borderRadius: 14,
+      overflow: "hidden",
     },
-    tabActive: {
-      backgroundColor: colors.secondary,
-      borderColor: colors.primary,
+    headerAccent: { height: 5, backgroundColor: colors.primary },
+    headerContent: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingTop: 15, paddingBottom: 14 },
+    headerCopy: { flex: 1, gap: 4 },
+    headerMark: { width: 44, height: 44, borderRadius: 13, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" },
+    eyebrow: { color: colors.accent, fontSize: 9, letterSpacing: 1.3, fontFamily: "Inter_700Bold" },
+    pageTitle: { color: colors.foreground, fontSize: 23, lineHeight: 28, fontFamily: "Inter_700Bold", letterSpacing: -0.45 },
+    pageDescription: { color: colors.mutedForeground, fontSize: 12, lineHeight: 17, fontFamily: "Inter_400Regular" },
+    headerRule: { height: 3, flexDirection: "row" },
+    headerRuleBlue: { flex: 5, backgroundColor: colors.primary },
+    headerRuleTeal: { flex: 2, backgroundColor: colors.accent },
+    headerRuleAmber: { flex: 1, backgroundColor: colors.warning },
+    tabBar: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 8,
     },
-    tabIndex: { color: colors.mutedForeground, fontSize: 9, letterSpacing: 1.3, fontFamily: "Inter_700Bold" },
-    tabIndexActive: { color: colors.primary },
-    tabLabelRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-    tabText: { color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_600SemiBold" },
+    tab: {
+      width: "47%",
+      minHeight: 57,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 9,
+      paddingHorizontal: 10,
+      paddingVertical: 9,
+      backgroundColor: colors.card,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 11,
+      overflow: "hidden",
+    },
+    tabActive: { backgroundColor: colors.secondary, borderColor: colors.primary },
+    tabGlyph: { width: 31, height: 31, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: colors.muted },
+    tabGlyphActive: { backgroundColor: colors.primary },
+    tabText: { flex: 1, color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_600SemiBold" },
     tabTextActive: { color: colors.primary, fontFamily: "Inter_700Bold" },
-    panel: { gap: 14 },
-    panelHeading: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 2 },
+    tabIndicator: { width: 3, height: 19, borderRadius: 2, backgroundColor: "transparent" },
+    tabIndicatorActive: { backgroundColor: colors.accent },
+    panel: { gap: 13 },
+    panelHeading: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 2, borderLeftWidth: 3, borderLeftColor: colors.accent, paddingLeft: 10 },
     headingCopy: { flex: 1, gap: 3 },
-    sectionNumber: { color: colors.mutedForeground, fontSize: 11, letterSpacing: 1, fontFamily: "Inter_700Bold" },
+    sectionNumber: { color: colors.accent, fontSize: 10, letterSpacing: 1, fontFamily: "Inter_700Bold" },
     orgField: { gap: 7 },
     orgLabel: { color: colors.foreground, fontSize: 13, fontFamily: "Inter_600SemiBold" },
     orgDescription: { color: colors.mutedForeground, fontSize: 11, lineHeight: 16, fontFamily: "Inter_400Regular" },
-    orgInput: { backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 12, color: colors.foreground, fontSize: 14, fontFamily: "Inter_500Medium" },
+    orgInput: { backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 9, paddingHorizontal: 13, paddingVertical: 12, color: colors.foreground, fontSize: 14, fontFamily: "Inter_500Medium" },
     divider: { height: 1, backgroundColor: colors.border },
     entityFields: { gap: 13, paddingTop: 1 },
-    businessTypes: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-    businessType: { borderWidth: 1, borderColor: colors.border, borderRadius: 11, paddingHorizontal: 12, paddingVertical: 9, backgroundColor: colors.background },
+    businessTypes: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
+    businessType: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 11, paddingVertical: 9, backgroundColor: colors.background },
     businessTypeActive: { borderColor: colors.primary, backgroundColor: colors.secondary },
     businessTypeText: { color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_500Medium" },
     businessTypeTextActive: { color: colors.primary },
     orgSwitchText: { flex: 1, gap: 4 },
     orgError: { color: colors.destructive, fontSize: 12, lineHeight: 17, fontFamily: "Inter_500Medium" },
-    orgUnsaved: { color: colors.primary, fontSize: 12, fontFamily: "Inter_600SemiBold", paddingTop: 2 },
-    orgSaveBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, backgroundColor: colors.primary, borderRadius: 13, paddingVertical: 14, marginTop: 2 },
+    orgUnsaved: { color: colors.warning, fontSize: 12, fontFamily: "Inter_600SemiBold", paddingTop: 2 },
+    orgSaveBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, backgroundColor: colors.primary, borderRadius: 9, paddingVertical: 14, marginTop: 2 },
     orgSaveBtnDisabled: { opacity: 0.45 },
     saveBtnText: { color: colors.primaryForeground, fontSize: 14, fontFamily: "Inter_700Bold" },
     panelDescription: { color: colors.mutedForeground, fontSize: 12, lineHeight: 17, fontFamily: "Inter_400Regular" },
-    moduleRow: { flexDirection: "row", alignItems: "center", gap: 11, paddingVertical: 14 },
+    moduleRow: { flexDirection: "row", alignItems: "center", gap: 11, paddingVertical: 13 },
     moduleDivider: { height: 1, backgroundColor: colors.border, marginLeft: 48 },
-    moduleGlyph: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-    reportLink: { marginTop: 2, flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderColor: colors.border, borderRadius: 13, padding: 12, backgroundColor: colors.background },
-    reportIcon: { width: 30, height: 30, borderRadius: 9, backgroundColor: colors.secondary, alignItems: "center", justifyContent: "center" },
+    moduleGlyph: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+    reportLink: { marginTop: 2, flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderColor: colors.accent, borderRadius: 9, padding: 11, backgroundColor: colors.background },
+    reportIcon: { width: 30, height: 30, borderRadius: 8, backgroundColor: colors.secondary, alignItems: "center", justifyContent: "center" },
     reportText: { flex: 1, color: colors.primary, fontSize: 13, fontFamily: "Inter_600SemiBold" },
-    noticeCard: { alignItems: "center", gap: 11, paddingHorizontal: 20, paddingTop: 28, paddingBottom: 20, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 20 },
-    noticeIllustration: { width: 74, height: 74, borderRadius: 25, alignItems: "center", justifyContent: "center", backgroundColor: colors.warning + "20", marginBottom: 5 },
-    noticeSignal: { position: "absolute", top: 13, right: 14, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.success },
+    noticeCard: { alignItems: "center", gap: 11, paddingHorizontal: 20, paddingTop: 23, paddingBottom: 20, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderTopWidth: 3, borderTopColor: colors.warning, borderRadius: 12 },
+    noticeIllustration: { width: 66, height: 66, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: colors.warning + "20", marginBottom: 4 },
+    noticeSignal: { position: "absolute", top: 10, right: 11, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.accent },
     noticeTitle: { color: colors.foreground, fontSize: 17, textAlign: "center", fontFamily: "Inter_700Bold" },
     noticeBody: { color: colors.mutedForeground, fontSize: 13, lineHeight: 19, textAlign: "center", fontFamily: "Inter_400Regular" },
-    ticketSettings: { gap: 17 },
+    ticketSettings: { gap: 16 },
     testPushBtn: {
       flexDirection: "row" as const, alignItems: "center" as const, justifyContent: "center" as const,
       gap: 9, backgroundColor: colors.primary,
-      paddingVertical: 14, borderRadius: 13, paddingHorizontal: 18, width: "100%", marginTop: 7,
+      paddingVertical: 14, borderRadius: 9, paddingHorizontal: 18, width: "100%", marginTop: 7,
     },
     testPushBtnText: { color: colors.primaryForeground, fontSize: 14, fontFamily: "Inter_700Bold" },
     buttonBusy: { opacity: 0.65 },
 
-    section: { gap: 10 },
+    section: { gap: 9 },
     sectionHeader: {
       flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     },
     sectionTitleRow: { flexDirection: "row", alignItems: "center", gap: 10, flex: 1 },
     sectionIcon: {
-      width: 38, height: 38, borderRadius: 13,
+      width: 36, height: 36, borderRadius: 10,
       alignItems: "center", justifyContent: "center",
     },
     sectionTitle: { fontSize: 16, color: colors.foreground, fontFamily: "Inter_700Bold" },
     sectionCount: { fontSize: 11, color: colors.mutedForeground, fontFamily: "Inter_500Medium" },
     addBtn: {
       flexDirection: "row", alignItems: "center", gap: 5,
-      paddingHorizontal: 13, paddingVertical: 9, borderRadius: 11,
+      paddingHorizontal: 12, paddingVertical: 9, borderRadius: 8,
     },
     addBtnText: { color: colors.primaryForeground, fontSize: 12, fontFamily: "Inter_700Bold" },
 
     card: {
-      backgroundColor: colors.card, borderRadius: 18,
-      borderWidth: 1, borderColor: colors.border, overflow: "hidden",
-      padding: 16, gap: 16,
+      backgroundColor: colors.card, borderRadius: 11,
+      borderWidth: 1, borderColor: colors.border, borderLeftWidth: 3, borderLeftColor: colors.primary, overflow: "hidden",
+      padding: 14, gap: 14,
     },
     savingRow: { padding: 20, alignItems: "center" },
     emptyRow: { padding: 16, alignItems: "center" },
@@ -816,7 +822,7 @@ const styles = (colors: ReturnType<typeof useColors>) =>
 
     itemRow: {
       flexDirection: "row", alignItems: "center",
-      paddingHorizontal: 3, paddingVertical: 11, gap: 12,
+      paddingHorizontal: 2, paddingVertical: 10, gap: 11,
     },
     itemRowBorder: { borderTopWidth: 1, borderTopColor: colors.border },
     itemDot: { width: 7, height: 7, borderRadius: 4 },
@@ -825,7 +831,7 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     },
     itemActions: { flexDirection: "row", gap: 4 },
     iconBtn: {
-      width: 34, height: 34, borderRadius: 10,
+      width: 34, height: 34, borderRadius: 9,
       alignItems: "center", justifyContent: "center",
       backgroundColor: colors.muted,
     },
@@ -841,19 +847,19 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     modalCancelText: { fontSize: 15, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
     modalSaveBtn: {
       backgroundColor: colors.primary, paddingHorizontal: 17,
-      paddingVertical: 9, borderRadius: 12, minWidth: 64, alignItems: "center",
+      paddingVertical: 9, borderRadius: 9, minWidth: 64, alignItems: "center",
     },
     modalSaveBtnText: { color: colors.primaryForeground, fontSize: 14, fontFamily: "Inter_600SemiBold" },
 
     modalContent: { padding: 20, gap: 16 },
     sectionBadge: {
       flexDirection: "row", alignItems: "center", gap: 6,
-      alignSelf: "flex-start", paddingHorizontal: 11, paddingVertical: 7, borderRadius: 11,
+      alignSelf: "flex-start", paddingHorizontal: 11, paddingVertical: 7, borderRadius: 8,
     },
     sectionBadgeText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
     modalInput: {
       backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
-      borderRadius: 13, paddingHorizontal: 14, paddingVertical: 14,
+      borderRadius: 9, paddingHorizontal: 14, paddingVertical: 14,
       fontSize: 16, color: colors.foreground, fontFamily: "Inter_400Regular",
     },
     modalInputError: { borderColor: colors.destructive },

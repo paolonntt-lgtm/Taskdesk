@@ -76,4 +76,4 @@
 - [Albert client-note workflow](albert-client-note-workflow.md) — Start notes with an explicit quick action, then select the client via @ and write the note.
 - [Gym client profile](gym-client-profile.md) — Keep gym profiles focused on member details, the approved Italian ticket categories, and optional membership numbers.
 - [Self-service account deletion](self-service-account-deletion.md) — Anonymize and deactivate only the account, retain organization records and billing, and block deletion by the last administrator.
-- [Mobile admin settings organization](mobile-admin-settings-organization.md) — Keep company identity, modules, ticket data, and push testing in separate mobile settings sections.
+- [Mobile admin settings organization](mobile-admin-settings-organization.md) — Keep four settings sections and the approved vivid blue, teal, and amber visual direction.
