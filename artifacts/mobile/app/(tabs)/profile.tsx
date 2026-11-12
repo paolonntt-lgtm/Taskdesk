@@ -293,15 +293,15 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     backgroundColor: colors.primary, marginLeft: 16,
   },
   toolList: {
-    flexDirection: "column", paddingHorizontal: 12, paddingVertical: 10, gap: 6,
+    flexDirection: "column", paddingHorizontal: 10, paddingVertical: 8, gap: 4,
   },
   toolRow: {
-    width: "100%", minHeight: 54, flexDirection: "row", alignItems: "center",
-    gap: 10, paddingHorizontal: 10, paddingVertical: 7,
-    borderWidth: 1, borderLeftWidth: 3, borderRadius: 12,
+    width: "100%", minHeight: 46, flexDirection: "row", alignItems: "center",
+    gap: 8, paddingHorizontal: 9, paddingVertical: 5,
+    borderWidth: 1, borderLeftWidth: 3, borderRadius: 11,
   },
   toolIconWrap: {
-    width: 34, height: 34, borderRadius: 11, borderWidth: 1,
+    width: 28, height: 28, borderRadius: 9, borderWidth: 1,
     alignItems: "center", justifyContent: "center",
   },
   toolLabel: {
@@ -309,7 +309,7 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     fontFamily: "Inter_600SemiBold",
   },
   toolArrow: {
-    width: 26, height: 26, borderRadius: 9,
+    width: 22, height: 22, borderRadius: 8,
     alignItems: "center", justifyContent: "center",
   },
     infoRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 14 },
