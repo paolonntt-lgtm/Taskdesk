@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 import { destroySessionsForUser } from "../lib/session";
+import { MAX_PROFILE_AVATAR_LENGTH } from "../lib/avatar";
 import { verifyPassword, hashPassword } from "./auth";
 
 const router: IRouter = Router();
@@ -62,8 +63,8 @@ router.patch("/auth/profile", requireAuth, async (req, res): Promise<void> => {
   }
 
   if (avatarUrl !== undefined) {
-    if (avatarUrl && typeof avatarUrl === "string" && avatarUrl.length > 2_000_000) {
-      res.status(400).json({ message: "Immagine troppo grande (max 1.5 MB)" });
+    if (avatarUrl && typeof avatarUrl === "string" && avatarUrl.length > MAX_PROFILE_AVATAR_LENGTH) {
+      res.status(400).json({ message: "Immagine troppo grande (max 75 KB)" });
       return;
     }
     updates.avatarUrl = avatarUrl || null;

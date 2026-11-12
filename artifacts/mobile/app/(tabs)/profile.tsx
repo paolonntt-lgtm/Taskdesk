@@ -108,14 +108,15 @@ export default function ProfileScreen() {
 
       setAvatarSaving(true);
       let avatarUrl: string | null = null;
-      for (const compress of [0.82, 0.68, 0.54, 0.4]) {
+      for (const compress of [0.72, 0.58, 0.44, 0.3]) {
         const image = await ImageManipulator.manipulateAsync(
           asset.uri,
-          [{ resize: { width: 1024 } }],
+          [{ resize: { width: 256, height: 256 } }],
           { compress, format: ImageManipulator.SaveFormat.JPEG, base64: true },
         );
-        if (image.base64 && image.base64.length < 1_900_000) {
-          avatarUrl = `data:image/jpeg;base64,${image.base64}`;
+        const dataUriPrefix = "data:image/jpeg;base64,";
+        if (image.base64 && image.base64.length + dataUriPrefix.length <= 100_000) {
+          avatarUrl = `${dataUriPrefix}${image.base64}`;
           break;
         }
       }

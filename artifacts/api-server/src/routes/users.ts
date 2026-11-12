@@ -25,6 +25,7 @@ import {
 } from "../lib/groupPermissions";
 import { notifyPermissionChanged } from "../lib/permissionEvents";
 import { disconnectOneDriveUser } from "../lib/onedriveGraph";
+import { limitTeamAvatarPayload } from "../lib/avatar";
 
 const router: IRouter = Router();
 
@@ -117,7 +118,7 @@ router.get("/users", requireAuth, async (req, res): Promise<void> => {
   // The active workspace is selected by X-Workspace-ID, not the URL. Do not
   // let the browser reuse a different workspace's user list from its HTTP cache.
   res.setHeader("Cache-Control", "no-store");
-  res.json(users.map((u) => {
+  const responseUsers = users.map((u) => {
     const groupMemberships = byUser.get(u.id) ?? [];
     const inherited = [...new Set(groupMemberships.flatMap((group) => group.permissions))];
     const permissionOverrides = parsePermissionOverrides((u as any).workspacePermissionOverrides ?? u.permissionOverrides);
@@ -131,7 +132,8 @@ router.get("/users", requireAuth, async (req, res): Promise<void> => {
       ...summary,
       permissionOverrides,
     };
-  }));
+  });
+  res.json(limitTeamAvatarPayload(responseUsers));
 });
 
 router.post("/users", requireAuth, requireAdmin, async (req, res): Promise<void> => {
