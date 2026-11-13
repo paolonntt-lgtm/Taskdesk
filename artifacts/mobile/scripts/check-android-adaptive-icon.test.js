@@ -436,7 +436,7 @@ describe("mobile shared app icon, splash, and favicon asset", () => {
     expect(config.web.favicon).toBe("./assets/images/taskdesk-favicon.png");
     expect(splash).toMatchObject({
       image: config.icon,
-      imageWidth: 220,
+      imageWidth: 250,
       resizeMode: "contain",
       backgroundColor: "#ffffff",
       dark: {
@@ -447,6 +447,7 @@ describe("mobile shared app icon, splash, and favicon asset", () => {
     expect(image.width).toBe(1024);
     expect(image.height).toBe(1024);
     expect(image.transparentPixelCount).toBe(0);
+    expect(image.nonWhiteBounds.maxX - image.nonWhiteBounds.minX + 1).toBeGreaterThan(850);
     expect(Math.abs((image.nonWhiteBounds.minX + image.nonWhiteBounds.maxX) / 2 - 511.5)).toBeLessThanOrEqual(5);
     expect(Math.abs((image.nonWhiteBounds.minY + image.nonWhiteBounds.maxY) / 2 - 511.5)).toBeLessThanOrEqual(5);
     expect(favicon.width).toBe(1024);

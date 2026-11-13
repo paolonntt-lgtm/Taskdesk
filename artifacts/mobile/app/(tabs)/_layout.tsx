@@ -989,9 +989,9 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   dashboardLogo: {
-    width: 32,
-    height: 32,
-    borderRadius: 7,
+    width: 40,
+    height: 40,
+    borderRadius: 9,
   },
   dashboardSearch: {
     flex: 1,

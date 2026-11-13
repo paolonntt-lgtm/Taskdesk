@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url";
 const workspaceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const masterPath = path.join(workspaceRoot, "artifacts/landing/public/favicon.svg");
 const manifestPath = path.join(workspaceRoot, "scripts/taskdesk-icons.manifest.json");
-const foregroundSize = 500;
+const foregroundSize = 508;
 const faviconArtworkSize = 900;
 const adaptiveForegroundPath = "artifacts/mobile/assets/images/taskdesk-adaptive-foreground.png";
 const targets = [
@@ -23,7 +23,7 @@ const targets = [
   ["artifacts/landing/public/apple-touch-icon.png", 180, "opaque"],
   ["artifacts/landing/public/icon-192.png", 192, "opaque"],
   ["artifacts/landing/public/icon-512.png", 512, "opaque"],
-  ["artifacts/mobile/assets/images/taskdesk-app-icon.png", 1024, "opaque"],
+  ["artifacts/mobile/assets/images/taskdesk-app-icon.png", 1024, "mobile-icon"],
   [adaptiveForegroundPath, 1024, "foreground"],
   ["artifacts/mobile/assets/images/taskdesk-favicon.png", 1024, "favicon"],
 ];
@@ -75,6 +75,16 @@ function makeTransparentMaster(svg) {
 
 function render(targetPath, size, variant, sourcePath) {
   mkdirSync(path.dirname(targetPath), { recursive: true });
+  if (variant === "mobile-icon") {
+    const zoomedSize = Math.round(size * 1.18);
+    runMagick([
+      "-background", "white", sourcePath, "-alpha", "remove", "-alpha", "off",
+      "-filter", "Lanczos", "-resize", `${zoomedSize}x${zoomedSize}!`,
+      "-gravity", "center", "-background", "white", "-extent", `${size}x${size}`,
+      "-depth", "8", "-strip", `PNG24:${targetPath}`,
+    ]);
+    return;
+  }
   if (variant === "foreground") {
     runMagick([
       "-background", "none", sourcePath, "-alpha", "on", "-trim", "+repage",
@@ -216,7 +226,7 @@ function check() {
     const hasAlpha = data[25] === 4 || data[25] === 6 || data.includes(Buffer.from("tRNS"));
     if (dimensions !== `${size}x${size}`) {
       differences.push(`${relativePath} has dimensions ${dimensions}; expected ${size}x${size}`);
-    } else if (variant !== "opaque" && !hasAlpha) {
+    } else if (variant !== "opaque" && variant !== "mobile-icon" && !hasAlpha) {
       differences.push(`${relativePath} must preserve its transparent background`);
     } else if (sha256(data) !== manifest.assets[relativePath]) {
       differences.push(`${relativePath} differs from its recorded generated version`);

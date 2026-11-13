@@ -56,7 +56,7 @@
         "expo-splash-screen",
         {
           "image": "./assets/images/taskdesk-app-icon.png",
-          "imageWidth": 220,
+          "imageWidth": 250,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",
           "dark": {

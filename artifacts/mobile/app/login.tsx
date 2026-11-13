@@ -401,9 +401,9 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     },
     header: { alignItems: "center", marginBottom: 28 },
     logoTile: {
-      width: 84,
-      height: 84,
-      borderRadius: 25,
+      width: 96,
+      height: 96,
+      borderRadius: 28,
       backgroundColor: colors.card,
       alignItems: "center",
       justifyContent: "center",
@@ -416,7 +416,7 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       shadowRadius: 16,
       elevation: 5,
     },
-    logo: { width: 70, height: 70, borderRadius: 18 },
+    logo: { width: 82, height: 82, borderRadius: 22 },
     brand: {
       fontSize: 27,
       fontWeight: "700" as const,

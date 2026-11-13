@@ -9,8 +9,8 @@
     "artifacts/landing/public/apple-touch-icon.png": "90dcdf9783f9f48b4159b7112b1852a3ea8233e3d9a183f99957589f50937573",
     "artifacts/landing/public/icon-192.png": "4cd3193da6295dbc59155321609c70315598e409889e4ceb8217bb6d14ec078b",
     "artifacts/landing/public/icon-512.png": "2845500362b2148ecc8b55f527be5ed4b2027b710ce2d48fd7222378532d771d",
-    "artifacts/mobile/assets/images/taskdesk-app-icon.png": "11e57888afdd420ad645fa7121eb3998b10907753ea6e0acd3bc0ec21bbefeb3",
-    "artifacts/mobile/assets/images/taskdesk-adaptive-foreground.png": "e1887b88760d6a1d7f1c6fd0b6ec2998e5266688d3c6c5af8a82a0e1e0095ee5",
-    "artifacts/mobile/assets/images/taskdesk-favicon.png": "3edff3586c5b3e2173796646dcdfe913da7c97ebf9d1e7ed3a37d8a275aa5a82"
+    "artifacts/mobile/assets/images/taskdesk-app-icon.png": "b36b10d8576dae1497335daa202e82583ce14ed01e7de3fc6faf6b129e8c9010",
+    "artifacts/mobile/assets/images/taskdesk-adaptive-foreground.png": "5f941122499bda34f0c101b70fc1143be9dd9483c24c91464016588602359339",
+    "artifacts/mobile/assets/images/taskdesk-favicon.png": "ed234a1b165a0a316e6d13593e671b4cad5ea307e8c21f1647a9ee627b081a7a"
   }
 }
