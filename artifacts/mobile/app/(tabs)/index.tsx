@@ -110,7 +110,6 @@ export default function DashboardScreen() {
   const [now, setNow] = useState<Date>(() => new Date());
   const [gpsLocation, setGpsLocation] = useState<string | null>(null);
   const [gpsCoordinates, setGpsCoordinates] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [weatherConsent, setWeatherConsent] = useState<WeatherConsent>("loading");
   const [locationPermission, requestLocationPermission] = Location.useForegroundPermissions({
     get: Platform.OS !== "web",
@@ -231,7 +230,6 @@ export default function DashboardScreen() {
         return;
       }
 
-      setIsGettingLocation(true);
       if (!(await withTimeout(Location.hasServicesEnabledAsync(), LOCATION_SERVICES_TIMEOUT_MS))) {
         Alert.alert(t.dashboard.locationDisclosureTitle, t.dashboard.locationUnavailable);
         return;
@@ -276,8 +274,6 @@ export default function DashboardScreen() {
       }
     } catch {
       Alert.alert(t.dashboard.locationDisclosureTitle, t.dashboard.locationUnavailable);
-    } finally {
-      setIsGettingLocation(false);
     }
   };
 
@@ -437,23 +433,6 @@ export default function DashboardScreen() {
                 </Text>
               </View>
             ) : null}
-            <TouchableOpacity
-              style={s.heroMetaItem}
-              onPress={askForGpsLocation}
-              disabled={isGettingLocation || (Platform.OS !== "web" && !locationPermission)}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              testID="dashboard-hero-gps-button"
-            >
-              {isGettingLocation
-                ? <ActivityIndicator size="small" color={colors.primaryForeground} />
-                : <Feather name="map-pin" size={12} color={colors.primaryForeground} />}
-              <Text style={s.heroMetaText}>
-                {isGettingLocation
-                  ? (lang === "it" ? "Ricerca posizione…" : "Finding location…")
-                  : gpsLocation ? t.dashboard.refreshGpsLocation : t.dashboard.useGpsLocation}
-              </Text>
-            </TouchableOpacity>
           </View>
         </View>
         <TouchableOpacity

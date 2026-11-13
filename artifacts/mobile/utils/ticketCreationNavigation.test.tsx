@@ -15,6 +15,8 @@ const mocks = vi.hoisted(() => ({
   appStateChange: null as null | ((nextAppState: string) => void),
   weatherConsentValue: "declined" as string | null,
   weatherStorageSet: vi.fn(),
+  weatherQueryError: false,
+  weatherQueryRefetch: vi.fn(),
   clients: [] as { id: number; name: string; alias?: string | null; email?: string | null; phone?: string | null }[],
   clientResultsByOrganization: null as null | Record<
     number,
@@ -389,7 +391,7 @@ vi.mock("@tanstack/react-query", () => ({
         !mocks.organizationSettingsLoading,
       isError:
         isWeather
-          ? false
+          ? mocks.weatherQueryError
           : isOrganizationSettings
             ? mocks.organizationSettingsError
             : isTicketSearch
@@ -399,6 +401,8 @@ vi.mock("@tanstack/react-query", () => ({
         isOrganizationSettings && mocks.organizationSettingsRefetchError,
       refetch: isOrganizationSettings
         ? mocks.settingsRefetch
+        : isWeather
+          ? mocks.weatherQueryRefetch
         : isTicketSearch
           ? mocks.ticketSearchRefetch
           : queryKey[0] === "mobile-dashboard-client-search"
@@ -433,6 +437,8 @@ describe("mobile ticket creation navigation", () => {
     mocks.appStateChange = null;
     mocks.weatherConsentValue = "declined";
     mocks.weatherStorageSet.mockReset();
+    mocks.weatherQueryError = false;
+    mocks.weatherQueryRefetch.mockReset();
     mocks.clients = [];
     mocks.clientResultsByOrganization = null;
     mocks.clientSearchQuery = null;
@@ -520,10 +526,11 @@ describe("mobile ticket creation navigation", () => {
       .toBe("Status changed · Luca");
   });
 
-  it("asks for GPS on opening and keeps the GPS action available", async () => {
+  it("shows location in the hero without a GPS refresh action", async () => {
     await render(DashboardScreen);
     expect(mocks.alert).toHaveBeenCalledOnce();
-    expect(host.querySelector('[data-testid="dashboard-hero-gps-button"]')).not.toBeNull();
+    expect(host.querySelector('[data-testid="dashboard-hero-gps-button"]')).toBeNull();
+    expect(host.textContent).not.toContain("Refresh GPS location");
     expect(mocks.requestLocationPermission).not.toHaveBeenCalled();
 
     const firstPromptButtons = mocks.alert.mock.calls[0]?.[2] as Array<{ onPress?: () => void }> | undefined;
@@ -534,9 +541,23 @@ describe("mobile ticket creation navigation", () => {
 
     mocks.user.mainLocation = "Roma";
     await act(async () => root.render(React.createElement(DashboardScreen)));
-    expect(host.querySelector('[data-testid="dashboard-hero-gps-button"]')).not.toBeNull();
     expect(host.querySelector('[data-testid="dashboard-hero-location"]')?.textContent).toBe("Roma");
     expect(mocks.requestLocationPermission).not.toHaveBeenCalled();
+  });
+
+  it("retries the weather request when the weather card shows an error", async () => {
+    mocks.weatherConsentValue = "accepted";
+    mocks.weatherQueryError = true;
+    mocks.locationPermission = { granted: true, canAskAgain: false, status: "granted" };
+    await render(DashboardScreen);
+    await vi.waitFor(() => {
+      expect(host.querySelector('[data-testid="dashboard-hero-location"]')?.textContent).toBe("Milano, Italia");
+    });
+
+    const weatherCard = host.querySelector<HTMLButtonElement>('[data-testid="dashboard-weather-card"]');
+    expect(weatherCard?.textContent).toContain("Tap to retry");
+    await act(async () => weatherCard?.click());
+    expect(mocks.weatherQueryRefetch).toHaveBeenCalledOnce();
   });
 
   it("shows the GPS locality in place of the profile location after consent", async () => {
@@ -580,15 +601,12 @@ describe("mobile ticket creation navigation", () => {
     vi.useFakeTimers();
     await render(DashboardScreen);
 
-    const locationButton = host.querySelector('[data-testid="dashboard-hero-gps-button"]');
-    expect(locationButton?.textContent).toContain("Finding location");
     expect(host.querySelector('[data-testid="dashboard-hero-location"]')?.textContent).toBe("Roma");
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(15_000);
     });
 
-    expect(locationButton?.textContent).not.toContain("Finding location");
     expect(host.querySelector('[data-testid="dashboard-hero-location"]')?.textContent).toBe("Roma");
     expect(mocks.alert).toHaveBeenCalledOnce();
   });
@@ -600,14 +618,10 @@ describe("mobile ticket creation navigation", () => {
     vi.useFakeTimers();
     await render(DashboardScreen);
 
-    const locationButton = host.querySelector('[data-testid="dashboard-hero-gps-button"]');
-    expect(locationButton?.textContent).toContain("Finding location");
-
     await act(async () => {
       await vi.advanceTimersByTimeAsync(5_000);
     });
 
-    expect(locationButton?.textContent).not.toContain("Finding location");
     expect(host.querySelector('[data-testid="dashboard-hero-location"]')?.textContent).toBe("Roma");
     expect(mocks.alert).not.toHaveBeenCalled();
   });
@@ -618,14 +632,10 @@ describe("mobile ticket creation navigation", () => {
     vi.useFakeTimers();
     await render(DashboardScreen);
 
-    const locationButton = host.querySelector('[data-testid="dashboard-hero-gps-button"]');
-    expect(locationButton?.textContent).toContain("Finding location");
-
     await act(async () => {
       await vi.advanceTimersByTimeAsync(5_000);
     });
 
-    expect(locationButton?.textContent).not.toContain("Finding location");
     expect(mocks.getCurrentPosition).not.toHaveBeenCalled();
     expect(mocks.alert).toHaveBeenCalledOnce();
   });
@@ -635,9 +645,9 @@ describe("mobile ticket creation navigation", () => {
     mocks.locationPermission = { granted: false, canAskAgain: true, status: "undetermined" };
     await render(DashboardScreen);
 
-    const locationButton = host.querySelector<HTMLButtonElement>('[data-testid="dashboard-hero-gps-button"]');
-    expect(locationButton).not.toBeNull();
-    await act(async () => locationButton?.click());
+    const weatherCard = host.querySelector<HTMLButtonElement>('[data-testid="dashboard-weather-card"]');
+    expect(weatherCard).not.toBeNull();
+    await act(async () => weatherCard?.click());
     const disclosureButtons = mocks.alert.mock.calls[0]?.[2] as Array<{ onPress?: () => void }> | undefined;
     await act(async () => disclosureButtons?.[1]?.onPress?.());
 
