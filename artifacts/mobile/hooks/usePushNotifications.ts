@@ -1,11 +1,15 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import { Platform } from "react-native";
-import { router } from "expo-router";
 import Constants from "expo-constants";
+import type { NotificationResponse } from "expo-notifications";
 import { apiFetch } from "@/utils/api";
+import {
+  getNotificationResponseKey,
+  getTicketIdFromNotificationResponse,
+} from "@/utils/notificationNavigation";
 
 type NotificationsModule = typeof import("expo-notifications");
-type NotificationSubscription = { remove: () => void };
+export type PendingTicketNotification = { ticketId: number; sequence: number };
 
 async function setupAndroidNotificationChannel(Notifications: NotificationsModule): Promise<void> {
   if (Platform.OS !== "android") return;
@@ -95,22 +99,20 @@ async function removeTokenFromServer(): Promise<void> {
 }
 
 export function usePushNotifications(isLoggedIn: boolean) {
-  const notificationListener = useRef<NotificationSubscription | null>(null);
-  const responseListener = useRef<NotificationSubscription | null>(null);
+  const [pendingTicketNotification, setPendingTicketNotification] =
+    useState<PendingTicketNotification | null>(null);
 
   useEffect(() => {
-    if (!isLoggedIn) {
-      void removeTokenFromServer();
-      return;
-    }
     // Remote push notifications are not supported in Expo Go on Android.
-    // Keep iOS Expo Go enabled, and avoid loading the native module in web.
     if (Platform.OS === "web" || (Platform.OS === "android" && Constants.appOwnership === "expo")) return;
 
     let active = true;
+    let responseSequence = 0;
+    const recentResponses = new Map<string, number>();
     const initialize = async () => {
       try {
         const Notifications = await import("expo-notifications");
+        if (!active) return;
         Notifications.setNotificationHandler({
           handleNotification: async () => ({
             shouldShowAlert: true,
@@ -121,29 +123,74 @@ export function usePushNotifications(isLoggedIn: boolean) {
           }),
         });
 
-        const token = await registerForPushNotifications(Notifications);
-        if (token && active) void saveTokenToServer(token);
+        const handleResponse = (response: NotificationResponse) => {
+          const now = Date.now();
+          for (const [key, receivedAt] of recentResponses) {
+            if (now - receivedAt > 10_000) recentResponses.delete(key);
+          }
+          const responseKey = getNotificationResponseKey(response);
+          const previousTime = responseKey ? recentResponses.get(responseKey) : undefined;
+          if (responseKey && previousTime !== undefined && now - previousTime < 2_000) return;
+          if (responseKey) recentResponses.set(responseKey, now);
 
-        if (!active) return;
-        notificationListener.current = Notifications.addNotificationReceivedListener(() => {
-          // Foreground notifications are also available in the in-app inbox.
-        });
-        responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
-          const data = response.notification.request.content.data as { ticketId?: number };
-          if (data?.ticketId) router.push(`/ticket/${data.ticketId}`);
-        });
+          const ticketId = getTicketIdFromNotificationResponse(response);
+          if (ticketId) {
+            setPendingTicketNotification({ ticketId, sequence: ++responseSequence });
+          }
+          void Notifications.clearLastNotificationResponseAsync().catch((error) => {
+            console.warn("[PushNotifications] Failed to clear handled notification response.", error);
+          });
+        };
+
+        const responseListener =
+          Notifications.addNotificationResponseReceivedListener(handleResponse);
+        try {
+          const lastResponse = await Notifications.getLastNotificationResponseAsync();
+          if (active && lastResponse) handleResponse(lastResponse);
+        } catch (error) {
+          console.warn("[PushNotifications] Failed to read the launch notification response.", error);
+        }
+
+        return () => responseListener.remove();
       } catch (error) {
         console.warn("[PushNotifications] Push setup is unavailable in this runtime.", error);
       }
     };
-    void initialize();
+    let removeResponseListener: (() => void) | undefined;
+    void initialize().then((cleanup) => {
+      removeResponseListener = cleanup;
+      if (!active) cleanup?.();
+    });
 
     return () => {
       active = false;
-      notificationListener.current?.remove();
-      responseListener.current?.remove();
-      notificationListener.current = null;
-      responseListener.current = null;
+      removeResponseListener?.();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      void removeTokenFromServer();
+      return;
+    }
+    // Remote push notifications are not supported in Expo Go on Android.
+    if (Platform.OS === "web" || (Platform.OS === "android" && Constants.appOwnership === "expo")) return;
+
+    let active = true;
+    const register = async () => {
+      try {
+        const Notifications = await import("expo-notifications");
+        const token = await registerForPushNotifications(Notifications);
+        if (token && active) void saveTokenToServer(token);
+      } catch (error) {
+        console.warn("[PushNotifications] Push registration is unavailable in this runtime.", error);
+      }
+    };
+    void register();
+    return () => {
+      active = false;
     };
   }, [isLoggedIn]);
+
+  return pendingTicketNotification;
 }

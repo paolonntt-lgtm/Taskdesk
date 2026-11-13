@@ -10,7 +10,7 @@ import { setBaseUrl } from "@workspace/api-client-react";
 import { Feather } from "@expo/vector-icons";
 import { Stack, router } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { Platform, Pressable } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
@@ -48,7 +48,8 @@ function RootLayoutNav() {
   const { user, isLoading } = useAuth();
   const { lang, t } = useLanguage();
   const colors = useColors();
-  usePushNotifications(!!user);
+  const pendingTicketNotification = usePushNotifications(!!user);
+  const routedNotificationSequence = useRef(0);
 
   useEffect(() => {
     if (isLoading) return;
@@ -58,6 +59,18 @@ function RootLayoutNav() {
       router.replace("/(tabs)");
     }
   }, [user, isLoading]);
+
+  useEffect(() => {
+    if (
+      isLoading ||
+      !user ||
+      !pendingTicketNotification ||
+      routedNotificationSequence.current === pendingTicketNotification.sequence
+    ) return;
+
+    routedNotificationSequence.current = pendingTicketNotification.sequence;
+    router.push(`/ticket/${pendingTicketNotification.ticketId}`);
+  }, [isLoading, user, pendingTicketNotification]);
 
   return (
     <Stack screenOptions={({ navigation, route }) => {

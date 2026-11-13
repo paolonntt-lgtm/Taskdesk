@@ -10,6 +10,7 @@
 - [Mobile client note history](mobile-client-notes.md) — The mobile client detail should expose the separate note history, not just the client's basic Notes field.
 - [Mobile build security boundaries](mobile-build-security-boundaries.md) — Firebase client config is public-but-restricted; keep provider-side restrictions and credential scans.
 - [Mobile bottom navigation](mobile-bottom-navigation.md) — Use one bottom row, keep Profile and unread-notification bell in the header, and omit New from the bar.
+- [Mobile push notification routing](mobile-push-notification-routing.md) — Handle both live and cold-start notification taps, wait for authentication, and clear handled responses.
 - [TaskDesk mobile visual character](taskdesk-mobile-visual-character.md) — Keep blue as the lead accent, with clear color and graphic details throughout every mobile section.
 - [OpenAPI client generation compatibility](openapi-codegen-compatibility.md) — Current Orval output expects Zod 4 and DOM iterable types; keep generator and package/compiler settings aligned.
 - [Web analytics instrumentation](analytics-instrumentation.md) — Use safe Umami wrappers for meaningful web events; Replit handles pageviews and mobile is not collected.
