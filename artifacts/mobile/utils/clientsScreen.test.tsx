@@ -6,12 +6,13 @@ import ClientsScreen from "../app/clients";
 import ClientDetailScreen from "../app/clients/[id]";
 
 const mocks = vi.hoisted(() => ({
-  settings: { clientsEnabled: false },
+  settings: { clientsEnabled: false, profession: null as string | null },
   settingsError: false,
   settingsRefetchError: false,
   clients: [{ id: 1, name: "Studio Alfa", email: "info@studioalfa.it" }],
   client: { id: 1, name: "Studio Alfa", email: "info@studioalfa.it", notes: undefined as string | undefined },
   clientNotes: [] as Array<Record<string, unknown>>,
+  clientNoteDeclaratives: [] as Array<{ id: string; name: string; alias: string }>,
   routeParams: { id: "1" },
   apiGet: vi.fn(),
   useQuery: vi.fn(),
@@ -115,12 +116,14 @@ describe("mobile clients screen", () => {
     host = document.createElement("div");
     document.body.append(host);
     root = createRoot(host);
-    mocks.settings = { clientsEnabled: false };
+    mocks.settings = { clientsEnabled: false, profession: null };
+    mocks.settings.profession = null;
     mocks.settingsError = false;
     mocks.settingsRefetchError = false;
     mocks.refetchSettings.mockReset();
     mocks.client = { id: 1, name: "Studio Alfa", email: "info@studioalfa.it", notes: undefined };
     mocks.clientNotes = [];
+    mocks.clientNoteDeclaratives = [];
     mocks.routeParams = { id: "1" };
     mocks.apiGet.mockReset().mockResolvedValue([]);
     mocks.createClientNote.mockReset().mockResolvedValue({});
@@ -137,6 +140,8 @@ describe("mobile clients screen", () => {
       return {
         data: key === "mobile-organization-settings"
           ? mocks.settings
+          : key === "mobile-client-note-declaratives"
+            ? { declaratives: mocks.clientNoteDeclaratives }
           : key === "mobile-client"
             ? mocks.client
             : mocks.clients,
@@ -190,7 +195,7 @@ describe("mobile clients screen", () => {
   });
 
   it("does not expose cached clients after the settings refresh fails", async () => {
-    mocks.settings = { clientsEnabled: true };
+    mocks.settings = { clientsEnabled: true, profession: null };
     mocks.settingsRefetchError = true;
 
     await renderScreen();
@@ -205,7 +210,7 @@ describe("mobile clients screen", () => {
   });
 
   it("loads and displays clients when the module is enabled", async () => {
-    mocks.settings = { clientsEnabled: true };
+    mocks.settings = { clientsEnabled: true, profession: null };
 
     await renderScreen();
 
@@ -230,7 +235,7 @@ describe("mobile clients screen", () => {
   });
 
   it("does not expose a cached client detail after the settings refresh fails", async () => {
-    mocks.settings = { clientsEnabled: true };
+    mocks.settings = { clientsEnabled: true, profession: null };
     mocks.settingsRefetchError = true;
 
     await renderDetailScreen();
@@ -245,7 +250,7 @@ describe("mobile clients screen", () => {
   });
 
   it("loads and displays client details when the module is enabled", async () => {
-    mocks.settings = { clientsEnabled: true };
+    mocks.settings = { clientsEnabled: true, profession: null };
     mocks.client = {
       id: 1,
       name: "Studio Alfa",
@@ -258,6 +263,7 @@ describe("mobile clients screen", () => {
     expect(mocks.apiGet.mock.calls.map(([path]) => path)).toEqual([
       "/settings/organization",
       "/clients/1",
+      "/client-note-declaratives",
     ]);
     expect(host.textContent).toContain("Studio Alfa");
     expect(host.textContent).toContain("Ogni mese fare conteggi");
@@ -267,7 +273,7 @@ describe("mobile clients screen", () => {
   });
 
   it("shows the client note history and creates a note", async () => {
-    mocks.settings = { clientsEnabled: true };
+    mocks.settings = { clientsEnabled: true, profession: null };
     mocks.clientNotes = [{
       id: 12,
       clientId: 1,
@@ -308,7 +314,7 @@ describe("mobile clients screen", () => {
   });
 
   it("parses a month hashtag into the client note month override", async () => {
-    mocks.settings = { clientsEnabled: true };
+    mocks.settings = { clientsEnabled: true, profession: null };
     await renderDetailScreen();
 
     const input = host.querySelector<HTMLInputElement>('input[placeholder="Scrivi una nota sul cliente…"]');
@@ -332,7 +338,7 @@ describe("mobile clients screen", () => {
   });
 
   it("groups notes with the same month into one month card", async () => {
-    mocks.settings = { clientsEnabled: true };
+    mocks.settings = { clientsEnabled: true, profession: null };
     mocks.clientNotes = [
       {
         id: 21,
@@ -379,5 +385,99 @@ describe("mobile clients screen", () => {
     expect(decemberGroup?.textContent).toContain("Nota creata a dicembre");
     expect(decemberGroup?.textContent).not.toContain("Nota di novembre");
     expect(host.querySelectorAll('[data-testid^="client-note-month-"]')).toHaveLength(2);
+  });
+
+  it("creates a category note with the labor-consultant built-in tag", async () => {
+    mocks.settings = { clientsEnabled: true, profession: "consulenti-del-lavoro" };
+    await renderDetailScreen();
+
+    const input = host.querySelector<HTMLInputElement>('input[placeholder="Scrivi una nota sul cliente…"]');
+    await act(async () => {
+      const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      setValue?.call(input, "Preparare la CU #CU26");
+      input!.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    const addButton = Array.from(host.querySelectorAll("button"))
+      .find(button => button.textContent?.includes("Aggiungi"));
+    await act(async () => addButton?.click());
+
+    expect(mocks.createClientNote).toHaveBeenCalledWith({
+      id: 1,
+      data: {
+        body: "Preparare la CU",
+        checklist: null,
+        categories: ["CU26"],
+      },
+    });
+  });
+
+  it("creates a note with an organization-configured declarative tag", async () => {
+    mocks.settings = { clientsEnabled: true, profession: "commercialisti" };
+    const declarativeId = "5edbd586-6809-4e26-bbd4-448a4bdd671c";
+    mocks.clientNoteDeclaratives = [{
+      id: declarativeId,
+      name: "Dichiarazione dei Redditi",
+      alias: "#REDDITI",
+    }];
+    await renderDetailScreen();
+
+    const input = host.querySelector<HTMLInputElement>('input[placeholder="Scrivi una nota sul cliente…"]');
+    await act(async () => {
+      const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      setValue?.call(input, "Preparare documenti #REDDITI26");
+      input!.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    const addButton = Array.from(host.querySelectorAll("button"))
+      .find(button => button.textContent?.includes("Aggiungi"));
+    await act(async () => addButton?.click());
+
+    expect(mocks.createClientNote).toHaveBeenCalledWith({
+      id: 1,
+      data: {
+        body: "Preparare documenti",
+        checklist: null,
+        categories: [`declarative:${declarativeId}:26`],
+      },
+    });
+  });
+
+  it("shows categorized notes in a category card", async () => {
+    mocks.settings = { clientsEnabled: true, profession: "consulenti-del-lavoro" };
+    mocks.clientNotes = [{
+      id: 31,
+      clientId: 1,
+      organizationId: 7,
+      authorId: 5,
+      authorName: "Ada Lovelace",
+      body: "Documenti CU",
+      checklist: null,
+      categories: ["CU26"],
+      createdAt: "2026-12-15T10:30:00.000Z",
+      updatedAt: "2026-12-15T10:30:00.000Z",
+    }];
+    await renderDetailScreen();
+
+    const categoryCard = host.querySelector('[data-testid="client-note-category-CU26"]');
+    expect(categoryCard?.textContent).toContain("CU 2026");
+    expect(categoryCard?.textContent).toContain("Documenti CU");
+    expect(host.querySelector('[data-testid="client-note-month-2026-12"]')).toBeNull();
+  });
+
+  it("does not save built-in category tags for other professions", async () => {
+    mocks.settings = { clientsEnabled: true, profession: "commercialisti" };
+    await renderDetailScreen();
+
+    const input = host.querySelector<HTMLInputElement>('input[placeholder="Scrivi una nota sul cliente…"]');
+    await act(async () => {
+      const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      setValue?.call(input, "Nota #CU26");
+      input!.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    const addButton = Array.from(host.querySelectorAll("button"))
+      .find(button => button.textContent?.includes("Aggiungi"));
+    await act(async () => addButton?.click());
+
+    expect(mocks.createClientNote).not.toHaveBeenCalled();
+    expect(host.textContent).toContain("è disponibile solo per i consulenti del lavoro.");
   });
 });

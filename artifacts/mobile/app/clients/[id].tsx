@@ -16,7 +16,13 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiDelete, apiGet } from "@/utils/api";
 import { getMobileOrganizationSettingsQueryKey } from "@/utils/optionalTabs";
-import { formatClientNoteMonth, getClientNoteMonthKey, parseClientNoteMonthTag } from "@/utils/clientNoteMonthTag";
+import {
+  formatClientNoteMonth,
+  getClientNoteMonthKey,
+  hasUnavailableBuiltInClientNoteTag,
+  parseClientNoteTags,
+  type ClientNoteDeclarative,
+} from "@/utils/clientNoteMonthTag";
 
 type ClientNoteChecklistItem = {
   id: string;
@@ -66,7 +72,7 @@ export default function ClientDetailScreen() {
   const deleteNote = useDeleteClientNote();
   const organizationSettings = useQuery({
     queryKey: getMobileOrganizationSettingsQueryKey(user?.organizationId),
-    queryFn: () => apiGet<{ clientsEnabled?: boolean }>("/settings/organization"),
+    queryFn: () => apiGet<{ clientsEnabled?: boolean; profession?: string | null }>("/settings/organization"),
     enabled: user?.organizationId != null,
   });
   const settingsUnavailable = organizationSettings.isError || organizationSettings.isRefetchError;
@@ -87,21 +93,65 @@ export default function ClientDetailScreen() {
       refetchIntervalInBackground: false,
     },
   });
-  const noteMonthGroups = React.useMemo(() => {
-    const grouped = new Map<string, ClientNote[]>();
+  const declarativesQuery = useQuery({
+    queryKey: ["mobile-client-note-declaratives", user?.organizationId ?? null],
+    queryFn: () => apiGet<{ declaratives: ClientNoteDeclarative[] }>("/client-note-declaratives"),
+    enabled: validClientId && clientsEnabled && user?.organizationId != null,
+    staleTime: 60_000,
+  });
+  const declaratives = declarativesQuery.data?.declaratives ?? [];
+  const canUseBuiltInCategories = organizationSettings.data?.profession === "consulenti-del-lavoro";
+  const noteGroups = React.useMemo(() => {
+    const monthGroups = new Map<string, ClientNote[]>();
+    const categoryGroups = new Map<string, ClientNote[]>();
     for (const note of notesQuery.data ?? []) {
-      const monthKey = getClientNoteMonthKey(note.monthOverride, note.createdAt);
-      const group = grouped.get(monthKey) ?? [];
-      group.push(note);
-      grouped.set(monthKey, group);
+      const categories = Array.isArray(note.categories) ? note.categories : [];
+      if (note.monthOverride || categories.length === 0) {
+        const monthKey = getClientNoteMonthKey(note.monthOverride, note.createdAt);
+        const group = monthGroups.get(monthKey) ?? [];
+        group.push(note);
+        monthGroups.set(monthKey, group);
+      }
+      for (const category of categories) {
+        const group = categoryGroups.get(category) ?? [];
+        group.push(note);
+        categoryGroups.set(category, group);
+      }
     }
-    return [...grouped.entries()]
+
+    const sortedNotes = (notes: ClientNote[]) =>
+      [...notes].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const months = [...monthGroups.entries()]
       .map(([monthKey, notes]) => ({
+        type: "month" as const,
+        key: monthKey,
         monthKey,
-        notes: [...notes].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+        label: formatClientNoteMonth(monthKey, lang),
+        notes: sortedNotes(notes),
       }))
       .sort((a, b) => b.monthKey.localeCompare(a.monthKey));
-  }, [notesQuery.data]);
+    const categories = [...categoryGroups.entries()]
+      .map(([category, notes]) => {
+        const builtIn = /^(CU|770)(\d{2})$/.exec(category);
+        const custom = /^declarative:([0-9a-f-]{36}):(\d{2})$/i.exec(category);
+        const customName = custom
+          ? declaratives.find((item) => item.id === custom[1])?.name
+          : null;
+        const label = builtIn
+          ? `${builtIn[1]} ${2000 + Number(builtIn[2])}`
+          : custom
+            ? `${customName ?? (it ? "Dichiarativo" : "Declaration")} ${2000 + Number(custom[2])}`
+            : category;
+        return {
+          type: "category" as const,
+          key: category,
+          label,
+          notes: sortedNotes(notes),
+        };
+      })
+      .sort((a, b) => a.label.localeCompare(b.label, lang === "it" ? "it" : "en"));
+    return [...months, ...categories];
+  }, [notesQuery.data, declaratives, lang, it]);
   const client = data?.client ?? data;
   const clientDetails = client ? ([
     { label: "Email", value: client.email, icon: "mail", iconColor: c.successForeground, iconBackground: c.success },
@@ -129,11 +179,36 @@ export default function ClientDetailScreen() {
     qc.invalidateQueries({ queryKey: getListClientNotesQueryKey(clientId) });
 
   const addNote = async () => {
-    const parsedNote = parseClientNoteMonthTag(noteDraft.trim());
-    if (!parsedNote.body || !validClientId) {
+    if (declarativesQuery.isLoading) {
+      setNoteError(it ? "Caricamento delle categorie in corso." : "Loading note categories.");
+      return;
+    }
+    const unavailableTag = hasUnavailableBuiltInClientNoteTag(
+      noteDraft,
+      canUseBuiltInCategories,
+      declaratives,
+    );
+    if (unavailableTag) {
       setNoteError(it
-        ? "Aggiungi il testo della nota oltre all’hashtag."
-        : "Add note text as well as the hashtag.");
+        ? `${unavailableTag} è disponibile solo per i consulenti del lavoro.`
+        : `${unavailableTag} is only available to labor consultants.`);
+      return;
+    }
+    const parsedNote = parseClientNoteTags(
+      noteDraft.trim(),
+      declaratives,
+      canUseBuiltInCategories,
+    );
+    if ("badMonth" in parsedNote) {
+      setNoteError(it
+        ? `Mese non riconosciuto: #${parsedNote.badMonth}.`
+        : `Unrecognized month: #${parsedNote.badMonth}.`);
+      return;
+    }
+    if ((!parsedNote.body && !parsedNote.monthOverride && parsedNote.categories.length === 0) || !validClientId) {
+      setNoteError(it
+        ? "Scrivi una nota o inserisci un hashtag valido."
+        : "Write a note or enter a valid hashtag.");
       return;
     }
     setNoteError("");
@@ -144,6 +219,7 @@ export default function ClientDetailScreen() {
           body: parsedNote.body,
           checklist: null,
           ...(parsedNote.monthOverride ? { monthOverride: parsedNote.monthOverride } : {}),
+          ...(parsedNote.categories.length ? { categories: parsedNote.categories } : {}),
         },
       });
       setNoteDraft("");
@@ -280,8 +356,8 @@ export default function ClientDetailScreen() {
             accessibilityRole="button"
             accessibilityLabel={it ? "Aggiungi nota" : "Add note"}
             onPress={() => void addNote()}
-            disabled={!noteDraft.trim() || createNote.isPending}
-            style={[s.addNoteButton, (!noteDraft.trim() || createNote.isPending) && s.disabledButton]}
+            disabled={!noteDraft.trim() || createNote.isPending || declarativesQuery.isLoading}
+            style={[s.addNoteButton, (!noteDraft.trim() || createNote.isPending || declarativesQuery.isLoading) && s.disabledButton]}
           >
             {createNote.isPending
               ? <ActivityIndicator size="small" color={c.primaryForeground} />
@@ -299,16 +375,18 @@ export default function ClientDetailScreen() {
         {!notesQuery.isLoading && !notesQuery.isError && (notesQuery.data ?? []).length === 0 && (
           <Text style={s.emptyNotes}>{it ? "Non ci sono ancora note per questo cliente." : "There are no notes for this client yet."}</Text>
         )}
-        {noteMonthGroups.map((group) => (
+        {noteGroups.map((group) => (
           <View
-            key={group.monthKey}
-            testID={`client-note-month-${group.monthKey}`}
+            key={`${group.type}-${group.key}`}
+            testID={group.type === "month"
+              ? `client-note-month-${group.monthKey}`
+              : `client-note-category-${group.key}`}
             style={s.noteMonthGroup}
           >
             <View style={s.noteMonthHeader}>
               <View style={s.noteMonthTitle}>
-                <Feather name="calendar" size={16} color={c.primary} />
-                <Text style={s.noteMonthLabel}>{formatClientNoteMonth(group.monthKey, lang)}</Text>
+                <Feather name={group.type === "month" ? "calendar" : "tag"} size={16} color={c.primary} />
+                <Text style={s.noteMonthLabel}>{group.label}</Text>
               </View>
               <View style={s.noteCountBadge}>
                 <Text style={s.noteCount}>{group.notes.length}</Text>
