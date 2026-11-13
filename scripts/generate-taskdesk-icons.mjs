@@ -27,6 +27,7 @@ const targets = [
 ];
 
 function runMagick(args, options = {}) {
+  const isIdentifyCommand = args[0] === "identify";
   try {
     return execFileSync("magick", args, {
       encoding: options.encoding ?? "buffer",
@@ -34,6 +35,20 @@ function runMagick(args, options = {}) {
       stdio: ["ignore", "pipe", "pipe"],
     });
   } catch (error) {
+    if (error.code === "ENOENT") {
+      const fallbackCommand = isIdentifyCommand ? "identify" : "convert";
+      const fallbackArgs = isIdentifyCommand ? args.slice(1) : args;
+      try {
+        return execFileSync(fallbackCommand, fallbackArgs, {
+          encoding: options.encoding ?? "buffer",
+          maxBuffer: 32 * 1024 * 1024,
+          stdio: ["ignore", "pipe", "pipe"],
+        });
+      } catch (fallbackError) {
+        const detail = fallbackError.stderr?.toString().trim() || fallbackError.message;
+        throw new Error(`ImageMagick failed: ${detail}`);
+      }
+    }
     const detail = error.stderr?.toString().trim() || error.message;
     throw new Error(`ImageMagick failed: ${detail}`);
   }
