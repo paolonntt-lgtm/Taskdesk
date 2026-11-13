@@ -6,6 +6,7 @@ import AdminSettingsScreen from "../app/admin-settings";
 
 const mocks = vi.hoisted(() => ({
   apiGet: vi.fn(),
+  apiPut: vi.fn(),
   push: vi.fn(),
   setQueryData: vi.fn(),
   translations: {
@@ -126,12 +127,10 @@ vi.mock("react-native", async () => {
 
 vi.mock("@expo/vector-icons", () => ({ Feather: () => null }));
 vi.mock("expo-haptics", () => ({
-  default: {
-    impactAsync: vi.fn(),
-    notificationAsync: vi.fn(),
-    ImpactFeedbackStyle: { Light: "light", Medium: "medium" },
-    NotificationFeedbackType: { Success: "success" },
-  },
+  impactAsync: vi.fn(),
+  notificationAsync: vi.fn(),
+  ImpactFeedbackStyle: { Light: "light", Medium: "medium" },
+  NotificationFeedbackType: { Success: "success" },
 }));
 vi.mock("expo-constants", () => ({ default: { appOwnership: "expo" } }));
 vi.mock("expo-router", () => ({ router: { push: mocks.push } }));
@@ -147,8 +146,15 @@ vi.mock("@/contexts/AuthContext", () => ({
 vi.mock("@/contexts/LanguageContext", () => ({
   useLanguage: () => ({ lang: "it", t: mocks.translations }),
 }));
-vi.mock("@/utils/api", () => ({ apiGet: mocks.apiGet, apiPut: vi.fn(), apiPost: vi.fn(), apiPatch: vi.fn() }));
+vi.mock("@/utils/api", () => ({ apiGet: mocks.apiGet, apiPut: mocks.apiPut, apiPost: vi.fn(), apiPatch: vi.fn() }));
 vi.mock("@/utils/optionalTabs", () => ({ cacheMobileOrganizationSettings: vi.fn() }));
+vi.mock("@/components/KeyboardAwareScrollViewCompat", async () => {
+  const ReactModule = await import("react");
+  return {
+    KeyboardAwareScrollViewCompat: ({ children, ...props }: Record<string, any>) =>
+      ReactModule.createElement("div", props, children),
+  };
+});
 
 describe("mobile admin settings navigation", () => {
   let host: HTMLDivElement;
@@ -161,6 +167,7 @@ describe("mobile admin settings navigation", () => {
     root = createRoot(host);
     mocks.push.mockReset();
     mocks.setQueryData.mockReset();
+    mocks.apiPut.mockReset().mockImplementation(async (_path: string, body: unknown) => body);
     mocks.apiGet.mockImplementation(async (path: string) => {
       if (path === "/settings/groups") return { value: ["Support"] };
       if (path === "/settings/locations") return { value: ["Milan"] };
@@ -176,6 +183,7 @@ describe("mobile admin settings navigation", () => {
           entityPlural: "Clienti",
         };
       }
+      if (path === "/client-note-declaratives") return { declaratives: [] };
       throw new Error(`Unexpected settings request: ${path}`);
     });
   });
@@ -243,6 +251,7 @@ describe("mobile admin settings navigation", () => {
           entityPlural: "Clienti",
         };
       }
+      if (path === "/client-note-declaratives") return { declaratives: [] };
       throw new Error(`Unexpected settings request: ${path}`);
     });
     await act(async () => retry?.click());
@@ -266,11 +275,46 @@ describe("mobile admin settings navigation", () => {
           entityPlural: "Clienti",
         };
       }
+      if (path === "/client-note-declaratives") return { declaratives: [] };
       throw new Error(`Unexpected settings request: ${path}`);
     });
     await act(async () => root.render(React.createElement(AdminSettingsScreen)));
     await act(async () => host.querySelector<HTMLButtonElement>('[data-testid="admin-settings-tab-modules"]')?.click());
 
     expect(host.querySelector('[data-testid="open-time-report"]')).not.toBeNull();
+  });
+
+  it("lets admins add and save client-note categories from mobile settings", async () => {
+    await act(async () => root.render(React.createElement(AdminSettingsScreen)));
+    await act(async () => host.querySelector<HTMLButtonElement>('[data-testid="admin-settings-tab-tickets"]')?.click());
+
+    expect(host.querySelector('[data-testid="admin-settings-client-note-declaratives"]')).not.toBeNull();
+    await act(async () => host.querySelector<HTMLButtonElement>('[data-testid="admin-settings-add-client-note-declarative"]')?.click());
+
+    const name = host.querySelector<HTMLInputElement>('[data-testid="client-note-declarative-name"]');
+    const alias = host.querySelector<HTMLInputElement>('[data-testid="client-note-declarative-alias"]');
+    await act(async () => {
+      const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      setValue?.call(name, "Dichiarazione dei Redditi");
+      name!.dispatchEvent(new Event("input", { bubbles: true }));
+      setValue?.call(alias, "REDDITI");
+      alias!.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => host.querySelector<HTMLButtonElement>('[data-testid="admin-settings-save-client-note-declarative-draft"]')?.click());
+    expect(host.textContent).toContain("Dichiarazione dei Redditi");
+    expect(host.textContent).toContain("#REDDITI");
+
+    await act(async () => host.querySelector<HTMLButtonElement>('[data-testid="admin-settings-save-client-note-declaratives"]')?.click());
+    expect(mocks.apiPut).toHaveBeenCalledWith("/client-note-declaratives", {
+      declaratives: [expect.objectContaining({
+        name: "Dichiarazione dei Redditi",
+        alias: "#REDDITI",
+        id: expect.stringMatching(/^[0-9a-f-]{36}$/i),
+      })],
+    });
+    expect(mocks.setQueryData).toHaveBeenCalledWith(
+      ["mobile-client-note-declaratives", 7],
+      { declaratives: expect.any(Array) },
+    );
   });
 });

@@ -14,18 +14,30 @@ import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Constants from "expo-constants";
 import { useQueryClient } from "@tanstack/react-query";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 
 type SectionKey = "groups" | "locations" | "categories";
 type SettingsTabKey = "organization" | "modules" | "tickets" | "notifications";
 type OrganizationSettings = {
   name: string;
   businessType: string | null;
+  profession?: string | null;
   clientsEnabled: boolean;
   workedTimeEnabled: boolean;
   timeTrackingModuleEnabled: boolean;
   entitySingular: string | null;
   entityPlural: string | null;
 };
+type ClientNoteDeclarative = { id: string; name: string; alias: string };
+
+function createDeclarativeId(): string {
+  const random = `${Date.now().toString(16)}${Math.random().toString(16).slice(2)}${Math.random().toString(16).slice(2)}`.padEnd(32, "0").slice(0, 32);
+  const chars = random.split("");
+  chars[12] = "4";
+  chars[16] = ((parseInt(chars[16], 16) & 0x3) | 0x8).toString(16);
+  const value = chars.join("");
+  return `${value.slice(0, 8)}-${value.slice(8, 12)}-${value.slice(12, 16)}-${value.slice(16, 20)}-${value.slice(20)}`;
+}
 
 const API_PATH: Record<SectionKey, string> = {
   groups: "/settings/groups",
@@ -70,6 +82,17 @@ export default function AdminSettingsScreen() {
   const [organizationSaving, setOrganizationSaving] = useState(false);
   const [organizationError, setOrganizationError] = useState("");
   const [activeTab, setActiveTab] = useState<SettingsTabKey>("organization");
+  const [noteDeclaratives, setNoteDeclaratives] = useState<ClientNoteDeclarative[]>([]);
+  const [savedNoteDeclaratives, setSavedNoteDeclaratives] = useState<ClientNoteDeclarative[]>([]);
+  const [noteDeclarativesLoading, setNoteDeclarativesLoading] = useState(false);
+  const [noteDeclarativesError, setNoteDeclarativesError] = useState(false);
+  const [noteDeclarativesSaving, setNoteDeclarativesSaving] = useState(false);
+  const [noteDeclarativeModal, setNoteDeclarativeModal] = useState<{
+    visible: boolean;
+    id: string | null;
+    name: string;
+    alias: string;
+  }>({ visible: false, id: null, name: "", alias: "#" });
 
   const dataMap: Record<SectionKey, string[]> = {
     groups,
@@ -112,6 +135,23 @@ export default function AdminSettingsScreen() {
       setCategories([...cats].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" })));
       setOrganization(org);
       setSavedOrganization(org);
+      if (org.clientsEnabled) {
+        setNoteDeclarativesLoading(true);
+        setNoteDeclarativesError(false);
+        try {
+          const result = await apiGet<{ declaratives: ClientNoteDeclarative[] }>("/client-note-declaratives");
+          setNoteDeclaratives(result.declaratives ?? []);
+          setSavedNoteDeclaratives(result.declaratives ?? []);
+        } catch {
+          setNoteDeclarativesError(true);
+        } finally {
+          setNoteDeclarativesLoading(false);
+        }
+      } else {
+        setNoteDeclaratives([]);
+        setSavedNoteDeclaratives([]);
+        setNoteDeclarativesError(false);
+      }
     } catch {
       setLoadError(true);
     } finally {
@@ -134,6 +174,19 @@ export default function AdminSettingsScreen() {
       setOrganization(updated);
       setSavedOrganization(updated);
       cacheMobileOrganizationSettings(queryClient, user?.organizationId, updated);
+      if (updated.clientsEnabled && !savedOrganization?.clientsEnabled) {
+        setNoteDeclarativesLoading(true);
+        setNoteDeclarativesError(false);
+        try {
+          const result = await apiGet<{ declaratives: ClientNoteDeclarative[] }>("/client-note-declaratives");
+          setNoteDeclaratives(result.declaratives ?? []);
+          setSavedNoteDeclaratives(result.declaratives ?? []);
+        } catch {
+          setNoteDeclarativesError(true);
+        } finally {
+          setNoteDeclarativesLoading(false);
+        }
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert(t.adminSettings.saved, t.adminSettings.organizationSaved);
     } catch (err: any) {
@@ -220,6 +273,85 @@ export default function AdminSettingsScreen() {
           },
         },
       ]
+    );
+  };
+
+  const openNoteDeclarativeModal = (item?: ClientNoteDeclarative) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setNoteDeclarativeModal({
+      visible: true,
+      id: item?.id ?? null,
+      name: item?.name ?? "",
+      alias: item?.alias ?? "#",
+    });
+  };
+
+  const saveNoteDeclarativeDraft = () => {
+    const name = noteDeclarativeModal.name.trim();
+    const rawAlias = noteDeclarativeModal.alias.trim();
+    const alias = rawAlias.startsWith("#") ? rawAlias : `#${rawAlias}`;
+    if (!name || alias.length < 2 || !/^#[\p{L}\p{N}_-]{1,32}$/u.test(alias)) {
+      Alert.alert(
+        t.adminSettings.error,
+        lang === "it"
+          ? "Inserisci un nome e un hashtag valido, ad esempio #REDDITI."
+          : "Enter a name and a valid hashtag, such as #REDDITI.",
+      );
+      return;
+    }
+    setNoteDeclaratives((current) => noteDeclarativeModal.id
+      ? current.map((item) => item.id === noteDeclarativeModal.id ? { ...item, name, alias } : item)
+      : [...current, { id: createDeclarativeId(), name, alias }]);
+    setNoteDeclarativeModal({ visible: false, id: null, name: "", alias: "#" });
+  };
+
+  const saveNoteDeclaratives = async () => {
+    setNoteDeclarativesSaving(true);
+    setNoteDeclarativesError(false);
+    try {
+      const result = await apiPut<{ declaratives: ClientNoteDeclarative[] }>(
+        "/client-note-declaratives",
+        {
+          declaratives: noteDeclaratives.map((item) => ({
+            ...item,
+            name: item.name.trim(),
+            alias: item.alias.trim().startsWith("#") ? item.alias.trim() : `#${item.alias.trim()}`,
+          })),
+        },
+      );
+      setNoteDeclaratives(result.declaratives);
+      setSavedNoteDeclaratives(result.declaratives);
+      queryClient.setQueryData(
+        ["mobile-client-note-declaratives", user?.organizationId ?? null],
+        { declaratives: result.declaratives },
+      );
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(
+        lang === "it" ? "Salvato" : "Saved",
+        lang === "it" ? "Categorie delle note cliente aggiornate." : "Client note categories updated.",
+      );
+    } catch (err: any) {
+      Alert.alert(
+        t.adminSettings.error,
+        err?.message || (lang === "it" ? "Impossibile salvare le categorie." : "Could not save categories."),
+      );
+    } finally {
+      setNoteDeclarativesSaving(false);
+    }
+  };
+
+  const deleteNoteDeclarativeDraft = (item: ClientNoteDeclarative) => {
+    Alert.alert(
+      lang === "it" ? "Rimuovere il dichiarativo?" : "Remove this declaration?",
+      `${item.name} (${item.alias})`,
+      [
+        { text: t.adminSettings.cancel, style: "cancel" },
+        {
+          text: t.adminSettings.deleteConfirm,
+          style: "destructive",
+          onPress: () => setNoteDeclaratives((current) => current.filter((entry) => entry.id !== item.id)),
+        },
+      ],
     );
   };
 
@@ -653,6 +785,109 @@ export default function AdminSettingsScreen() {
                 </View>
               );
             })}
+            {organization?.clientsEnabled && (
+              <View style={s.section} testID="admin-settings-client-note-declaratives">
+                <View style={s.sectionHeader}>
+                  <View style={s.sectionTitleRow}>
+                    <View style={[s.sectionIcon, { backgroundColor: colors.accent + "18" }]}>
+                      <Feather name="file-text" size={16} color={colors.accent} />
+                    </View>
+                    <View style={s.headingCopy}>
+                      <Text style={s.sectionTitle}>{lang === "it" ? "Categorie note cliente" : "Client note categories"}</Text>
+                      <Text style={s.sectionCount}>
+                        {noteDeclaratives.length} {lang === "it" ? "categorie" : "categories"}
+                      </Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    style={[s.addBtn, { backgroundColor: colors.accent }]}
+                    onPress={() => openNoteDeclarativeModal()}
+                    activeOpacity={0.8}
+                    disabled={noteDeclarativesSaving || noteDeclarativesLoading || noteDeclarativesError}
+                    accessibilityRole="button"
+                    accessibilityLabel={lang === "it" ? "Aggiungi categoria nota" : "Add note category"}
+                    testID="admin-settings-add-client-note-declarative"
+                  >
+                    <Feather name="plus" size={14} color={colors.primaryForeground} />
+                    <Text style={s.addBtnText}>{t.adminSettings.add}</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={s.card}>
+                  {noteDeclarativesLoading ? (
+                    <View style={s.savingRow}><ActivityIndicator color={colors.primary} size="small" /></View>
+                  ) : noteDeclarativesError ? (
+                    <View style={s.emptyRow}>
+                      <Text style={s.errorText}>{lang === "it" ? "Impossibile caricare le categorie." : "Could not load categories."}</Text>
+                      <TouchableOpacity onPress={() => void load()} accessibilityRole="button" testID="retry-client-note-declaratives">
+                        <Text style={s.retryText}>{t.adminSettings.retry}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : noteDeclaratives.length === 0 ? (
+                    <View style={s.emptyRow}>
+                      <Text style={s.emptyText}>{lang === "it" ? "Nessuna categoria configurata." : "No categories configured."}</Text>
+                    </View>
+                  ) : (
+                    noteDeclaratives.map((item, index) => (
+                      <View key={item.id} style={[s.itemRow, index > 0 && s.itemRowBorder]}>
+                        <View style={[s.itemDot, { backgroundColor: colors.accent }]} />
+                        <View style={s.noteDeclarativeCopy}>
+                          <Text style={s.itemLabel} numberOfLines={1}>{item.name}</Text>
+                          <Text style={s.noteDeclarativeAlias}>{item.alias}</Text>
+                        </View>
+                        <View style={s.itemActions}>
+                          <TouchableOpacity
+                            style={s.iconBtn}
+                            onPress={() => openNoteDeclarativeModal(item)}
+                            accessibilityRole="button"
+                            accessibilityLabel={`${lang === "it" ? "Modifica" : "Edit"} ${item.name}`}
+                            testID={`admin-settings-edit-note-declarative-${index}`}
+                          >
+                            <Feather name="edit-2" size={15} color={colors.mutedForeground} />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={s.iconBtn}
+                            onPress={() => deleteNoteDeclarativeDraft(item)}
+                            accessibilityRole="button"
+                            accessibilityLabel={`${lang === "it" ? "Rimuovi" : "Remove"} ${item.name}`}
+                            testID={`admin-settings-delete-note-declarative-${index}`}
+                          >
+                            <Feather name="trash-2" size={15} color={colors.destructive} />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    ))
+                  )}
+                </View>
+                <Text style={s.orgDescription}>
+                  {lang === "it"
+                    ? "Usa questi hashtag nelle note cliente per raggrupparle, ad esempio #REDDITI."
+                    : "Use these hashtags in client notes to group them, for example #REDDITI."}
+                </Text>
+                {JSON.stringify(noteDeclaratives) !== JSON.stringify(savedNoteDeclaratives) && (
+                  <View style={s.noteDeclarativeActions}>
+                    <TouchableOpacity
+                      style={s.noteDeclarativeCancel}
+                      onPress={() => setNoteDeclaratives(savedNoteDeclaratives)}
+                      disabled={noteDeclarativesSaving}
+                      accessibilityRole="button"
+                    >
+                      <Text style={s.modalCancelText}>{t.adminSettings.cancel}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[s.testPushBtn, noteDeclarativesSaving && s.buttonBusy]}
+                      onPress={() => void saveNoteDeclaratives()}
+                      disabled={noteDeclarativesSaving}
+                      accessibilityRole="button"
+                      testID="admin-settings-save-client-note-declaratives"
+                    >
+                      {noteDeclarativesSaving
+                        ? <ActivityIndicator color={colors.primaryForeground} size="small" />
+                        : <><Feather name="save" size={15} color={colors.primaryForeground} /><Text style={s.testPushBtnText}>{t.adminSettings.save}</Text></>}
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            )}
           </View>
         )}
       </ScrollView>
@@ -710,6 +945,82 @@ export default function AdminSettingsScreen() {
             </View>
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      <Modal
+        visible={noteDeclarativeModal.visible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setNoteDeclarativeModal({ visible: false, id: null, name: "", alias: "#" })}
+      >
+        <View style={s.modalRoot}>
+          <View style={s.modalHeader}>
+            <TouchableOpacity
+              onPress={() => setNoteDeclarativeModal({ visible: false, id: null, name: "", alias: "#" })}
+              style={s.modalCancel}
+              accessibilityRole="button"
+            >
+              <Text style={s.modalCancelText}>{t.adminSettings.cancel}</Text>
+            </TouchableOpacity>
+            <Text style={s.modalTitle}>
+              {noteDeclarativeModal.id
+                ? (lang === "it" ? "Modifica categoria" : "Edit category")
+                : (lang === "it" ? "Nuova categoria" : "New category")}
+            </Text>
+            <TouchableOpacity
+              style={[s.modalSaveBtn, (!noteDeclarativeModal.name.trim() || noteDeclarativesSaving) && { opacity: 0.6 }]}
+              onPress={saveNoteDeclarativeDraft}
+              disabled={!noteDeclarativeModal.name.trim() || noteDeclarativesSaving}
+              accessibilityRole="button"
+              testID="admin-settings-save-client-note-declarative-draft"
+            >
+              <Text style={s.modalSaveBtnText}>{t.adminSettings.save}</Text>
+            </TouchableOpacity>
+          </View>
+          <KeyboardAwareScrollViewCompat
+            style={{ flex: 1 }}
+            contentContainerStyle={s.modalContent}
+            bottomOffset={48}
+            keyboardShouldPersistTaps="handled"
+          >
+            <Text style={s.orgDescription}>
+              {lang === "it"
+                ? "Il nome identifica la scheda; l’alias è l’hashtag da scrivere nella nota."
+                : "The name labels the card; the alias is the hashtag to type in a note."}
+            </Text>
+            <View style={s.orgField}>
+              <Text style={s.declarativeLabel}>{lang === "it" ? "Nome" : "Name"}</Text>
+              <TextInput
+                value={noteDeclarativeModal.name}
+                onChangeText={(name) => setNoteDeclarativeModal((current) => ({ ...current, name }))}
+                placeholder={lang === "it" ? "Dichiarazione dei Redditi" : "Income declaration"}
+                placeholderTextColor={colors.mutedForeground}
+                style={s.modalInput}
+                autoCorrect={false}
+                returnKeyType="next"
+                testID="client-note-declarative-name"
+              />
+            </View>
+            <View style={s.orgField}>
+              <Text style={s.declarativeLabel}>{lang === "it" ? "Alias hashtag" : "Hashtag alias"}</Text>
+              <TextInput
+                value={noteDeclarativeModal.alias}
+                onChangeText={(alias) => setNoteDeclarativeModal((current) => ({ ...current, alias }))}
+                placeholder="#REDDITI"
+                placeholderTextColor={colors.mutedForeground}
+                style={s.modalInput}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                returnKeyType="done"
+                onSubmitEditing={saveNoteDeclarativeDraft}
+                testID="client-note-declarative-alias"
+              />
+              <Text style={s.declarativeHint}>
+                {lang === "it" ? "Usa lettere, numeri, trattini o underscore." : "Use letters, numbers, hyphens, or underscores."}
+              </Text>
+            </View>
+          </KeyboardAwareScrollViewCompat>
+        </View>
       </Modal>
     </View>
   );
@@ -839,6 +1150,12 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       flex: 1, fontSize: 14, color: colors.foreground, fontFamily: "Inter_600SemiBold",
     },
     itemActions: { flexDirection: "row", gap: 4 },
+    noteDeclarativeCopy: { flex: 1, gap: 3 },
+    noteDeclarativeAlias: { color: colors.accent, fontSize: 12, fontFamily: "Inter_600SemiBold" },
+    noteDeclarativeActions: { flexDirection: "row", justifyContent: "flex-end", alignItems: "center", gap: 8 },
+    noteDeclarativeCancel: { paddingHorizontal: 12, paddingVertical: 10 },
+    declarativeLabel: { color: colors.foreground, fontSize: 13, fontFamily: "Inter_600SemiBold" },
+    declarativeHint: { color: colors.mutedForeground, fontSize: 11, lineHeight: 16, fontFamily: "Inter_400Regular" },
     iconBtn: {
       width: 34, height: 34, borderRadius: 9,
       alignItems: "center", justifyContent: "center",
