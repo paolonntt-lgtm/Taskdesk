@@ -691,7 +691,7 @@ export default function TicketDetailScreen() {
         <View style={s.titleRow}>
           <View style={[s.priorityBar, { backgroundColor: priorityColor }]} />
           <View style={{ flex: 1 }}>
-            <Text style={s.ticketId}>Ticket #{ticket.id}</Text>
+            <Text style={[s.ticketId, { borderColor: `${priorityColor}55` }]}>Ticket #{ticket.id}</Text>
             <Text style={s.title}>{ticket.title}</Text>
           </View>
           {canEditTicket && (
@@ -710,8 +710,21 @@ export default function TicketDetailScreen() {
 
         <View style={s.primaryMetaCard} testID="ticket-primary-details">
           <View style={s.metaGrid}>
-            {primaryMetaRows.map((item) => (
-              <View key={item.label} style={s.metaTile}>
+            {primaryMetaRows.map((item, index) => (
+              <View
+                key={item.label}
+                style={[
+                  s.metaTile,
+                  {
+                    borderLeftColor: [
+                      colors.primary,
+                      priorityColor,
+                      colors.accent,
+                      colors.warning,
+                    ][index % 4],
+                  },
+                ]}
+              >
                 <Text style={s.metaTileLabel}>{item.label}</Text>
                 <Text style={s.metaTileValue}>{item.value}</Text>
               </View>
@@ -721,8 +734,11 @@ export default function TicketDetailScreen() {
 
         <View style={[s.section, s.descriptionSection]} testID="ticket-description-section">
           <View style={s.descriptionHeading}>
-            <Feather name="file-text" size={17} color={colors.primary} />
+            <View style={s.descriptionIconWrap}>
+              <Feather name="file-text" size={15} color={colors.primary} />
+            </View>
             <Text style={s.descriptionTitle}>{t.ticketDetail.description}</Text>
+            <View style={s.headingAccent} />
           </View>
           <View style={s.descBox} testID="ticket-description-card">
             <Text style={s.desc}>{ticket.description}</Text>
@@ -731,6 +747,9 @@ export default function TicketDetailScreen() {
 
         <View style={[s.section, s.commentsSection]} testID="ticket-comments-section">
           <View style={s.commentsHeading}>
+            <View style={s.commentsIconWrap}>
+              <Feather name="message-circle" size={15} color={colors.accent} />
+            </View>
             <Text style={s.sectionTitle}>{t.ticketDetail.comments}</Text>
             <View style={s.commentCountBadge}>
               <Text style={s.commentCountText}>{comments.length}</Text>
@@ -1565,16 +1584,18 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     backBtn: { backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 },
     backBtnText: { color: colors.primaryForeground, fontFamily: "Inter_600SemiBold" },
     titleRow: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
-    priorityBar: { width: 4, borderRadius: 2, alignSelf: "stretch", minHeight: 32 },
-    ticketId: { fontSize: 11, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
-    title: { fontSize: 17, fontWeight: "700" as const, color: colors.foreground, fontFamily: "Inter_700Bold", lineHeight: 22 },
+    priorityBar: { width: 5, borderRadius: 3, alignSelf: "stretch", minHeight: 42 },
+    ticketId: { alignSelf: "flex-start", marginBottom: 5, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, borderWidth: 1, backgroundColor: colors.secondary, fontSize: 11, color: colors.secondaryForeground, fontFamily: "Inter_600SemiBold" },
+    title: { fontSize: 18, fontWeight: "700" as const, color: colors.foreground, fontFamily: "Inter_700Bold", lineHeight: 23 },
     metaCard: { backgroundColor: colors.card, borderRadius: 12, borderWidth: 1, borderColor: colors.border, overflow: "hidden" },
     descriptionSection: { gap: 8 },
-    descriptionHeading: { flexDirection: "row", alignItems: "center", gap: 7 },
+    descriptionHeading: { flexDirection: "row", alignItems: "center", gap: 8 },
+    descriptionIconWrap: { width: 28, height: 28, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary + "18" },
+    headingAccent: { flex: 1, height: 1, marginLeft: 4, backgroundColor: colors.primary + "33" },
     descriptionTitle: { fontSize: 16, color: colors.foreground, fontFamily: "Inter_600SemiBold" },
-    primaryMetaCard: { backgroundColor: colors.card, borderRadius: 12, borderWidth: 1, borderColor: colors.border, overflow: "hidden" },
-    metaGrid: { flexDirection: "row", flexWrap: "wrap", paddingVertical: 4, paddingHorizontal: 6 },
-    metaTile: { width: "50%", paddingVertical: 6, paddingHorizontal: 8, gap: 3 },
+    primaryMetaCard: { backgroundColor: colors.card, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: "hidden" },
+    metaGrid: { flexDirection: "row", flexWrap: "wrap", gap: 7, padding: 9 },
+    metaTile: { width: "48%", paddingVertical: 8, paddingHorizontal: 9, gap: 3, borderLeftWidth: 3, borderRadius: 8, backgroundColor: colors.secondary + "55" },
     metaTileLabel: { fontSize: 11, color: colors.mutedForeground, fontFamily: "Inter_500Medium" },
     metaTileValue: { fontSize: 13, color: colors.foreground, fontFamily: "Inter_600SemiBold" },
     additionalDetailsSection: { gap: 4 },
@@ -1593,12 +1614,13 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     timeEditMeta: { fontSize: 11, lineHeight: 16, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
     timeEditValue: { fontSize: 12, lineHeight: 17, color: colors.foreground, fontFamily: "Inter_400Regular" },
     section: {},
-    commentsSection: { gap: 8, padding: 12, borderRadius: 14, backgroundColor: colors.muted + "55", borderWidth: 1, borderColor: colors.border },
+    commentsSection: { gap: 8, padding: 12, borderRadius: 14, backgroundColor: colors.secondary + "45", borderWidth: 1, borderColor: colors.primary + "33", borderLeftWidth: 3, borderLeftColor: colors.accent },
     commentsHeading: { flexDirection: "row", alignItems: "center", gap: 8 },
-    commentCountBadge: { minWidth: 24, height: 24, paddingHorizontal: 7, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary + "18" },
-    commentCountText: { fontSize: 12, color: colors.primary, fontFamily: "Inter_600SemiBold" },
+    commentsIconWrap: { width: 28, height: 28, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: colors.accent + "20" },
+    commentCountBadge: { minWidth: 24, height: 24, paddingHorizontal: 7, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: colors.accent + "20" },
+    commentCountText: { fontSize: 12, color: colors.accent, fontFamily: "Inter_600SemiBold" },
     sectionTitle: { fontSize: 14, fontWeight: "600" as const, color: colors.foreground, marginBottom: 6, fontFamily: "Inter_600SemiBold" },
-    descBox: { backgroundColor: colors.card, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: colors.primary + "66" },
+    descBox: { backgroundColor: colors.card, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: colors.primary + "55", borderLeftWidth: 3 },
     desc: { fontSize: 15, color: colors.foreground, lineHeight: 22, fontFamily: "Inter_400Regular" },
     pendingAttachmentsCard: {
       gap: 8, padding: 12, borderRadius: 12, borderWidth: 1,
@@ -1634,7 +1656,7 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     statusBtnTextActive: { color: colors.primaryForeground },
     commentCard: { backgroundColor: colors.card, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: colors.border },
     commentHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 5 },
-    commentAvatar: { width: 26, height: 26, borderRadius: 13, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" },
+    commentAvatar: { width: 28, height: 28, borderRadius: 10, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" },
     commentInitial: { color: colors.primaryForeground, fontWeight: "700" as const, fontSize: 12, fontFamily: "Inter_700Bold" },
     commentAuthor: { fontSize: 12, fontWeight: "600" as const, color: colors.foreground, fontFamily: "Inter_600SemiBold" },
     commentDate: { fontSize: 11, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
