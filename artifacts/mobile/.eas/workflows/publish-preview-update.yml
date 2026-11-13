@@ -31,7 +31,7 @@ jobs:
       - uses: eas/checkout
       - uses: eas/install_node_modules
       - name: Build shared TypeScript libraries
-        run: pnpm run typecheck:libs
+        run: pnpm -w run typecheck:libs
       - name: Typecheck mobile
         run: pnpm --filter @workspace/mobile run typecheck
       - name: Run mobile tests
