@@ -16,7 +16,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiDelete, apiGet } from "@/utils/api";
 import { getMobileOrganizationSettingsQueryKey } from "@/utils/optionalTabs";
-import { formatClientNoteMonth, parseClientNoteMonthTag } from "@/utils/clientNoteMonthTag";
+import { formatClientNoteMonth, getClientNoteMonthKey, parseClientNoteMonthTag } from "@/utils/clientNoteMonthTag";
 
 type ClientNoteChecklistItem = {
   id: string;
@@ -87,6 +87,21 @@ export default function ClientDetailScreen() {
       refetchIntervalInBackground: false,
     },
   });
+  const noteMonthGroups = React.useMemo(() => {
+    const grouped = new Map<string, ClientNote[]>();
+    for (const note of notesQuery.data ?? []) {
+      const monthKey = getClientNoteMonthKey(note.monthOverride, note.createdAt);
+      const group = grouped.get(monthKey) ?? [];
+      group.push(note);
+      grouped.set(monthKey, group);
+    }
+    return [...grouped.entries()]
+      .map(([monthKey, notes]) => ({
+        monthKey,
+        notes: [...notes].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+      }))
+      .sort((a, b) => b.monthKey.localeCompare(a.monthKey));
+  }, [notesQuery.data]);
   const client = data?.client ?? data;
   const clientDetails = client ? ([
     { label: "Email", value: client.email, icon: "mail", iconColor: c.successForeground, iconBackground: c.success },
@@ -284,92 +299,104 @@ export default function ClientDetailScreen() {
         {!notesQuery.isLoading && !notesQuery.isError && (notesQuery.data ?? []).length === 0 && (
           <Text style={s.emptyNotes}>{it ? "Non ci sono ancora note per questo cliente." : "There are no notes for this client yet."}</Text>
         )}
-        {(notesQuery.data ?? []).map((note) => (
-          <View key={note.id} style={s.noteCard}>
-            <View style={s.noteHeader}>
-              <View style={s.author}>
-                <Feather name="user" size={14} color={c.mutedForeground} />
-                <Text numberOfLines={1} style={s.authorName}>{note.authorName || (it ? "Utente" : "User")}</Text>
-                <Text style={s.date}>{new Date(note.createdAt).toLocaleString(it ? "it-IT" : "en-US", { dateStyle: "short", timeStyle: "short" })}</Text>
+        {noteMonthGroups.map((group) => (
+          <View
+            key={group.monthKey}
+            testID={`client-note-month-${group.monthKey}`}
+            style={s.noteMonthGroup}
+          >
+            <View style={s.noteMonthHeader}>
+              <View style={s.noteMonthTitle}>
+                <Feather name="calendar" size={16} color={c.primary} />
+                <Text style={s.noteMonthLabel}>{formatClientNoteMonth(group.monthKey, lang)}</Text>
               </View>
-              <View style={s.noteActions}>
-                {canEditNote(note) && (!!note.body || !(note.checklist?.length)) && (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={it ? "Modifica nota" : "Edit note"}
-                    onPress={() => {
-                      setEditingNoteId(note.id);
-                        setEditingBody(note.body ?? "");
-                      setNoteError("");
-                    }}
-                    style={s.iconButton}
-                  >
-                    <Feather name="edit-2" size={16} color={c.primary} />
-                  </Pressable>
-                )}
-                {canDeleteNote(note) && (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={it ? "Elimina nota" : "Delete note"}
-                    onPress={() => confirmDeleteNote(note)}
-                    style={s.iconButton}
-                  >
-                    <Feather name="trash-2" size={16} color={c.destructive} />
-                  </Pressable>
-                )}
+              <View style={s.noteCountBadge}>
+                <Text style={s.noteCount}>{group.notes.length}</Text>
               </View>
             </View>
-            {note.monthOverride ? (
-              <Text style={s.noteMonthBadge}>
-                {formatClientNoteMonth(note.monthOverride, lang)}
-              </Text>
-            ) : null}
-            {editingNoteId === note.id ? (
-              <View style={s.editBox}>
-                <TextInput
-                  value={editingBody}
-                  onChangeText={setEditingBody}
-                  multiline
-                  textAlignVertical="top"
-                  style={s.noteInput}
-                  accessibilityLabel={it ? "Modifica testo nota" : "Edit note text"}
-                />
-                <View style={s.editActions}>
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() => { setEditingNoteId(null); setEditingBody(""); }}
-                    disabled={updateNote.isPending}
-                    style={s.cancelButton}
-                  >
-                    <Text style={s.cancelText}>{it ? "Annulla" : "Cancel"}</Text>
-                  </Pressable>
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() => void saveEdit(note)}
-                    disabled={!editingBody.trim() || updateNote.isPending}
-                    style={[s.saveButton, (!editingBody.trim() || updateNote.isPending) && s.disabledButton]}
-                  >
-                    <Text style={s.addNoteText}>{updateNote.isPending ? "…" : (it ? "Salva" : "Save")}</Text>
-                  </Pressable>
+            {group.notes.map((note, index) => (
+              <View key={note.id} style={[s.noteEntry, index > 0 && s.noteEntryDivider]}>
+                <View style={s.noteHeader}>
+                  <View style={s.author}>
+                    <Feather name="user" size={14} color={c.mutedForeground} />
+                    <Text numberOfLines={1} style={s.authorName}>{note.authorName || (it ? "Utente" : "User")}</Text>
+                    <Text style={s.date}>{new Date(note.createdAt).toLocaleString(it ? "it-IT" : "en-US", { dateStyle: "short", timeStyle: "short" })}</Text>
+                  </View>
+                  <View style={s.noteActions}>
+                    {canEditNote(note) && (!!note.body || !(note.checklist?.length)) && (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={it ? "Modifica nota" : "Edit note"}
+                        onPress={() => {
+                          setEditingNoteId(note.id);
+                          setEditingBody(note.body ?? "");
+                          setNoteError("");
+                        }}
+                        style={s.iconButton}
+                      >
+                        <Feather name="edit-2" size={16} color={c.primary} />
+                      </Pressable>
+                    )}
+                    {canDeleteNote(note) && (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={it ? "Elimina nota" : "Delete note"}
+                        onPress={() => confirmDeleteNote(note)}
+                        style={s.iconButton}
+                      >
+                        <Feather name="trash-2" size={16} color={c.destructive} />
+                      </Pressable>
+                    )}
+                  </View>
                 </View>
+                {editingNoteId === note.id ? (
+                  <View style={s.editBox}>
+                    <TextInput
+                      value={editingBody}
+                      onChangeText={setEditingBody}
+                      multiline
+                      textAlignVertical="top"
+                      style={s.noteInput}
+                      accessibilityLabel={it ? "Modifica testo nota" : "Edit note text"}
+                    />
+                    <View style={s.editActions}>
+                      <Pressable
+                        accessibilityRole="button"
+                        onPress={() => { setEditingNoteId(null); setEditingBody(""); }}
+                        disabled={updateNote.isPending}
+                        style={s.cancelButton}
+                      >
+                        <Text style={s.cancelText}>{it ? "Annulla" : "Cancel"}</Text>
+                      </Pressable>
+                      <Pressable
+                        accessibilityRole="button"
+                        onPress={() => void saveEdit(note)}
+                        disabled={!editingBody.trim() || updateNote.isPending}
+                        style={[s.saveButton, (!editingBody.trim() || updateNote.isPending) && s.disabledButton]}
+                      >
+                        <Text style={s.addNoteText}>{updateNote.isPending ? "…" : (it ? "Salva" : "Save")}</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                ) : (
+                  <>
+                    {!!note.body && <Text style={s.noteBody}>{note.body}</Text>}
+                    {(note.checklist ?? []).map((item) => (
+                      <Pressable
+                        key={item.id}
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked: item.checked }}
+                        onPress={() => void toggleChecklistItem(note, item)}
+                        style={s.checklistRow}
+                      >
+                        <Feather name={item.checked ? "check-square" : "square"} size={18} color={item.checked ? c.primary : c.mutedForeground} />
+                        <Text style={[s.checklistText, item.checked && s.checkedText]}>{item.text}</Text>
+                      </Pressable>
+                    ))}
+                  </>
+                )}
               </View>
-            ) : (
-              <>
-                {!!note.body && <Text style={s.noteBody}>{note.body}</Text>}
-                {(note.checklist ?? []).map((item) => (
-                  <Pressable
-                    key={item.id}
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: item.checked }}
-                    onPress={() => void toggleChecklistItem(note, item)}
-                    style={s.checklistRow}
-                  >
-                    <Feather name={item.checked ? "check-square" : "square"} size={18} color={item.checked ? c.primary : c.mutedForeground} />
-                    <Text style={[s.checklistText, item.checked && s.checkedText]}>{item.text}</Text>
-                  </Pressable>
-                ))}
-              </>
-            )}
+            ))}
           </View>
         ))}
       </View>
@@ -407,7 +434,12 @@ const styles = (c: ReturnType<typeof useColors>) => StyleSheet.create({
   retry: { padding: 10, marginTop: 8, alignItems: "center" },
   retryText: { color: c.primary, fontFamily: "Inter_600SemiBold" },
   emptyNotes: { color: c.mutedForeground, fontSize: 13, paddingVertical: 8 },
-  noteCard: { gap: 10, padding: 13, borderRadius: 12, borderWidth: 1, borderColor: c.border, borderLeftWidth: 3, borderLeftColor: c.accent, backgroundColor: c.card },
+  noteMonthGroup: { gap: 10, padding: 13, borderRadius: 14, borderWidth: 1, borderColor: c.border, borderLeftWidth: 3, borderLeftColor: c.accent, backgroundColor: c.card },
+  noteMonthHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, paddingBottom: 2 },
+  noteMonthTitle: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8 },
+  noteMonthLabel: { color: c.foreground, fontFamily: "Inter_600SemiBold", fontSize: 14, textTransform: "capitalize" },
+  noteEntry: { gap: 9, paddingTop: 4 },
+  noteEntryDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border, paddingTop: 12 },
   noteHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
   author: { flex: 1, flexDirection: "row", alignItems: "center", gap: 6 },
   authorName: { flexShrink: 1, color: c.foreground, fontFamily: "Inter_600SemiBold", fontSize: 12 },
@@ -415,7 +447,6 @@ const styles = (c: ReturnType<typeof useColors>) => StyleSheet.create({
   noteActions: { flexDirection: "row", alignItems: "center" },
   iconButton: { minWidth: 36, height: 36, alignItems: "center", justifyContent: "center" },
   noteBody: { color: c.foreground, fontSize: 14, lineHeight: 20 },
-  noteMonthBadge: { alignSelf: "flex-start", overflow: "hidden", borderRadius: 8, paddingHorizontal: 9, paddingVertical: 4, color: c.secondaryForeground, backgroundColor: c.secondary, fontFamily: "Inter_600SemiBold", fontSize: 11, textTransform: "capitalize" },
   checklistRow: { flexDirection: "row", alignItems: "center", gap: 9, paddingVertical: 4 },
   checklistText: { flex: 1, color: c.foreground, fontSize: 14, lineHeight: 19 },
   checkedText: { color: c.mutedForeground, textDecorationLine: "line-through" },

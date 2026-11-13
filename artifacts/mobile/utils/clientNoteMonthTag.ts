@@ -18,6 +18,23 @@ export type ClientNoteMonthTagResult = {
   monthOverride: string | null;
 };
 
+export function getClientNoteMonthKey(
+  monthOverride: string | null | undefined,
+  createdAt: string | Date,
+): string {
+  if (monthOverride) return monthOverride;
+  const date = createdAt instanceof Date ? createdAt : new Date(createdAt);
+  const parts = new Intl.DateTimeFormat("en", {
+    timeZone: "Europe/Rome",
+    year: "numeric",
+    month: "2-digit",
+  }).formatToParts(date);
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  if (!year || !month) throw new Error("Could not determine client note month");
+  return `${year}-${month}`;
+}
+
 export function parseClientNoteMonthTag(
   text: string,
   now = new Date(),

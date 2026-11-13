@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { formatClientNoteMonth, parseClientNoteMonthTag } from "./clientNoteMonthTag";
+import {
+  formatClientNoteMonth,
+  getClientNoteMonthKey,
+  parseClientNoteMonthTag,
+} from "./clientNoteMonthTag";
 
 describe("mobile client note month hashtags", () => {
   it("removes an Italian month hashtag and extracts its two-digit year", () => {
@@ -40,5 +44,10 @@ describe("mobile client note month hashtags", () => {
 
   it("formats the assigned month for the note history badge", () => {
     expect(formatClientNoteMonth("2026-12", "it")).toBe("dicembre 2026");
+  });
+
+  it("groups notes by their creation month in Europe/Rome when there is no override", () => {
+    expect(getClientNoteMonthKey(null, "2026-12-31T23:30:00.000Z")).toBe("2027-01");
+    expect(getClientNoteMonthKey("2026-12", "2026-10-01T10:00:00.000Z")).toBe("2026-12");
   });
 });

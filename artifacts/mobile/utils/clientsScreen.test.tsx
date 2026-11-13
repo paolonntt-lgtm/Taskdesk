@@ -330,4 +330,54 @@ describe("mobile clients screen", () => {
       },
     });
   });
+
+  it("groups notes with the same month into one month card", async () => {
+    mocks.settings = { clientsEnabled: true };
+    mocks.clientNotes = [
+      {
+        id: 21,
+        clientId: 1,
+        organizationId: 7,
+        authorId: 5,
+        authorName: "Ada Lovelace",
+        body: "Nota assegnata a dicembre",
+        checklist: null,
+        monthOverride: "2026-12",
+        createdAt: "2026-10-24T10:30:00.000Z",
+        updatedAt: "2026-10-24T10:30:00.000Z",
+      },
+      {
+        id: 22,
+        clientId: 1,
+        organizationId: 7,
+        authorId: 5,
+        authorName: "Ada Lovelace",
+        body: "Nota creata a dicembre",
+        checklist: null,
+        createdAt: "2026-12-15T10:30:00.000Z",
+        updatedAt: "2026-12-15T10:30:00.000Z",
+      },
+      {
+        id: 23,
+        clientId: 1,
+        organizationId: 7,
+        authorId: 5,
+        authorName: "Ada Lovelace",
+        body: "Nota di novembre",
+        checklist: null,
+        monthOverride: "2026-11",
+        createdAt: "2026-12-20T10:30:00.000Z",
+        updatedAt: "2026-12-20T10:30:00.000Z",
+      },
+    ];
+
+    await renderDetailScreen();
+
+    const decemberGroup = host.querySelector('[data-testid="client-note-month-2026-12"]');
+    expect(decemberGroup?.textContent).toContain("dicembre 2026");
+    expect(decemberGroup?.textContent).toContain("Nota assegnata a dicembre");
+    expect(decemberGroup?.textContent).toContain("Nota creata a dicembre");
+    expect(decemberGroup?.textContent).not.toContain("Nota di novembre");
+    expect(host.querySelectorAll('[data-testid^="client-note-month-"]')).toHaveLength(2);
+  });
 });
