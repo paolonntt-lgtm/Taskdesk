@@ -24,6 +24,12 @@ on:
       - artifacts/mobile/web/**
       - lib/api-client-react/**
       - scripts/generate-taskdesk-icons.mjs
+      - scripts/taskdesk-icons.manifest.json
+      - artifacts/landing/public/favicon.svg
+      - artifacts/landing/public/favicon.png
+      - artifacts/landing/public/apple-touch-icon.png
+      - artifacts/landing/public/icon-192.png
+      - artifacts/landing/public/icon-512.png
 
 jobs:
   validate_mobile:
@@ -31,20 +37,6 @@ jobs:
     steps:
       - uses: eas/checkout
       - uses: eas/install_node_modules
-      - name: Install ImageMagick for mobile asset checks
-        run: |
-          if command -v magick >/dev/null 2>&1 || { command -v convert >/dev/null 2>&1 && command -v identify >/dev/null 2>&1; }; then
-            echo "ImageMagick is already available."
-          elif [ "$(id -u)" -eq 0 ]; then
-            apt-get update
-            apt-get install -y imagemagick
-          elif command -v sudo >/dev/null 2>&1; then
-            sudo apt-get update
-            sudo apt-get install -y imagemagick
-          else
-            echo "ImageMagick is required for the mobile asset checks." >&2
-            exit 1
-          fi
       - name: Build shared TypeScript libraries
         run: pnpm -w run typecheck:libs
       - name: Typecheck mobile

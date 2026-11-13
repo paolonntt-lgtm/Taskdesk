@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import {
   copyFileSync,
@@ -13,6 +14,7 @@ import { fileURLToPath } from "node:url";
 
 const workspaceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const masterPath = path.join(workspaceRoot, "artifacts/landing/public/favicon.svg");
+const manifestPath = path.join(workspaceRoot, "scripts/taskdesk-icons.manifest.json");
 const foregroundSize = 500;
 const faviconArtworkSize = 900;
 const adaptiveForegroundPath = "artifacts/mobile/assets/images/taskdesk-adaptive-foreground.png";
@@ -106,16 +108,24 @@ function render(targetPath, size, variant, sourcePath) {
   ]);
 }
 
-function imageInfo(filePath) {
-  const result = runMagick(["identify", "-format", "%wx%h %[channels]", filePath], {
-    encoding: "utf8",
-  }).trim();
-  const [dimensions, channels] = result.split(/\s+/);
-  return { dimensions, channels };
+function sha256(value) {
+  return createHash("sha256").update(value).digest("hex");
 }
 
-function rgbaPixels(filePath) {
-  return runMagick([filePath, "-alpha", "on", "-depth", "8", "RGBA:-"]);
+function createManifest() {
+  return {
+    version: 1,
+    source: {
+      path: path.relative(workspaceRoot, masterPath),
+      sha256: sha256(readFileSync(masterPath)),
+    },
+    assets: Object.fromEntries(
+      targets.map(([relativePath]) => [
+        relativePath,
+        sha256(readFileSync(path.join(workspaceRoot, relativePath))),
+      ]),
+    ),
+  };
 }
 
 function withGeneratedAssets(callback) {
@@ -155,47 +165,70 @@ function generate() {
       copyFileSync(asset.outputPath, destination);
       console.log(`[taskdesk-icons] Generated ${asset.relativePath} (${asset.size}×${asset.size}).`);
     }
+    writeFileSync(manifestPath, `${JSON.stringify(createManifest(), null, 2)}\n`);
+    console.log(`[taskdesk-icons] Updated ${path.relative(workspaceRoot, manifestPath)}.`);
   });
 }
 
 function check() {
-  withGeneratedAssets((generated) => {
-    const differences = [];
-    for (const asset of generated) {
-      const actualPath = path.join(workspaceRoot, asset.relativePath);
-      let actualInfo;
-      try {
-        actualInfo = imageInfo(actualPath);
-      } catch {
-        differences.push(`${asset.relativePath} is missing or is not a readable PNG`);
-        continue;
-      }
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+  const source = readFileSync(masterPath);
+  validateMaster(source.toString("utf8"));
+  if (
+    manifest.version !== 1 ||
+    manifest.source?.path !== path.relative(workspaceRoot, masterPath) ||
+    manifest.source?.sha256 !== sha256(source)
+  ) {
+    throw new Error(
+      `[taskdesk-icons] The master SVG changed or the manifest is invalid. Regenerate assets with: pnpm --filter @workspace/mobile generate:brand-icons`,
+    );
+  }
 
-      const expectedInfo = imageInfo(asset.outputPath);
-      const expectedDimensions = `${asset.size}x${asset.size}`;
-      if (actualInfo.dimensions !== expectedDimensions) {
-        differences.push(`${asset.relativePath} has dimensions ${actualInfo.dimensions}; expected ${expectedDimensions}`);
-        continue;
-      }
-      if (asset.variant !== "opaque" && !actualInfo.channels.includes("a")) {
-        differences.push(`${asset.relativePath} must preserve its transparent background`);
-        continue;
-      }
-      if (!rgbaPixels(actualPath).equals(rgbaPixels(asset.outputPath))) {
-        const sourceDescription = asset.variant === "favicon"
-          ? "the generated transparent Android foreground"
-          : path.relative(workspaceRoot, masterPath);
-        differences.push(`${asset.relativePath} differs from ${sourceDescription}`);
-      }
+  const differences = [];
+  const expectedPaths = targets.map(([relativePath]) => relativePath);
+  if (
+    !manifest.assets ||
+    Object.keys(manifest.assets).length !== expectedPaths.length ||
+    expectedPaths.some((relativePath) => !Object.hasOwn(manifest.assets, relativePath))
+  ) {
+    throw new Error(
+      `[taskdesk-icons] The asset manifest does not match the generated icon list. Regenerate assets with: pnpm --filter @workspace/mobile generate:brand-icons`,
+    );
+  }
+
+  for (const [relativePath, size, variant] of targets) {
+    const assetPath = path.join(workspaceRoot, relativePath);
+    let data;
+    try {
+      data = readFileSync(assetPath);
+    } catch {
+      differences.push(`${relativePath} is missing`);
+      continue;
     }
 
-    if (differences.length > 0) {
-      throw new Error(
-        `[taskdesk-icons] Assets are out of sync:\n${differences.map((difference) => `- ${difference}`).join("\n")}\nRun: pnpm --filter @workspace/mobile generate:brand-icons`,
-      );
+    const isPng = data.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+    if (!isPng || data.length < 26) {
+      differences.push(`${relativePath} is not a readable PNG`);
+      continue;
     }
-    console.log(`[taskdesk-icons] All ${generated.length} icon assets match the official monogram.`);
-  });
+
+    const dimensions = `${data.readUInt32BE(16)}x${data.readUInt32BE(20)}`;
+    const hasAlpha = data[25] === 4 || data[25] === 6 || data.includes(Buffer.from("tRNS"));
+    if (dimensions !== `${size}x${size}`) {
+      differences.push(`${relativePath} has dimensions ${dimensions}; expected ${size}x${size}`);
+    } else if (variant !== "opaque" && !hasAlpha) {
+      differences.push(`${relativePath} must preserve its transparent background`);
+    } else if (sha256(data) !== manifest.assets[relativePath]) {
+      differences.push(`${relativePath} differs from its recorded generated version`);
+    }
+  }
+
+  if (differences.length > 0) {
+    throw new Error(
+      `[taskdesk-icons] Assets are out of sync:\n${differences.map((difference) => `- ${difference}`).join("\n")}\nRun: pnpm --filter @workspace/mobile generate:brand-icons`,
+    );
+  }
+  console.log(`[taskdesk-icons] All ${expectedPaths.length} icon assets match the source and manifest.`);
 }
 
 const mode = process.argv[2] ?? "--generate";
