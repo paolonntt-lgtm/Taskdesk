@@ -79,10 +79,11 @@ export function fuzzyMatchMonth(raw: string): number | null {
   return bestDist <= threshold ? best : null;
 }
 
-export const HASHTAG_REGEX = /#([a-zA-Z\u00C0-\u024F]+)(\d{2,4})?/i;
+export const HASHTAG_REGEX = /#([a-zA-Z\u00C0-\u024F]+)(\s*\d{2,4})?/i;
 
 export interface HashtagParseResult {
-  monthOverride: string;
+  monthOverride: string | null;
+  monthOverrides: string[];
   strippedBody: string;
 }
 
@@ -108,6 +109,7 @@ export interface ClientNoteDeclarative {
 
 export interface ClientNoteTags {
   monthOverride: string | null;
+  monthOverrides: string[];
   categories: ClientNoteCategory[];
   strippedBody: string;
 }
@@ -203,6 +205,7 @@ export function parseClientNoteTags(
   if (monthResult && "monthOverride" in monthResult) {
     return {
       monthOverride: monthResult.monthOverride,
+      monthOverrides: monthResult.monthOverrides,
       categories,
       strippedBody: monthResult.strippedBody,
     };
@@ -211,6 +214,7 @@ export function parseClientNoteTags(
   if (categories.length === 0) return null;
   return {
     monthOverride: null,
+      monthOverrides: [],
     categories,
     strippedBody,
   };
@@ -218,9 +222,11 @@ export function parseClientNoteTags(
 
 export function parseHashtag(text: string): HashtagParseResult | HashtagParseError | null {
   const matches = text.matchAll(new RegExp(HASHTAG_REGEX.source, 'gi'));
+  const monthOverrides: string[] = [];
+  const removals: Array<{ index: number; length: number }> = [];
   for (const match of matches) {
     const monthRaw = match[1];
-    const yearRaw = match[2] ?? '';
+    const yearRaw = (match[2] ?? '').trim();
     const monthNum = fuzzyMatchMonth(monthRaw);
     if (!monthNum) {
       if (yearRaw) return { badMonth: monthRaw };
@@ -229,14 +235,22 @@ export function parseHashtag(text: string): HashtagParseResult | HashtagParseErr
     const year = yearRaw
       ? (yearRaw.length === 2 ? `20${yearRaw}` : yearRaw)
       : new Intl.DateTimeFormat('en', { timeZone: 'Europe/Rome', year: 'numeric' }).format(new Date());
-    const monthStr = String(monthNum).padStart(2, '0');
-    const monthOverride = `${year}-${monthStr}`;
-    const strippedBody = text
-      .replace(match[0], '')
-      .replace(/^\s*[:,-]\s*/, '')
-      .replace(/\s{2,}/g, ' ')
-      .trim();
-    return { monthOverride, strippedBody };
+    monthOverrides.push(`${year}-${String(monthNum).padStart(2, '0')}`);
+    removals.push({ index: match.index ?? 0, length: match[0].length });
   }
-  return null;
+  if (monthOverrides.length === 0) return null;
+  let strippedBody = text;
+  for (const removal of removals.sort((a, b) => b.index - a.index)) {
+    strippedBody = strippedBody.slice(0, removal.index) + strippedBody.slice(removal.index + removal.length);
+  }
+  strippedBody = strippedBody
+    .replace(/^\s*[:,-]\s*/, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+  const uniqueMonths = [...new Set(monthOverrides)];
+  return {
+    monthOverride: uniqueMonths[0] ?? null,
+    monthOverrides: uniqueMonths,
+    strippedBody,
+  };
 }

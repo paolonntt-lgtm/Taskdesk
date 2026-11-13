@@ -11,6 +11,8 @@ export interface ClientNoteUpdate {
   body?: string;
   /** YYYY-MM month override parsed from hashtag */
   monthOverride?: string | null;
+  /** @items.pattern ^\d{4}-\d{2}$ */
+  monthOverrides?: string[] | null;
   /** @items.pattern ^(770|CU)([0-9]{2}|[0-9]{4})?$ */
   categories?: string[] | null;
   checklist?: ClientNoteUpdateChecklistItem[] | null;

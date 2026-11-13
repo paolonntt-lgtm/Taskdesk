@@ -56,11 +56,13 @@ describe("mobile client note month hashtags", () => {
     expect(parseClientNoteTags("Inviare la CU #CU2026", [], true)).toEqual({
       body: "Inviare la CU",
       monthOverride: null,
+      monthOverrides: [],
       categories: ["CU26"],
     });
     expect(parseClientNoteTags("Chiudere il 770 #770", [], true, new Date("2026-05-01T12:00:00.000Z"))).toEqual({
       body: "Chiudere il 770",
       monthOverride: null,
+      monthOverrides: [],
       categories: ["77026"],
     });
   });
@@ -78,6 +80,7 @@ describe("mobile client note month hashtags", () => {
     )).toEqual({
       body: "Preparare documenti",
       monthOverride: "2026-12",
+      monthOverrides: ["2026-12"],
       categories: ["declarative:5edbd586-6809-4e26-bbd4-448a4bdd671c:26"],
     });
   });
@@ -86,6 +89,16 @@ describe("mobile client note month hashtags", () => {
     expect(parseClientNoteTags("Nota #CU26", [], false)).toEqual({
       body: "Nota #CU26",
       monthOverride: null,
+      monthOverrides: [],
+      categories: [],
+    });
+  });
+
+  it("assigns the same note to multiple months, including a spaced two-digit year", () => {
+    expect(parseClientNoteTags("Chiamare #dicembre26 e #gennaio 27", [], false)).toEqual({
+      body: "Chiamare e",
+      monthOverride: "2026-12",
+      monthOverrides: ["2026-12", "2027-01"],
       categories: [],
     });
   });

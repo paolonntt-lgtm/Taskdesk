@@ -6026,6 +6026,13 @@ components:
           type: string
           nullable: true
           description: "YYYY-MM override for which month this note appears under"
+        monthOverrides:
+          type: array
+          nullable: true
+          description: "All YYYY-MM month cards where this note appears"
+          items:
+            type: string
+            pattern: '^\d{4}-\d{2}$'
         categories:
           type: array
           nullable: true
@@ -6056,6 +6063,12 @@ components:
           type: string
           nullable: true
           description: "YYYY-MM month override parsed from hashtag"
+        monthOverrides:
+          type: array
+          nullable: true
+          items:
+            type: string
+            pattern: '^\d{4}-\d{2}$'
         categories:
           type: array
           nullable: true
@@ -6090,6 +6103,12 @@ components:
           type: string
           nullable: true
           description: "YYYY-MM month override parsed from hashtag"
+        monthOverrides:
+          type: array
+          nullable: true
+          items:
+            type: string
+            pattern: '^\d{4}-\d{2}$'
         categories:
           type: array
           nullable: true
@@ -6154,6 +6173,13 @@ components:
           type: string
           nullable: true
           description: "YYYY-MM override for which month this note appears under"
+        monthOverrides:
+          type: array
+          nullable: true
+          description: "All YYYY-MM month cards where this note appears"
+          items:
+            type: string
+            pattern: '^\d{4}-\d{2}$'
         categories:
           type: array
           nullable: true

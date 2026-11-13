@@ -19,6 +19,11 @@ export interface ClientNoteWithClient {
   checklist?: ClientNoteWithClientChecklistItem[] | null;
   /** YYYY-MM override for which month this note appears under */
   monthOverride?: string | null;
+  /**
+     * All YYYY-MM month cards where this note appears
+     * @items.pattern ^\d{4}-\d{2}$
+     */
+  monthOverrides?: string[] | null;
   /** @items.pattern ^(770|CU)([0-9]{2}|[0-9]{4})?$ */
   categories?: string[] | null;
   createdAt: Date;

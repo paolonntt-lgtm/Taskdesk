@@ -19,6 +19,7 @@ describe("client note hashtag parsing", () => {
   it("assigns a bare 770 category to the current year", () => {
     expect(parseClientNoteTags("Inviare F24 #770")).toEqual({
       monthOverride: null,
+      monthOverrides: [],
       categories: [`770${String(new Date().getFullYear()).slice(-2)}`],
       strippedBody: "Inviare F24",
     });
@@ -27,6 +28,7 @@ describe("client note hashtag parsing", () => {
   it("assigns a bare CU category to the current year and preserves punctuation", () => {
     expect(parseClientNoteTags("Controllare la pratica #cu, poi richiamare")).toEqual({
       monthOverride: null,
+      monthOverrides: [],
       categories: [`CU${String(new Date().getFullYear()).slice(-2)}`],
       strippedBody: "Controllare la pratica, poi richiamare",
     });
@@ -47,6 +49,7 @@ describe("client note hashtag parsing", () => {
   it("keeps explicit annual categories separate and normalizes four-digit years", () => {
     expect(parseClientNoteTags("Nota #77027 #cu2027")).toEqual({
       monthOverride: null,
+      monthOverrides: [],
       categories: ["77027", "CU27"],
       strippedBody: "Nota",
     });
@@ -55,6 +58,7 @@ describe("client note hashtag parsing", () => {
   it("deduplicates two-digit and four-digit forms of the same annual category", () => {
     expect(parseClientNoteTags("Nota #CU27 #cu2027")).toEqual({
       monthOverride: null,
+      monthOverrides: [],
       categories: ["CU27"],
       strippedBody: "Nota",
     });
@@ -63,6 +67,7 @@ describe("client note hashtag parsing", () => {
   it("combines a category with the existing month override", () => {
     expect(parseClientNoteTags("Inviare CU #CU #marzo26")).toEqual({
       monthOverride: "2026-03",
+      monthOverrides: ["2026-03"],
       categories: [`CU${String(new Date().getFullYear()).slice(-2)}`],
       strippedBody: "Inviare CU",
     });
@@ -71,6 +76,7 @@ describe("client note hashtag parsing", () => {
   it("supports both fixed categories on one note", () => {
     expect(parseClientNoteTags("Nota #770 #CU")).toEqual({
       monthOverride: null,
+      monthOverrides: [],
       categories: [
         `770${String(new Date().getFullYear()).slice(-2)}`,
         `CU${String(new Date().getFullYear()).slice(-2)}`,
@@ -82,6 +88,7 @@ describe("client note hashtag parsing", () => {
   it("keeps month hashtag behavior unchanged", () => {
     expect(parseHashtag("Nota #agosto26")).toEqual({
       monthOverride: "2026-08",
+      monthOverrides: ["2026-08"],
       strippedBody: "Nota",
     });
   });
@@ -90,6 +97,7 @@ describe("client note hashtag parsing", () => {
     const year = new Intl.DateTimeFormat('en', { timeZone: 'Europe/Rome', year: 'numeric' }).format(new Date());
     expect(parseHashtag("Richiamare il cliente #marzo")).toEqual({
       monthOverride: `${year}-03`,
+      monthOverrides: [`${year}-03`],
       strippedBody: "Richiamare il cliente",
     });
   });
@@ -98,10 +106,20 @@ describe("client note hashtag parsing", () => {
     expect(parseHashtag("Confermare #documenti")).toBeNull();
   });
 
+  it("assigns one note to multiple months and accepts a spaced year", () => {
+    expect(parseClientNoteTags("Nota #dicembre26 #gennaio 27", [], false)).toEqual({
+      monthOverride: "2026-12",
+      monthOverrides: ["2026-12", "2027-01"],
+      categories: [],
+      strippedBody: "Nota",
+    });
+  });
+
   it("maps configured aliases to organization declarative categories", () => {
     const declaratives = [{ id: "cb73ea3c-e70f-4de0-97c6-5946f6bdfe5f", name: "Ritenute", alias: "#RIT" }];
     expect(parseClientNoteTags("Verificare pagamento #rit.", declaratives, false)).toEqual({
       monthOverride: null,
+      monthOverrides: [],
       categories: [`declarative:${declaratives[0].id}:${new Intl.DateTimeFormat('en', { timeZone: 'Europe/Rome', year: '2-digit' }).format(new Date())}`],
       strippedBody: "Verificare pagamento.",
     });
@@ -111,6 +129,7 @@ describe("client note hashtag parsing", () => {
     const declaratives = [{ id: "cb73ea3c-e70f-4de0-97c6-5946f6bdfe5f", name: "Redditi", alias: "#REDDITI" }];
     expect(parseClientNoteTags("Dichiarazione #redditi2027", declaratives, false)).toEqual({
       monthOverride: null,
+      monthOverrides: [],
       categories: [`declarative:${declaratives[0].id}:27`],
       strippedBody: "Dichiarazione",
     });

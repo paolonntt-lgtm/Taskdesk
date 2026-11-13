@@ -153,8 +153,11 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
 
     for (const note of typedNotes) {
       const categories: string[] = Array.isArray(note.categories) ? note.categories : [];
-      if (note.monthOverride || categories.length === 0) {
-        const monthKey = note.monthOverride ?? clientNoteMonthKeyFromDate(note.createdAt);
+      const monthOverrides: Array<string | null> = note.monthOverrides?.length
+        ? note.monthOverrides
+        : note.monthOverride ? [note.monthOverride] : categories.length === 0 ? [null] : [];
+      for (const monthOverride of monthOverrides) {
+        const monthKey = monthOverride ?? clientNoteMonthKeyFromDate(note.createdAt);
         addToGroup(monthGroups, monthKey, note);
       }
       for (const category of categories) {
@@ -227,6 +230,11 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
   );
 
   const [body, setBody] = useState('');
+  const activeHashtag = /(?:^|\s)#([\p{L}\p{N}_-]*)$/u.exec(body)?.[1] ?? null;
+  const hashtagSuggestions = activeHashtag === null ? [] : [
+    ...(canCategorize ? [{ name: '770', alias: '#770' }, { name: 'CU', alias: '#CU' }] : []),
+    ...declaratives.filter((item) => !canCategorize || !/^#?(?:CU|770)$/i.test(item.alias)),
+  ].filter((item) => `${item.alias} ${item.name}`.toLowerCase().includes(activeHashtag.toLowerCase()));
   const [saving, setSaving] = useState(false);
   const [hashtagError, setHashtagError] = useState<string | null>(null);
 
@@ -276,11 +284,13 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
     const result = parseClientNoteTags(body, declaratives, canCategorize);
     let finalBody = body.trim();
     let monthOverride: string | null = null;
+    let monthOverrides: string[] = [];
     let categories: string[] = [];
 
     if (result && 'strippedBody' in result) {
       finalBody = result.strippedBody;
       monthOverride = result.monthOverride;
+      monthOverrides = result.monthOverrides;
       if ('categories' in result) categories = result.categories;
     }
 
@@ -294,6 +304,7 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
           body: '',
           checklist: checklist.length > 0 ? checklist : null,
           monthOverride,
+          monthOverrides,
           categories,
         } as any,
       });
@@ -833,6 +844,20 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
             size="small"
             sx={{ mb: 1 }}
           />
+          {hashtagSuggestions.length > 0 && (
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mb: 1 }} data-testid="client-note-hashtag-suggestions">
+              {hashtagSuggestions.map((item) => (
+                <Button
+                  key={item.alias}
+                  size="small"
+                  variant="outlined"
+                  onClick={() => handleBodyChange(body.replace(/(?:^|\s)#[\p{L}\p{N}_-]*$/u, (match) => `${match.startsWith(' ') ? ' ' : ''}${item.alias} `))}
+                >
+                  {item.name} {item.alias}
+                </Button>
+              ))}
+            </Box>
+          )}
           {hashtagError && (
             <Typography variant="caption" color="error" sx={{ display: 'block', mb: 1 }}>
               {hashtagError}

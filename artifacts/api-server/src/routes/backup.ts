@@ -220,6 +220,7 @@ router.post("/backup/restore", requireAuth, requireAdmin, async (req, res): Prom
         body: cn.body ?? "",
         checklist: cn.checklist ?? null,
         monthOverride: cn.monthOverride ?? null,
+        monthOverrides: Array.isArray(cn.monthOverrides) ? cn.monthOverrides : cn.monthOverride ? [cn.monthOverride] : [],
         categories: canRestoreNoteCategories && Array.isArray(cn.categories)
           ? [...new Set((cn.categories as unknown[]).flatMap((category) => {
               const normalized = normalizeClientNoteCategory(category);

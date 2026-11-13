@@ -214,6 +214,17 @@ describe("client note month permissions", () => {
 
     expect(deniedResponse.status).toBe(403);
     await expectMonth("2026-04");
+  }, 15_000);
+
+  it("stores every month hashtag on one note", async () => {
+    const months = ["2026-12", "2027-01"];
+    const response = await request(`/api/clients/${clientId}/notes`, authorSessionId, {
+      method: "POST",
+      body: JSON.stringify({ body: "Richiamare il cliente", monthOverrides: months }),
+    });
+    expect(response.status).toBe(201);
+    expect(response.body.monthOverride).toBe("2026-12");
+    expect(response.body.monthOverrides).toEqual(months);
   });
 
   it("allows authors and note editors to change checklist text while blocking other users", async () => {

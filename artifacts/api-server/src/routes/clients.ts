@@ -191,6 +191,8 @@ const ClientsQuerySchema = z.object({
 const ClientNoteBody = z.object({
   body: z.string(),
   monthOverride: z.string().regex(/^\d{4}-\d{2}$/).optional().nullable(),
+  monthOverrides: z.array(z.string().regex(/^\d{4}-\d{2}$/)).max(60).optional().nullable()
+    .transform((values) => values == null ? values : [...new Set(values)]),
   categories: z.array(
     z.string()
       .transform((value) => normalizeClientNoteCategory(value))
@@ -386,6 +388,7 @@ router.get("/client-notes", requireClientFeature, async (req, res): Promise<void
       body: clientNotesTable.body,
       checklist: clientNotesTable.checklist,
       monthOverride: clientNotesTable.monthOverride,
+      monthOverrides: clientNotesTable.monthOverrides,
       categories: clientNotesTable.categories,
       createdAt: clientNotesTable.createdAt,
       updatedAt: clientNotesTable.updatedAt,
@@ -1130,6 +1133,7 @@ router.get("/clients/:id/notes", requireClientFeature, async (req, res): Promise
       body: clientNotesTable.body,
       checklist: clientNotesTable.checklist,
       monthOverride: clientNotesTable.monthOverride,
+      monthOverrides: clientNotesTable.monthOverrides,
       categories: clientNotesTable.categories,
       createdAt: clientNotesTable.createdAt,
       updatedAt: clientNotesTable.updatedAt,
@@ -1182,7 +1186,8 @@ router.post("/clients/:id/notes", requireClientFeature, async (req, res): Promis
       authorId: currentUser.id,
       body: parsed.data.body,
       checklist: parsed.data.checklist ?? null,
-      monthOverride: parsed.data.monthOverride ?? null,
+      monthOverride: parsed.data.monthOverrides?.[0] ?? parsed.data.monthOverride ?? null,
+      monthOverrides: parsed.data.monthOverrides ?? (parsed.data.monthOverride ? [parsed.data.monthOverride] : []),
       categories: parsed.data.categories ?? [],
     })
     .returning();
@@ -1212,7 +1217,7 @@ router.patch("/clients/:id/notes/:noteId", requireClientFeature, async (req, res
 
   const updateData: Record<string, any> = {};
   // Admins or users with edit_client_notes permission can edit any note; others can only edit their own
-  if (parsed.data.body !== undefined || parsed.data.monthOverride !== undefined || parsed.data.categories !== undefined) {
+  if (parsed.data.body !== undefined || parsed.data.monthOverride !== undefined || parsed.data.monthOverrides !== undefined || parsed.data.categories !== undefined) {
     const isAdmin = currentUser.role === 'admin';
     if (!isAdmin) {
       const canEditOthers = await hasGroupPermission(currentUser.id, currentUser.organizationId ?? null, "edit_client_notes", false, req);
@@ -1238,6 +1243,13 @@ router.patch("/clients/:id/notes/:noteId", requireClientFeature, async (req, res
     if (parsed.data.body !== undefined) updateData.body = parsed.data.body;
     if (parsed.data.monthOverride !== undefined) {
       updateData.monthOverride = parsed.data.monthOverride;
+      if (parsed.data.monthOverrides === undefined) {
+        updateData.monthOverrides = parsed.data.monthOverride ? [parsed.data.monthOverride] : [];
+      }
+    }
+    if (parsed.data.monthOverrides !== undefined) {
+      updateData.monthOverrides = parsed.data.monthOverrides ?? [];
+      updateData.monthOverride = updateData.monthOverrides[0] ?? null;
     }
     if (parsed.data.categories !== undefined) {
       const categories = parsed.data.categories ?? [];

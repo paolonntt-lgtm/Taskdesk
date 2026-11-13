@@ -22,6 +22,7 @@ export type ClientNoteDeclarative = {
 export type ClientNoteTagResult = {
   body: string;
   monthOverride: string | null;
+  monthOverrides: string[];
   categories: string[];
 };
 
@@ -66,27 +67,31 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function parseMonthTag(text: string, now: Date): { body: string; monthOverride: string } | { badMonth: string } | null {
-  for (const match of text.matchAll(/#([a-zA-Z\u00C0-\u024F]+)(\d{2,4})?/gi)) {
+function parseMonthTag(text: string, now: Date): { body: string; monthOverride: string | null; monthOverrides: string[] } | { badMonth: string } | null {
+  const monthOverrides: string[] = [];
+  const removals: Array<{ index: number; length: number }> = [];
+  for (const match of text.matchAll(/#([a-zA-Z\u00C0-\u024F]+)(\s*\d{2,4})?/gi)) {
     if (normalize(match[1]) === "cu") continue;
     const month = fuzzyMatchMonth(match[1]);
     if (!month) {
-      if (match[2]) return { badMonth: match[1] };
+      if (match[2]?.trim()) return { badMonth: match[1] };
       continue;
     }
-    const year = match[2]
-      ? match[2].length === 2 ? `20${match[2]}` : match[2]
+    const yearPart = match[2]?.trim();
+    const year = yearPart
+      ? yearPart.length === 2 ? `20${yearPart}` : yearPart
       : new Intl.DateTimeFormat("en", { timeZone: "Europe/Rome", year: "numeric" }).format(now);
-    return {
-      monthOverride: `${year}-${String(month).padStart(2, "0")}`,
-      body: text
-        .replace(match[0], "")
-        .replace(/^\s*[:,-]\s*/, "")
-        .replace(/\s{2,}/g, " ")
-        .trim(),
-    };
+    monthOverrides.push(`${year}-${String(month).padStart(2, "0")}`);
+    removals.push({ index: match.index ?? 0, length: match[0].length });
   }
-  return null;
+  if (monthOverrides.length === 0) return null;
+  let body = text;
+  for (const removal of removals.sort((a, b) => b.index - a.index)) {
+    body = body.slice(0, removal.index) + body.slice(removal.index + removal.length);
+  }
+  body = body.replace(/^\s*[:,-]\s*/, "").replace(/\s{2,}/g, " ").trim();
+  const uniqueMonths = [...new Set(monthOverrides)];
+  return { body, monthOverride: uniqueMonths[0] ?? null, monthOverrides: uniqueMonths };
 }
 
 export function hasUnavailableBuiltInClientNoteTag(
@@ -178,6 +183,7 @@ export function parseClientNoteTags(
   return {
     body: monthResult?.body ?? strippedBody,
     monthOverride: monthResult?.monthOverride ?? null,
+    monthOverrides: monthResult?.monthOverrides ?? [],
     categories,
   };
 }
@@ -189,7 +195,15 @@ export function parseClientNoteMonthTag(
   const result = parseMonthTag(text, now);
   return result && "badMonth" in result
     ? { body: text.trim(), monthOverride: null }
-    : result ?? { body: text.trim(), monthOverride: null };
+    : result ? { body: result.body, monthOverride: result.monthOverride } : { body: text.trim(), monthOverride: null };
+}
+
+export function getActiveClientNoteHashtag(text: string): string | null {
+  return /(?:^|\s)#([\p{L}\p{N}_-]*)$/u.exec(text)?.[1] ?? null;
+}
+
+export function replaceActiveClientNoteHashtag(text: string, alias: string): string {
+  return text.replace(/(?:^|\s)#[\p{L}\p{N}_-]*$/u, (match) => `${match.startsWith(" ") ? " " : ""}${alias} `);
 }
 
 export function formatClientNoteMonth(monthOverride: string, language: string): string {

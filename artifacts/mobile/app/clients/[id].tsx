@@ -19,8 +19,10 @@ import { getMobileOrganizationSettingsQueryKey } from "@/utils/optionalTabs";
 import {
   formatClientNoteMonth,
   getClientNoteMonthKey,
+  getActiveClientNoteHashtag,
   hasUnavailableBuiltInClientNoteTag,
   parseClientNoteTags,
+  replaceActiveClientNoteHashtag,
   type ClientNoteDeclarative,
 } from "@/utils/clientNoteMonthTag";
 
@@ -101,13 +103,21 @@ export default function ClientDetailScreen() {
   });
   const declaratives = declarativesQuery.data?.declaratives ?? [];
   const canUseBuiltInCategories = organizationSettings.data?.profession === "consulenti-del-lavoro";
+  const activeHashtag = getActiveClientNoteHashtag(noteDraft);
+  const hashtagSuggestions = activeHashtag === null ? [] : [
+    ...(canUseBuiltInCategories ? [{ name: "770", alias: "#770" }, { name: "CU", alias: "#CU" }] : []),
+    ...declaratives.filter((item) => !canUseBuiltInCategories || !/^#?(?:CU|770)$/i.test(item.alias)),
+  ].filter((item) => `${item.alias} ${item.name}`.toLowerCase().includes(activeHashtag.toLowerCase()));
   const noteGroups = React.useMemo(() => {
     const monthGroups = new Map<string, ClientNote[]>();
     const categoryGroups = new Map<string, ClientNote[]>();
     for (const note of notesQuery.data ?? []) {
       const categories = Array.isArray(note.categories) ? note.categories : [];
-      if (note.monthOverride || categories.length === 0) {
-        const monthKey = getClientNoteMonthKey(note.monthOverride, note.createdAt);
+      const monthKeys = note.monthOverrides?.length
+        ? note.monthOverrides
+        : note.monthOverride ? [note.monthOverride] : categories.length === 0 ? [null] : [];
+      for (const monthOverride of monthKeys) {
+        const monthKey = getClientNoteMonthKey(monthOverride, note.createdAt);
         const group = monthGroups.get(monthKey) ?? [];
         group.push(note);
         monthGroups.set(monthKey, group);
@@ -205,7 +215,7 @@ export default function ClientDetailScreen() {
         : `Unrecognized month: #${parsedNote.badMonth}.`);
       return;
     }
-    if ((!parsedNote.body && !parsedNote.monthOverride && parsedNote.categories.length === 0) || !validClientId) {
+    if ((!parsedNote.body && parsedNote.monthOverrides.length === 0 && parsedNote.categories.length === 0) || !validClientId) {
       setNoteError(it
         ? "Scrivi una nota o inserisci un hashtag valido."
         : "Write a note or enter a valid hashtag.");
@@ -219,6 +229,7 @@ export default function ClientDetailScreen() {
           body: parsedNote.body,
           checklist: null,
           ...(parsedNote.monthOverride ? { monthOverride: parsedNote.monthOverride } : {}),
+          ...(parsedNote.monthOverrides.length ? { monthOverrides: parsedNote.monthOverrides } : {}),
           ...(parsedNote.categories.length ? { categories: parsedNote.categories } : {}),
         },
       });
@@ -364,6 +375,21 @@ export default function ClientDetailScreen() {
               : <><Feather name="plus" size={16} color={c.primaryForeground} /><Text style={s.addNoteText}>{it ? "Aggiungi" : "Add"}</Text></>}
           </Pressable>
         </View>
+        {hashtagSuggestions.length > 0 && (
+          <View style={s.hashtagSuggestions} testID="client-note-hashtag-suggestions">
+            {hashtagSuggestions.map((item) => (
+              <Pressable
+                key={item.alias}
+                accessibilityRole="button"
+                accessibilityLabel={`${item.name} ${item.alias}`}
+                onPress={() => setNoteDraft((current) => replaceActiveClientNoteHashtag(current, item.alias))}
+                style={s.hashtagSuggestion}
+              >
+                <Text style={s.hashtagSuggestionText}>{item.name} {item.alias}</Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
         {!!noteError && <Text style={s.error}>{noteError}</Text>}
         {notesQuery.isLoading && <ActivityIndicator color={c.primary} />}
         {notesQuery.isError && (
@@ -503,6 +529,9 @@ const styles = (c: ReturnType<typeof useColors>) => StyleSheet.create({
   noteCountBadge: { minWidth: 26, height: 26, paddingHorizontal: 7, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: c.secondary },
   noteCount: { color: c.secondaryForeground, fontSize: 12, fontFamily: "Inter_600SemiBold" },
   composer: { gap: 8, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: c.accent, backgroundColor: c.secondary },
+  hashtagSuggestions: { flexDirection: "row", flexWrap: "wrap", gap: 7, paddingHorizontal: 3 },
+  hashtagSuggestion: { borderWidth: 1, borderColor: c.border, borderRadius: 14, backgroundColor: c.card, paddingHorizontal: 10, paddingVertical: 6 },
+  hashtagSuggestionText: { color: c.primary, fontSize: 12, fontFamily: "Inter_600SemiBold" },
   noteInput: { minHeight: 72, color: c.foreground, fontSize: 14, lineHeight: 20, padding: 0 },
   addNoteButton: { alignSelf: "flex-end", flexDirection: "row", alignItems: "center", gap: 5, borderRadius: 9, backgroundColor: c.primary, paddingHorizontal: 12, paddingVertical: 8 },
   addNoteText: { color: c.primaryForeground, fontFamily: "Inter_600SemiBold", fontSize: 13 },

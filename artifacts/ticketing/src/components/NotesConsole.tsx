@@ -41,6 +41,11 @@ export default function NotesConsole() {
   const [, setLocation] = useLocation();
 
   const [body, setBody] = useState('');
+  const activeHashtag = /(?:^|\s)#([\p{L}\p{N}_-]*)$/u.exec(body)?.[1] ?? null;
+  const hashtagSuggestions = activeHashtag === null ? [] : [
+    ...(canCategorize ? [{ name: '770', alias: '#770' }, { name: 'CU', alias: '#CU' }] : []),
+    ...declaratives.filter((item) => !canCategorize || !/^#?(?:CU|770)$/i.test(item.alias)),
+  ].filter((item) => `${item.alias} ${item.name}`.toLowerCase().includes(activeHashtag.toLowerCase()));
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
   const [selectedClientName, setSelectedClientName] = useState<string | null>(null);
   const [selectedClientSlug, setSelectedClientSlug] = useState<string | null>(null);
@@ -161,6 +166,7 @@ export default function NotesConsole() {
     // Extract monthOverride from hashtag shortcut
     const hashResult = parseClientNoteTags(noteBody, declaratives, canCategorize);
     let monthOverride: string | null = null;
+    let monthOverrides: string[] = [];
     let categories: string[] = [];
     if (hashResult && 'badMonth' in hashResult) {
       setHashtagError(tc.invalidMonth(hashResult.badMonth));
@@ -168,11 +174,12 @@ export default function NotesConsole() {
     }
     if (hashResult && 'strippedBody' in hashResult) {
       monthOverride = hashResult.monthOverride;
+      monthOverrides = hashResult.monthOverrides;
       if ('categories' in hashResult) categories = hashResult.categories;
       noteBody = hashResult.strippedBody;
     }
     // Category-only notes stay annual; ordinary notes still default to this month.
-    monthOverride = getDefaultNoteMonthOverride(monthOverride, categories);
+    monthOverride = monthOverrides[0] ?? getDefaultNoteMonthOverride(monthOverride, categories);
 
     if (!noteBody) { showToast('error', tc.errorRequired); return; }
 
@@ -185,6 +192,7 @@ export default function NotesConsole() {
           body: '',
           checklist: checklist.length > 0 ? checklist : null,
           monthOverride,
+          monthOverrides,
           categories,
         } as any,
       });
@@ -272,6 +280,23 @@ export default function NotesConsole() {
                   },
                 }}
               />
+              {hashtagSuggestions.length > 0 && (
+                <Paper
+                  elevation={8}
+                  data-testid="console-client-note-hashtag-suggestions"
+                  sx={{ position: 'absolute', zIndex: 1500, left: 0, right: 0, top: '100%', maxHeight: 220, overflowY: 'auto', borderRadius: '10px' }}
+                >
+                  <List dense disablePadding>
+                    {hashtagSuggestions.map((item) => (
+                      <ListItem key={item.alias} disablePadding>
+                        <ListItemButton onClick={() => handleBodyChange({ target: { value: body.replace(/(?:^|\s)#[\p{L}\p{N}_-]*$/u, (match) => `${match.startsWith(' ') ? ' ' : ''}${item.alias} `) } } as React.ChangeEvent<HTMLTextAreaElement>)}>
+                          <ListItemText primary={`${item.name} ${item.alias}`} />
+                        </ListItemButton>
+                      </ListItem>
+                    ))}
+                  </List>
+                </Paper>
+              )}
 
               <Popper
                 open={mentionOpen && filteredClients.length > 0}

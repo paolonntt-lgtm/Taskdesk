@@ -4469,6 +4469,7 @@ export const ListClientNotesParams = zod.object({
   "id": zod.coerce.number().int()
 })
 
+export const listClientNotesResponseMonthOverridesItemRegExp = new RegExp('^\\d{4}-\\d{2}$');
 export const listClientNotesResponseCategoriesItemRegExp = new RegExp('^(770|CU)([0-9]{2}|[0-9]{4})?$');
 
 
@@ -4485,6 +4486,7 @@ export const ListClientNotesResponseItem = zod.object({
   "checked": zod.boolean()
 })).nullish(),
   "monthOverride": zod.string().nullish().describe('YYYY-MM override for which month this note appears under'),
+  "monthOverrides": zod.array(zod.string().regex(listClientNotesResponseMonthOverridesItemRegExp)).nullish().describe('All YYYY-MM month cards where this note appears'),
   "categories": zod.array(zod.string().regex(listClientNotesResponseCategoriesItemRegExp)).nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -4499,12 +4501,14 @@ export const CreateClientNoteParams = zod.object({
   "id": zod.coerce.number().int()
 })
 
+export const createClientNoteBodyMonthOverridesItemRegExp = new RegExp('^\\d{4}-\\d{2}$');
 export const createClientNoteBodyCategoriesItemRegExp = new RegExp('^(770|CU)([0-9]{2}|[0-9]{4})?$');
 
 
 export const CreateClientNoteBody = zod.object({
   "body": zod.string(),
   "monthOverride": zod.string().nullish().describe('YYYY-MM month override parsed from hashtag'),
+  "monthOverrides": zod.array(zod.string().regex(createClientNoteBodyMonthOverridesItemRegExp)).nullish(),
   "categories": zod.array(zod.string().regex(createClientNoteBodyCategoriesItemRegExp)).nullish(),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
@@ -4513,6 +4517,7 @@ export const CreateClientNoteBody = zod.object({
 })).nullish()
 })
 
+export const createClientNoteResponseMonthOverridesItemRegExp = new RegExp('^\\d{4}-\\d{2}$');
 export const createClientNoteResponseCategoriesItemRegExp = new RegExp('^(770|CU)([0-9]{2}|[0-9]{4})?$');
 
 
@@ -4529,6 +4534,7 @@ export const CreateClientNoteResponse = zod.object({
   "checked": zod.boolean()
 })).nullish(),
   "monthOverride": zod.string().nullish().describe('YYYY-MM override for which month this note appears under'),
+  "monthOverrides": zod.array(zod.string().regex(createClientNoteResponseMonthOverridesItemRegExp)).nullish().describe('All YYYY-MM month cards where this note appears'),
   "categories": zod.array(zod.string().regex(createClientNoteResponseCategoriesItemRegExp)).nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -4543,12 +4549,14 @@ export const UpdateClientNoteParams = zod.object({
   "noteId": zod.coerce.number().int()
 })
 
+export const updateClientNoteBodyMonthOverridesItemRegExp = new RegExp('^\\d{4}-\\d{2}$');
 export const updateClientNoteBodyCategoriesItemRegExp = new RegExp('^(770|CU)([0-9]{2}|[0-9]{4})?$');
 
 
 export const UpdateClientNoteBody = zod.object({
   "body": zod.string().optional(),
   "monthOverride": zod.string().nullish().describe('YYYY-MM month override parsed from hashtag'),
+  "monthOverrides": zod.array(zod.string().regex(updateClientNoteBodyMonthOverridesItemRegExp)).nullish(),
   "categories": zod.array(zod.string().regex(updateClientNoteBodyCategoriesItemRegExp)).nullish(),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
@@ -4557,6 +4565,7 @@ export const UpdateClientNoteBody = zod.object({
 })).nullish()
 })
 
+export const updateClientNoteResponseMonthOverridesItemRegExp = new RegExp('^\\d{4}-\\d{2}$');
 export const updateClientNoteResponseCategoriesItemRegExp = new RegExp('^(770|CU)([0-9]{2}|[0-9]{4})?$');
 
 
@@ -4573,6 +4582,7 @@ export const UpdateClientNoteResponse = zod.object({
   "checked": zod.boolean()
 })).nullish(),
   "monthOverride": zod.string().nullish().describe('YYYY-MM override for which month this note appears under'),
+  "monthOverrides": zod.array(zod.string().regex(updateClientNoteResponseMonthOverridesItemRegExp)).nullish().describe('All YYYY-MM month cards where this note appears'),
   "categories": zod.array(zod.string().regex(updateClientNoteResponseCategoriesItemRegExp)).nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -4601,6 +4611,7 @@ export const ListAllClientNotesQueryParams = zod.object({
   "dateTo": zod.date().optional()
 })
 
+export const listAllClientNotesResponseMonthOverridesItemRegExp = new RegExp('^\\d{4}-\\d{2}$');
 export const listAllClientNotesResponseCategoriesItemRegExp = new RegExp('^(770|CU)([0-9]{2}|[0-9]{4})?$');
 
 
@@ -4619,6 +4630,7 @@ export const ListAllClientNotesResponseItem = zod.object({
   "checked": zod.boolean()
 })).nullish(),
   "monthOverride": zod.string().nullish().describe('YYYY-MM override for which month this note appears under'),
+  "monthOverrides": zod.array(zod.string().regex(listAllClientNotesResponseMonthOverridesItemRegExp)).nullish().describe('All YYYY-MM month cards where this note appears'),
   "categories": zod.array(zod.string().regex(listAllClientNotesResponseCategoriesItemRegExp)).nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()

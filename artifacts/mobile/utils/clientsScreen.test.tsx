@@ -333,6 +333,7 @@ describe("mobile clients screen", () => {
         body: "Inviare il riepilogo",
         checklist: null,
         monthOverride: "2026-12",
+        monthOverrides: ["2026-12"],
       },
     });
   });
