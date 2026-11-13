@@ -210,20 +210,23 @@ describe("mobile ticket detail client and assignee", () => {
     expect(host.textContent).toContain("Mario Rossi");
   });
 
-  it("puts the description first and keeps secondary ticket details collapsed", async () => {
+  it("keeps key metadata near the title and comments beside the description", async () => {
     await renderScreen();
 
     const description = host.querySelector('[data-testid="ticket-description-section"]');
     const primaryDetails = host.querySelector('[data-testid="ticket-primary-details"]');
+    const comments = host.querySelector('[data-testid="ticket-comments-section"]');
     const moreDetailsButton = host.querySelector<HTMLButtonElement>(
       '[data-testid="ticket-additional-details-toggle"]',
     );
     expect(description).not.toBeNull();
     expect(primaryDetails).not.toBeNull();
+    expect(comments).not.toBeNull();
     expect(description?.textContent).toContain("Review the latest service contract.");
     expect(
-      description!.compareDocumentPosition(primaryDetails!) & Node.DOCUMENT_POSITION_FOLLOWING,
+      primaryDetails!.compareDocumentPosition(description!) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
+    expect(description!.nextElementSibling).toBe(comments);
     expect(primaryDetails?.textContent).toContain(translations.it.ticketDetail.status);
     expect(primaryDetails?.textContent).toContain(translations.it.ticketDetail.priority);
     expect(host.querySelector('[data-testid="ticket-additional-details"]')).toBeNull();

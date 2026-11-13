@@ -708,6 +708,17 @@ export default function TicketDetailScreen() {
           )}
         </View>
 
+        <View style={s.primaryMetaCard} testID="ticket-primary-details">
+          <View style={s.metaGrid}>
+            {primaryMetaRows.map((item) => (
+              <View key={item.label} style={s.metaTile}>
+                <Text style={s.metaTileLabel}>{item.label}</Text>
+                <Text style={s.metaTileValue}>{item.value}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
         <View style={[s.section, s.descriptionSection]} testID="ticket-description-section">
           <View style={s.descriptionHeading}>
             <Feather name="file-text" size={17} color={colors.primary} />
@@ -718,14 +729,51 @@ export default function TicketDetailScreen() {
           </View>
         </View>
 
-        <View style={s.primaryMetaCard} testID="ticket-primary-details">
-          <View style={s.metaGrid}>
-            {primaryMetaRows.map((item) => (
-              <View key={item.label} style={s.metaTile}>
-                <Text style={s.metaTileLabel}>{item.label}</Text>
-                <Text style={s.metaTileValue}>{item.value}</Text>
+        <View style={[s.section, s.commentsSection]} testID="ticket-comments-section">
+          <View style={s.commentsHeading}>
+            <Text style={s.sectionTitle}>{t.ticketDetail.comments}</Text>
+            <View style={s.commentCountBadge}>
+              <Text style={s.commentCountText}>{comments.length}</Text>
+            </View>
+          </View>
+          {comments.map((c) => (
+            <View key={c.id} style={s.commentCard}>
+              <View style={s.commentHeader}>
+                <View style={s.commentAvatar}>
+                  <Text style={s.commentInitial}>{c.author?.name?.charAt(0).toUpperCase()}</Text>
+                </View>
+                <View>
+                  <Text style={s.commentAuthor}>{c.author?.name}</Text>
+                  <Text style={s.commentDate}>{formatDate(c.createdAt)}</Text>
+                </View>
               </View>
-            ))}
+              <Text style={s.commentText}>{c.commentText}</Text>
+            </View>
+          ))}
+
+          <View style={s.commentInputWrap}>
+            <TextInput
+              style={s.commentInput}
+              value={comment}
+              onChangeText={setComment}
+              placeholder={t.ticketDetail.addComment}
+              placeholderTextColor={colors.mutedForeground}
+              multiline
+              textAlignVertical="top"
+            />
+            <TouchableOpacity
+              style={[s.sendBtn, (!comment.trim() || submitting) && s.sendBtnDisabled]}
+              onPress={handleComment}
+              disabled={!comment.trim() || submitting}
+              accessibilityRole="button"
+              accessibilityLabel={t.ticketDetail.addComment}
+            >
+              {submitting ? (
+                <ActivityIndicator color={colors.primaryForeground} size="small" />
+              ) : (
+                <Feather name="send" size={18} color={colors.primaryForeground} />
+              )}
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -1269,46 +1317,6 @@ export default function TicketDetailScreen() {
           })}
         </View>
 
-        <View style={s.section}>
-          <Text style={s.sectionTitle}>{t.ticketDetail.comments} ({comments.length})</Text>
-          {comments.map((c) => (
-            <View key={c.id} style={s.commentCard}>
-              <View style={s.commentHeader}>
-                <View style={s.commentAvatar}>
-                  <Text style={s.commentInitial}>{c.author?.name?.charAt(0).toUpperCase()}</Text>
-                </View>
-                <View>
-                  <Text style={s.commentAuthor}>{c.author?.name}</Text>
-                  <Text style={s.commentDate}>{formatDate(c.createdAt)}</Text>
-                </View>
-              </View>
-              <Text style={s.commentText}>{c.commentText}</Text>
-            </View>
-          ))}
-
-          <View style={s.commentInputWrap}>
-            <TextInput
-              style={s.commentInput}
-              value={comment}
-              onChangeText={setComment}
-              placeholder={t.ticketDetail.addComment}
-              placeholderTextColor={colors.mutedForeground}
-              multiline
-              textAlignVertical="top"
-            />
-            <TouchableOpacity
-              style={[s.sendBtn, (!comment.trim() || submitting) && s.sendBtnDisabled]}
-              onPress={handleComment}
-              disabled={!comment.trim() || submitting}
-            >
-              {submitting ? (
-                <ActivityIndicator color={colors.primaryForeground} size="small" />
-              ) : (
-                <Feather name="send" size={18} color={colors.primaryForeground} />
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
       </KeyboardAwareScrollView>
 
       <TicketEditModal
@@ -1585,6 +1593,10 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     timeEditMeta: { fontSize: 11, lineHeight: 16, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
     timeEditValue: { fontSize: 12, lineHeight: 17, color: colors.foreground, fontFamily: "Inter_400Regular" },
     section: {},
+    commentsSection: { gap: 8, padding: 12, borderRadius: 14, backgroundColor: colors.muted + "55", borderWidth: 1, borderColor: colors.border },
+    commentsHeading: { flexDirection: "row", alignItems: "center", gap: 8 },
+    commentCountBadge: { minWidth: 24, height: 24, paddingHorizontal: 7, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary + "18" },
+    commentCountText: { fontSize: 12, color: colors.primary, fontFamily: "Inter_600SemiBold" },
     sectionTitle: { fontSize: 14, fontWeight: "600" as const, color: colors.foreground, marginBottom: 6, fontFamily: "Inter_600SemiBold" },
     descBox: { backgroundColor: colors.card, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: colors.primary + "66" },
     desc: { fontSize: 15, color: colors.foreground, lineHeight: 22, fontFamily: "Inter_400Regular" },
@@ -1620,7 +1632,7 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     statusBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
     statusBtnText: { fontSize: 13, color: colors.mutedForeground, fontFamily: "Inter_500Medium" },
     statusBtnTextActive: { color: colors.primaryForeground },
-    commentCard: { backgroundColor: colors.card, borderRadius: 10, padding: 10, marginBottom: 6, borderWidth: 1, borderColor: colors.border },
+    commentCard: { backgroundColor: colors.card, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: colors.border },
     commentHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 5 },
     commentAvatar: { width: 26, height: 26, borderRadius: 13, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" },
     commentInitial: { color: colors.primaryForeground, fontWeight: "700" as const, fontSize: 12, fontFamily: "Inter_700Bold" },
