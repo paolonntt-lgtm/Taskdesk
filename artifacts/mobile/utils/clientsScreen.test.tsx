@@ -276,6 +276,7 @@ describe("mobile clients screen", () => {
       authorName: "Ada Lovelace",
       body: "Ricontattare la prossima settimana",
       checklist: null,
+      monthOverride: "2026-12",
       createdAt: "2026-10-24T10:30:00.000Z",
       updatedAt: "2026-10-24T10:30:00.000Z",
     }];
@@ -285,6 +286,7 @@ describe("mobile clients screen", () => {
     expect(host.textContent).toContain("Storico note");
     expect(host.textContent).toContain("Ricontattare la prossima settimana");
     expect(host.textContent).toContain("Ada Lovelace");
+    expect(host.textContent).toContain("dicembre 2026");
 
     const input = host.querySelector<HTMLInputElement>('input[placeholder="Scrivi una nota sul cliente…"]');
     expect(input).not.toBeNull();
@@ -303,5 +305,29 @@ describe("mobile clients screen", () => {
       data: { body: "Inviare il preventivo", checklist: null },
     });
     expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["client-notes", 1] });
+  });
+
+  it("parses a month hashtag into the client note month override", async () => {
+    mocks.settings = { clientsEnabled: true };
+    await renderDetailScreen();
+
+    const input = host.querySelector<HTMLInputElement>('input[placeholder="Scrivi una nota sul cliente…"]');
+    await act(async () => {
+      const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      setValue?.call(input, "Inviare il riepilogo #dicembre26");
+      input!.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    const addButton = Array.from(host.querySelectorAll("button"))
+      .find(button => button.textContent?.includes("Aggiungi"));
+    await act(async () => addButton?.click());
+
+    expect(mocks.createClientNote).toHaveBeenCalledWith({
+      id: 1,
+      data: {
+        body: "Inviare il riepilogo",
+        checklist: null,
+        monthOverride: "2026-12",
+      },
+    });
   });
 });

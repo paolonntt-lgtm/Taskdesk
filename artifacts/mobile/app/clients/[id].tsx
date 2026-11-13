@@ -16,6 +16,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiDelete, apiGet } from "@/utils/api";
 import { getMobileOrganizationSettingsQueryKey } from "@/utils/optionalTabs";
+import { formatClientNoteMonth, parseClientNoteMonthTag } from "@/utils/clientNoteMonthTag";
 
 type ClientNoteChecklistItem = {
   id: string;
@@ -113,11 +114,23 @@ export default function ClientDetailScreen() {
     qc.invalidateQueries({ queryKey: getListClientNotesQueryKey(clientId) });
 
   const addNote = async () => {
-    const body = noteDraft.trim();
-    if (!body || !validClientId) return;
+    const parsedNote = parseClientNoteMonthTag(noteDraft.trim());
+    if (!parsedNote.body || !validClientId) {
+      setNoteError(it
+        ? "Aggiungi il testo della nota oltre all’hashtag."
+        : "Add note text as well as the hashtag.");
+      return;
+    }
     setNoteError("");
     try {
-      await createNote.mutateAsync({ id: clientId, data: { body, checklist: null } });
+      await createNote.mutateAsync({
+        id: clientId,
+        data: {
+          body: parsedNote.body,
+          checklist: null,
+          ...(parsedNote.monthOverride ? { monthOverride: parsedNote.monthOverride } : {}),
+        },
+      });
       setNoteDraft("");
       await refreshNotes();
     } catch {
@@ -306,6 +319,11 @@ export default function ClientDetailScreen() {
                 )}
               </View>
             </View>
+            {note.monthOverride ? (
+              <Text style={s.noteMonthBadge}>
+                {formatClientNoteMonth(note.monthOverride, lang)}
+              </Text>
+            ) : null}
             {editingNoteId === note.id ? (
               <View style={s.editBox}>
                 <TextInput
@@ -397,6 +415,7 @@ const styles = (c: ReturnType<typeof useColors>) => StyleSheet.create({
   noteActions: { flexDirection: "row", alignItems: "center" },
   iconButton: { minWidth: 36, height: 36, alignItems: "center", justifyContent: "center" },
   noteBody: { color: c.foreground, fontSize: 14, lineHeight: 20 },
+  noteMonthBadge: { alignSelf: "flex-start", overflow: "hidden", borderRadius: 8, paddingHorizontal: 9, paddingVertical: 4, color: c.secondaryForeground, backgroundColor: c.secondary, fontFamily: "Inter_600SemiBold", fontSize: 11, textTransform: "capitalize" },
   checklistRow: { flexDirection: "row", alignItems: "center", gap: 9, paddingVertical: 4 },
   checklistText: { flex: 1, color: c.foreground, fontSize: 14, lineHeight: 19 },
   checkedText: { color: c.mutedForeground, textDecorationLine: "line-through" },
