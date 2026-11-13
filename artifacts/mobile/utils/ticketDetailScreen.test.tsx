@@ -74,6 +74,7 @@ vi.mock("expo-haptics", () => ({
   NotificationFeedbackType: { Success: "success", Error: "error" },
 }));
 vi.mock("expo-router", () => ({
+  Stack: { Screen: () => null },
   router: { back: vi.fn(), replace: vi.fn() },
   useLocalSearchParams: () => ({ id: "9" }),
 }));
