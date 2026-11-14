@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   activeWorkspaceId: null as number | null,
   stored: new Map<string, string>(),
   revokeContextRequest: false,
+  refreshAuth: null as null | (() => Promise<void>),
   apiFetch: vi.fn(),
   apiPost: vi.fn(),
 }));
@@ -32,8 +33,17 @@ vi.mock("@/utils/api", () => ({
   setActiveWorkspaceContext: (workspaceId: number | null) => { mocks.activeWorkspaceId = workspaceId; },
 }));
 vi.mock("@workspace/api-client-react", () => ({
-  createAuthRefreshHandler: () => async () => {},
-  startAuthRefreshPolling: () => () => {},
+  createAuthRefreshHandler: (options: {
+    request: () => Promise<{ ok: boolean; json: () => Promise<unknown> }>;
+    setCurrentUser: (user: never) => void;
+  }) => async () => {
+    const response = await options.request();
+    if (response.ok) options.setCurrentUser(await response.json() as never);
+  },
+  startAuthRefreshPolling: (refresh: () => Promise<void>) => {
+    mocks.refreshAuth = refresh;
+    return () => {};
+  },
   forgotPassword: vi.fn(),
 }));
 
@@ -65,11 +75,12 @@ function currentWorkspaceUser() {
 }
 
 function Consumer() {
-  const { user, switchWorkspace } = useAuth();
+  const { user, workspaceAccessRevoked, switchWorkspace } = useAuth();
   const [switchError, setSwitchError] = useState("");
   return (
     <div>
       <span data-testid="active-workspace">{user?.organizationName} · {user?.role}</span>
+      <span data-testid="workspace-access-revoked">{String(workspaceAccessRevoked)}</span>
       <button
         data-testid="switch-to-shared"
         onClick={() => void switchWorkspace(22).catch((error: Error) => setSwitchError(error.message))}
@@ -105,6 +116,7 @@ describe("mobile workspace authentication context", () => {
     mocks.activeWorkspaceId = null;
     mocks.stored.clear();
     mocks.revokeContextRequest = false;
+    mocks.refreshAuth = null;
     mocks.apiFetch.mockReset().mockImplementation(async (path: string) => {
       if (path !== "/auth/me") return apiResponse(204, null);
       if (mocks.activeWorkspaceId === 22 && mocks.revokeContextRequest) return apiResponse(403, {});
@@ -140,6 +152,7 @@ describe("mobile workspace authentication context", () => {
     });
     expect(mocks.stored.has("taskdesk-active-workspace:5")).toBe(false);
     expect(mocks.activeWorkspaceId).toBe(7);
+    expect(host.querySelector('[data-testid="workspace-access-revoked"]')?.textContent).toBe("true");
   });
 
   it("switches profile, role, and cached data together", async () => {
@@ -159,7 +172,7 @@ describe("mobile workspace authentication context", () => {
     expect(queryClient.getQueryData(["tickets"])).toBeUndefined();
   });
 
-  it("returns to the billing organization when access is revoked after a selection", async () => {
+  it("does not show a revocation notice after a voluntary switch fails", async () => {
     await renderProvider();
     await vi.waitFor(() => expect(host.querySelector('[data-testid="active-workspace"]')?.textContent).toContain("Home office"));
     await act(async () => {
@@ -177,5 +190,25 @@ describe("mobile workspace authentication context", () => {
       expect(host.querySelector('[data-testid="active-workspace"]')?.textContent).toBe("Home office · admin");
     });
     expect(mocks.stored.has("taskdesk-active-workspace:5")).toBe(false);
+    expect(host.querySelector('[data-testid="workspace-access-revoked"]')?.textContent).toBe("false");
+  });
+
+  it("notifies after automatically returning home when selected workspace access is revoked", async () => {
+    await renderProvider();
+    await vi.waitFor(() => expect(host.querySelector('[data-testid="active-workspace"]')?.textContent).toContain("Home office"));
+    await act(async () => {
+      host.querySelector<HTMLButtonElement>('[data-testid="switch-to-shared"]')?.click();
+    });
+    await vi.waitFor(() => {
+      expect(host.querySelector('[data-testid="active-workspace"]')?.textContent).toBe("Shared studio · user");
+    });
+
+    mocks.revokeContextRequest = true;
+    await act(async () => {
+      await mocks.refreshAuth?.();
+    });
+
+    expect(host.querySelector('[data-testid="active-workspace"]')?.textContent).toBe("Home office · admin");
+    expect(host.querySelector('[data-testid="workspace-access-revoked"]')?.textContent).toBe("true");
   });
 });

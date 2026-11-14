@@ -43,12 +43,14 @@ interface User {
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
+  workspaceAccessRevoked: boolean;
   login: (email: string, password: string, rememberMe: boolean) => Promise<void>;
   requestPasswordReset: (email: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (updates: Partial<User>) => void;
   switchWorkspace: (workspaceId: number) => Promise<void>;
+  dismissWorkspaceAccessRevoked: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -65,6 +67,7 @@ function userBillingOrganizationId(user: User): number | null {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [workspaceAccessRevoked, setWorkspaceAccessRevoked] = useState(false);
   const userRef = useRef<User | null>(null);
   const queryClient = useQueryClient();
 
@@ -84,6 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const homeUser = await response.json() as User;
         const homeWorkspaceId = userBillingOrganizationId(homeUser);
         let activeUser = homeUser;
+        let accessRevoked = false;
         setActiveWorkspaceContext(userWorkspaceId(homeUser), homeWorkspaceId);
 
         let savedWorkspaceId: number | null = null;
@@ -97,6 +101,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const savedWorkspaceIsAvailable = savedWorkspaceId != null &&
           savedWorkspaceId !== homeWorkspaceId &&
           homeUser.workspaces?.some((workspace) => workspace.id === savedWorkspaceId);
+        if (savedWorkspaceId != null && savedWorkspaceId !== homeWorkspaceId && !savedWorkspaceIsAvailable) {
+          accessRevoked = true;
+        }
         if (savedWorkspaceIsAvailable && savedWorkspaceId != null) {
           setActiveWorkspaceContext(savedWorkspaceId, homeWorkspaceId);
           try {
@@ -107,6 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             } else {
               setActiveWorkspaceContext(homeWorkspaceId, homeWorkspaceId);
               if (contextualResponse.status === 403) {
+                accessRevoked = true;
                 await AsyncStorage.removeItem(workspaceStorageKey(homeUser.id)).catch(() => {});
               }
             }
@@ -120,6 +128,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!cancelled) {
           userRef.current = activeUser;
           setUser(activeUser);
+          if (accessRevoked) setWorkspaceAccessRevoked(true);
         }
       } catch {
         setActiveWorkspaceContext(null, null);
@@ -134,8 +143,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (isLoading || !user?.id) return;
+    let accessRevokedDuringRefresh = false;
     const refreshAuth = createAuthRefreshHandler<User>({
       request: async () => {
+        accessRevokedDuringRefresh = false;
         const response = await apiFetch("/auth/me", { cache: "no-store" });
         const currentUser = userRef.current;
         if (response.status !== 403 || !currentUser ||
@@ -149,12 +160,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           const homeResponse = await apiFetch("/auth/me", { cache: "no-store" });
           if (!homeResponse.ok) {
+            accessRevokedDuringRefresh = false;
             userRef.current = null;
             setUser(null);
             queryClient.clear();
           }
+          if (homeResponse.ok) accessRevokedDuringRefresh = true;
           return homeResponse;
         } catch (error) {
+          accessRevokedDuringRefresh = false;
           userRef.current = null;
           setUser(null);
           queryClient.clear();
@@ -166,8 +180,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setActiveWorkspaceContext(userWorkspaceId(freshUser), userBillingOrganizationId(freshUser));
         userRef.current = freshUser;
         setUser(freshUser);
+        if (accessRevokedDuringRefresh) {
+          accessRevokedDuringRefresh = false;
+          setWorkspaceAccessRevoked(true);
+        }
       },
       onUnauthorized: () => {
+        accessRevokedDuringRefresh = false;
         setActiveWorkspaceContext(null, null);
         userRef.current = null;
         setUser(null);
@@ -250,6 +269,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [isLoading, user?.id, queryClient]);
 
   const login = async (email: string, password: string, rememberMe: boolean) => {
+    setWorkspaceAccessRevoked(false);
     await apiPost<{ user: User }>("/auth/login", { email, password, rememberMe });
     setActiveWorkspaceContext(null, null);
     queryClient.clear();
@@ -257,13 +277,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!response.ok) throw new Error("Unable to load account");
     const homeUser = await response.json() as User;
     let nextUser = homeUser;
+    let accessRevoked = false;
     const homeWorkspaceId = userBillingOrganizationId(homeUser);
     setActiveWorkspaceContext(userWorkspaceId(homeUser), homeWorkspaceId);
     const savedValue = await AsyncStorage.getItem(workspaceStorageKey(homeUser.id)).catch(() => null);
     const savedWorkspaceId = Number(savedValue);
+    const savedWorkspaceIsAvailable = Number.isInteger(savedWorkspaceId) && savedWorkspaceId > 0 &&
+      savedWorkspaceId !== homeWorkspaceId &&
+      homeUser.workspaces?.some((workspace) => workspace.id === savedWorkspaceId);
     if (Number.isInteger(savedWorkspaceId) && savedWorkspaceId > 0 &&
-        savedWorkspaceId !== homeWorkspaceId &&
-        homeUser.workspaces?.some((workspace) => workspace.id === savedWorkspaceId)) {
+        savedWorkspaceId !== homeWorkspaceId && !savedWorkspaceIsAvailable) {
+      accessRevoked = true;
+      await AsyncStorage.removeItem(workspaceStorageKey(homeUser.id)).catch(() => {});
+    }
+    if (savedWorkspaceIsAvailable) {
       setActiveWorkspaceContext(savedWorkspaceId, homeWorkspaceId);
       const contextualResponse = await apiFetch("/auth/me", { cache: "no-store" }).catch(() => null);
       if (contextualResponse?.ok) {
@@ -272,12 +299,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         setActiveWorkspaceContext(homeWorkspaceId, homeWorkspaceId);
         if (contextualResponse?.status === 403) {
+          accessRevoked = true;
           await AsyncStorage.removeItem(workspaceStorageKey(homeUser.id)).catch(() => {});
         }
       }
     }
     userRef.current = nextUser;
     setUser(nextUser);
+    if (accessRevoked) setWorkspaceAccessRevoked(true);
   };
 
   const requestPasswordReset = async (email: string) => {
@@ -296,6 +325,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
+    setWorkspaceAccessRevoked(false);
     await apiFetch("/auth/logout", { method: "POST" });
     setActiveWorkspaceContext(null, null);
     setUser(null);
@@ -350,8 +380,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const dismissWorkspaceAccessRevoked = () => setWorkspaceAccessRevoked(false);
+
   return (
-      <AuthContext.Provider value={{ user, isLoading, login, requestPasswordReset, register, logout, updateUser, switchWorkspace }}>
+      <AuthContext.Provider value={{
+        user,
+        isLoading,
+        workspaceAccessRevoked,
+        login,
+        requestPasswordReset,
+        register,
+        logout,
+        updateUser,
+        switchWorkspace,
+        dismissWorkspaceAccessRevoked,
+      }}>
       {children}
     </AuthContext.Provider>
   );
