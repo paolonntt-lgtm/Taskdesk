@@ -113,8 +113,14 @@ describe("stopping recurring tickets", () => {
         server.close((error) => (error ? reject(error) : resolve()));
       });
     }
+    if (recurringTicketId) {
+      const occurrences = await db.select({ id: ticketsTable.id })
+        .from(ticketsTable)
+        .where(eq(ticketsTable.recurrenceParentId, recurringTicketId));
+      createdTicketIds.push(...occurrences.map(({ id }) => id));
+    }
     if (createdTicketIds.length) {
-      await db.delete(ticketsTable).where(inArray(ticketsTable.id, createdTicketIds));
+      await db.delete(ticketsTable).where(inArray(ticketsTable.id, [...new Set(createdTicketIds)]));
     }
     const sessionIds = [adminSessionId, collaboratorSessionId].filter(Boolean);
     if (sessionIds.length) await db.delete(sessionsTable).where(inArray(sessionsTable.sessionId, sessionIds));
@@ -126,7 +132,7 @@ describe("stopping recurring tickets", () => {
     await pool.end();
   });
 
-  it("stops future creation and calendar previews while preserving existing tickets", async () => {
+  it("stops a concurrently running job before it can create anything after the response", async () => {
     const now = new Date();
     const calendarBefore = await request(
       `/api/calendar?year=${now.getFullYear()}&month=${now.getMonth() + 1}`,
@@ -144,14 +150,56 @@ describe("stopping recurring tickets", () => {
     );
     expect(forbiddenStop.status).toBe(403);
 
-    const stopped = await request(
-      `/api/tickets/${recurringTicketId}/recurrence`,
-      adminSessionId,
-      { method: "DELETE" },
-    );
+    const existingBeforeRace = await db.select({
+      id: ticketsTable.id,
+      title: ticketsTable.title,
+      description: ticketsTable.description,
+      status: ticketsTable.status,
+      priority: ticketsTable.priority,
+    }).from(ticketsTable).where(eq(ticketsTable.id, existingOccurrenceId));
+
+    let jobFinished = false;
+    let stopFinished = false;
+    let jobPromise!: Promise<void>;
+    let stopPromise!: Promise<{ status: number; body: any }>;
+    let childIdsAtStopResponse: number[] = [];
+
+    // Hold the source row while both operations start. This makes the job and
+    // the admin's DELETE compete for the same row lock instead of relying on
+    // the timing of two otherwise-fast requests.
+    await db.transaction(async (tx) => {
+      await tx.select({ id: ticketsTable.id })
+        .from(ticketsTable)
+        .where(eq(ticketsTable.id, recurringTicketId))
+        .for("update");
+
+      jobPromise = runTicketRecurrenceJob().finally(() => {
+        jobFinished = true;
+      });
+      stopPromise = request(
+        `/api/tickets/${recurringTicketId}/recurrence`,
+        adminSessionId,
+        { method: "DELETE" },
+      ).then(async (response) => {
+        const childrenAtResponse = await db.select({ id: ticketsTable.id })
+          .from(ticketsTable)
+          .where(eq(ticketsTable.recurrenceParentId, recurringTicketId));
+        childIdsAtStopResponse = childrenAtResponse.map(({ id }) => id);
+        stopFinished = true;
+        return response;
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    });
+
+    expect(jobFinished).toBe(false);
+    expect(stopFinished).toBe(false);
+
+    const stopped = await stopPromise;
     expect(stopped.status).toBe(200);
     expect(stopped.body.recurrenceRule).toBeNull();
     expect(stopped.body.recurrenceNextAt).toBeNull();
+    await jobPromise;
 
     const [sourceAfterStop] = await db.select({
       title: ticketsTable.title,
@@ -166,29 +214,19 @@ describe("stopping recurring tickets", () => {
       recurrenceNextAt: null,
     });
 
-    const existingBeforeJob = await db.select({
-      id: ticketsTable.id,
-      title: ticketsTable.title,
-      description: ticketsTable.description,
-      status: ticketsTable.status,
-      priority: ticketsTable.priority,
-    }).from(ticketsTable).where(eq(ticketsTable.id, existingOccurrenceId));
-
-    await runTicketRecurrenceJob();
-
     const occurrences = await db.select({
       id: ticketsTable.id,
     }).from(ticketsTable).where(eq(ticketsTable.recurrenceParentId, recurringTicketId));
-    expect(occurrences.map(({ id }) => id)).toEqual([existingOccurrenceId]);
+    expect(occurrences.map(({ id }) => id).sort()).toEqual([...childIdsAtStopResponse].sort());
 
-    const existingAfterJob = await db.select({
+    const existingAfterRace = await db.select({
       id: ticketsTable.id,
       title: ticketsTable.title,
       description: ticketsTable.description,
       status: ticketsTable.status,
       priority: ticketsTable.priority,
     }).from(ticketsTable).where(eq(ticketsTable.id, existingOccurrenceId));
-    expect(existingAfterJob).toEqual(existingBeforeJob);
+    expect(existingAfterRace).toEqual(existingBeforeRace);
 
     const calendarAfter = await request(
       `/api/calendar?year=${now.getFullYear()}&month=${now.getMonth() + 1}`,
@@ -199,5 +237,5 @@ describe("stopping recurring tickets", () => {
       (item: { id: number; ticketEvent?: string }) =>
         item.id === recurringTicketId && item.ticketEvent === "recurrence",
     )).toBe(false);
-  });
+  }, 20_000);
 });
