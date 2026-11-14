@@ -16,6 +16,13 @@ const mocks = vi.hoisted(() => ({
   weatherConsentValue: "declined" as string | null,
   weatherStorageSet: vi.fn(),
   weatherQueryError: false,
+  weatherData: null as null | {
+    conditionCode: number;
+    isDay: boolean;
+    temperatureC: number;
+    conditionText: string;
+    locationName: string;
+  },
   weatherQueryRefetch: vi.fn(),
   clients: [] as { id: number; name: string; alias?: string | null; email?: string | null; phone?: string | null }[],
   clientResultsByOrganization: null as null | Record<
@@ -273,12 +280,41 @@ vi.mock("expo-linear-gradient", async () => {
   };
 });
 vi.mock("expo-symbols", () => ({ SymbolView: () => null }));
-vi.mock("@expo/vector-icons", () => ({ Feather: () => null, MaterialCommunityIcons: () => null }));
+vi.mock("@expo/vector-icons", async () => {
+  const ReactModule = await import("react");
+  return {
+    Feather: () => null,
+    MaterialCommunityIcons: ({
+      name,
+      size,
+      color,
+      testID,
+    }: {
+      name: string;
+      size: number;
+      color: string;
+      testID?: string;
+    }) => ReactModule.createElement("span", {
+      "data-testid": testID,
+      "data-icon-name": name,
+      "data-icon-size": size,
+      "data-icon-color": color,
+    }),
+  };
+});
 vi.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
 vi.mock("@/hooks/useColors", () => ({
-  useColors: () => new Proxy({}, { get: () => "#222222" }),
+  useColors: () => new Proxy({
+    warning: "#b45309",
+    accent: "#0e7490",
+    mutedForeground: "#64748b",
+    destructive: "#dc2626",
+    primary: "#2563eb",
+    background: "#ffffff",
+    border: "#d1d5db",
+  }, { get: (tokens, key) => key in tokens ? tokens[key as keyof typeof tokens] : "#222222" }),
 }));
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({ user: mocks.user }),
@@ -356,7 +392,7 @@ vi.mock("@tanstack/react-query", () => ({
       data: isOrganizationSettings
         ? mocks.organizationSettings
         : isWeather
-          ? undefined
+          ? mocks.weatherData
           : queryKey[0] === "mobile-dashboard-client-search"
             ? mocks.searchResultsByQuery[JSON.stringify(queryKey)] ?? {
                 search: String(queryKey[2] ?? ""),
@@ -438,6 +474,7 @@ describe("mobile ticket creation navigation", () => {
     mocks.weatherConsentValue = "declined";
     mocks.weatherStorageSet.mockReset();
     mocks.weatherQueryError = false;
+    mocks.weatherData = null;
     mocks.weatherQueryRefetch.mockReset();
     mocks.clients = [];
     mocks.clientResultsByOrganization = null;
@@ -558,6 +595,45 @@ describe("mobile ticket creation navigation", () => {
     expect(weatherCard?.textContent).toContain("Tap to retry");
     await act(async () => weatherCard?.click());
     expect(mocks.weatherQueryRefetch).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the no-weather card unchanged and enlarges a condition-colored icon on narrow screens", async () => {
+    mocks.screenWidth = 320;
+    await render(DashboardScreen);
+
+    const emptyWeatherCard = host.querySelector<HTMLElement>('[data-testid="dashboard-weather-card"]');
+    expect(emptyWeatherCard?.getAttribute("data-touch-width")).toBe("92");
+    expect(emptyWeatherCard?.getAttribute("data-touch-height")).toBe("92");
+    expect(host.querySelector('[data-testid="dashboard-weather-icon-badge"]')).toBeNull();
+
+    const conditions = [
+      { conditionCode: 1000, isDay: true, icon: "weather-sunny", color: "#b45309" },
+      { conditionCode: 1009, isDay: true, icon: "weather-cloudy", color: "#64748b" },
+      { conditionCode: 1186, isDay: true, icon: "weather-rainy", color: "#2563eb" },
+      { conditionCode: 1210, isDay: true, icon: "weather-snowy", color: "#0e7490" },
+      { conditionCode: 1087, isDay: true, icon: "weather-lightning-rainy", color: "#dc2626" },
+    ];
+
+    for (const condition of conditions) {
+      mocks.weatherData = {
+        ...condition,
+        temperatureC: 17,
+        conditionText: "Weather condition",
+        locationName: "Milan",
+      };
+      await render(DashboardScreen);
+
+      const weatherCard = host.querySelector<HTMLElement>('[data-testid="dashboard-weather-card"]');
+      const icon = host.querySelector<HTMLElement>('[data-testid="dashboard-weather-icon"]');
+      const badge = host.querySelector<HTMLElement>('[data-testid="dashboard-weather-icon-badge"]');
+      expect(weatherCard?.getAttribute("data-touch-width")).toBe("100");
+      expect(weatherCard?.getAttribute("data-touch-height")).toBe("116");
+      expect(icon?.getAttribute("data-icon-name")).toBe(condition.icon);
+      expect(icon?.getAttribute("data-icon-size")).toBe("40");
+      expect(icon?.getAttribute("data-icon-color")).toBe(condition.color);
+      expect(badge?.getAttribute("data-touch-width")).toBe("46");
+      expect(badge?.getAttribute("data-touch-height")).toBe("46");
+    }
   });
 
   it("shows the GPS locality in place of the profile location after consent", async () => {

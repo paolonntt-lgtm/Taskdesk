@@ -54,6 +54,20 @@ function weatherIconName(code: number, isDay: boolean): WeatherIconName {
   return "weather-cloudy";
 }
 
+function weatherIconColor(code: number, isDay: boolean, colors: ReturnType<typeof useColors>) {
+  if (code === 1000) return isDay ? colors.warning : colors.accent;
+  if (code === 1003) return colors.warning;
+  if ([1030, 1135, 1147].includes(code)) return colors.mutedForeground;
+  if ([1087, 1273, 1276, 1279, 1282].includes(code)) return colors.destructive;
+  if ([1066, 1069, 1072, 1114, 1117, 1210, 1213, 1216, 1219, 1222, 1225, 1255, 1258, 1261, 1264].includes(code)) {
+    return colors.accent;
+  }
+  if ([1063, 1150, 1153, 1168, 1171, 1180, 1183, 1186, 1189, 1192, 1195, 1198, 1201, 1240, 1243, 1246].includes(code)) {
+    return colors.primary;
+  }
+  return colors.mutedForeground;
+}
+
 interface DashboardStats {
   openTickets: number;
   inProgressTickets: number;
@@ -436,7 +450,7 @@ export default function DashboardScreen() {
           </View>
         </View>
         <TouchableOpacity
-          style={s.greetingArtwork}
+          style={[s.greetingArtwork, weatherQuery.data && s.weatherArtwork]}
           onPress={handleWeatherPress}
           activeOpacity={0.8}
           accessibilityRole="button"
@@ -453,15 +467,18 @@ export default function DashboardScreen() {
               : [colors.warning, colors.destructive]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={s.greetingIllustration}
+            style={[s.greetingIllustration, weatherQuery.data && s.weatherIllustration]}
           >
             {weatherQuery.data ? (
               <>
-                <MaterialCommunityIcons
-                  name={weatherIconName(weatherQuery.data.conditionCode, weatherQuery.data.isDay)}
-                  size={27}
-                  color={colors.primaryForeground}
-                />
+                <View style={s.weatherIconBadge} testID="dashboard-weather-icon-badge">
+                  <MaterialCommunityIcons
+                    name={weatherIconName(weatherQuery.data.conditionCode, weatherQuery.data.isDay)}
+                    size={40}
+                    color={weatherIconColor(weatherQuery.data.conditionCode, weatherQuery.data.isDay, colors)}
+                    testID="dashboard-weather-icon"
+                  />
+                </View>
                 <Text style={s.weatherTemperature}>{weatherQuery.data.temperatureC}°</Text>
                 <Text style={s.weatherCondition} numberOfLines={1}>{weatherQuery.data.conditionText}</Text>
                 <Text style={s.weatherAttribution}>WeatherAPI.com</Text>
@@ -675,6 +692,7 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       marginLeft: 4,
       zIndex: 1,
     },
+    weatherArtwork: { width: 100, height: 116, marginLeft: 0 },
     greetingIllustration: {
       width: 78,
       height: 82,
@@ -689,24 +707,35 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       shadowRadius: 10,
       elevation: 4,
     },
+    weatherIllustration: { width: 88, height: 108, borderRadius: 26, gap: 1 },
+    weatherIconBadge: {
+      width: 46,
+      height: 46,
+      borderRadius: 16,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.background,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginBottom: 2,
+    },
     weatherTemperature: {
-      marginTop: -2,
-      fontSize: 17,
-      lineHeight: 19,
+      fontSize: 18,
+      lineHeight: 21,
       color: colors.primaryForeground,
       fontFamily: "Inter_700Bold",
     },
     weatherCondition: {
-      maxWidth: 70,
-      fontSize: 8,
-      lineHeight: 10,
+      maxWidth: 82,
+      fontSize: 9,
+      lineHeight: 11,
       color: colors.primaryForeground,
       opacity: 0.9,
       fontFamily: "Inter_500Medium",
     },
     weatherAttribution: {
-      fontSize: 5.5,
-      lineHeight: 7,
+      fontSize: 6,
+      lineHeight: 8,
       color: colors.primaryForeground,
       opacity: 0.78,
       fontFamily: "Inter_400Regular",
