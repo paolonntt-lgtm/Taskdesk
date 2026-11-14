@@ -496,11 +496,13 @@ router.get("/users/:id", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
+  if (!currentUser.workspaceMemberIds?.includes(id)) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+
   const [user] = await db.select(userFields).from(usersTable).where(
-    and(
-      eq(usersTable.id, id),
-      eq(usersTable.organizationId, currentUser.organizationId),
-    )
+    eq(usersTable.id, id)
   );
   if (!user) {
     res.status(404).json({ error: "User not found" });

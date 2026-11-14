@@ -8,6 +8,7 @@ import {
   splitEmailBodySections,
   splitEmailThreadDetails,
 } from '../lib/emailDisplay';
+import { resolveMentionUser } from '../lib/ticketMentions';
 import { useLanguage } from '../contexts/LanguageContext';
 
 interface MarkdownContentProps {
@@ -15,6 +16,7 @@ interface MarkdownContentProps {
   onTicketClick?: (ticketId: number) => void;
   forceUnorderedLists?: boolean;
   compactHeadings?: boolean;
+  mentionUsers?: readonly { id: number; name: string }[];
 }
 
 // Matches descriptions/comments injected by the inbound email pipeline
@@ -35,14 +37,15 @@ function splitEmailContent(text: string): { header: string; body: string } | nul
   };
 }
 
-function preprocessContent(text: string): string {
+export function preprocessContent(text: string): string {
   const protectedSegments: string[] = [];
   let result = text.replace(/(`[^`]*`|\[[^\]]+\]\([^)]+\))/g, (segment) => {
     const index = protectedSegments.push(segment) - 1;
     return `\u0000${index}\u0000`;
   });
-  // Convert @[Name Surname] mentions to links — encode the href so spaces don't break markdown link syntax
-  result = result.replace(/@\[([^\]]+)\]/g, (_, name: string) => `[@${name}](#mention-${encodeURIComponent(name)})`);
+  // Convert @[Name Surname] mentions to markdown links without the visible @.
+  // The renderer resolves the name against the active workspace collaborators.
+  result = result.replace(/@\[([^\]]+)\]/g, (_, name: string) => `[${name}](#mention-${encodeURIComponent(name)})`);
   // Convert #123 ticket references to markdown links, but not inside existing links or code
   result = result.replace(/(?<!\[)(?<!\()#(\d+)\b/g, '[#$1](/tickets/$1)');
   // Auto-link bare URLs that are not already inside a markdown link or code span
@@ -59,31 +62,66 @@ function InternalLink({
   href,
   children,
   onTicketClick,
+  mentionUsers,
 }: {
   href?: string;
   children?: React.ReactNode;
   onTicketClick?: (ticketId: number) => void;
+  mentionUsers?: readonly { id: number; name: string }[];
 }) {
   const [, setLocation] = useLocation();
   if (href?.startsWith('#mention-')) {
+    let mentionedName = href.slice('#mention-'.length);
+    try {
+      mentionedName = decodeURIComponent(mentionedName);
+    } catch {
+      // Keep malformed or legacy mention text readable without linking it.
+    }
+    const mentionedUser = resolveMentionUser(mentionedName, mentionUsers);
+    const mentionStyle = {
+      display: 'inline-block',
+      bgcolor: 'primary.50',
+      color: 'primary.700',
+      fontWeight: 600,
+      fontSize: '0.82rem',
+      px: 0.6,
+      py: 0.1,
+      borderRadius: 1,
+      border: '1px solid',
+      borderColor: 'primary.200',
+      lineHeight: 1.4,
+    };
+
+    if (mentionedUser) {
+      const profileHref = `/users/${mentionedUser.id}`;
+      return (
+        <Box
+          component="a"
+          href={profileHref}
+          data-testid={`link-profile-${mentionedUser.id}`}
+          onClick={(event: React.MouseEvent) => {
+            event.preventDefault();
+            setLocation(profileHref);
+          }}
+          sx={{
+            ...mentionStyle,
+            cursor: 'pointer',
+            textDecoration: 'none',
+            '&:hover': { textDecoration: 'underline' },
+            '&:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: 2 },
+          }}
+        >
+          {mentionedName}
+        </Box>
+      );
+    }
+
     return (
       <Box
         component="span"
-        sx={{
-          display: 'inline-block',
-          bgcolor: 'primary.50',
-          color: 'primary.700',
-          fontWeight: 600,
-          fontSize: '0.82rem',
-          px: 0.6,
-          py: 0.1,
-          borderRadius: 1,
-          border: '1px solid',
-          borderColor: 'primary.200',
-          lineHeight: 1.4,
-        }}
+        sx={mentionStyle}
       >
-        {children}
+        {mentionedName}
       </Box>
     );
   }
@@ -114,9 +152,10 @@ function InternalLink({
 const getMarkdownComponents = (
   onTicketClick?: (ticketId: number) => void,
   forceUnorderedLists = false,
+  mentionUsers?: readonly { id: number; name: string }[],
 ) => ({
   a: ({ href, children }: { href?: string; children?: React.ReactNode }) => (
-    <InternalLink href={href} onTicketClick={onTicketClick}>{children}</InternalLink>
+    <InternalLink href={href} onTicketClick={onTicketClick} mentionUsers={mentionUsers}>{children}</InternalLink>
   ),
   ...(forceUnorderedLists
     ? {
@@ -219,10 +258,11 @@ export function MarkdownContent({
   onTicketClick,
   forceUnorderedLists = false,
   compactHeadings = false,
+  mentionUsers,
 }: MarkdownContentProps) {
   const { lang } = useLanguage();
   const emailParts = splitEmailContent(content);
-  const mdComponents = getMarkdownComponents(onTicketClick, forceUnorderedLists);
+  const mdComponents = getMarkdownComponents(onTicketClick, forceUnorderedLists, mentionUsers);
 
   if (emailParts) {
     const bodySections = splitEmailBodySections(emailParts.body);

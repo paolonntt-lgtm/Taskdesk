@@ -237,10 +237,7 @@ export default function TicketDetail() {
       enabled: clientsEnabled && hasInboundEmailMetadata && !(ticket as any)?.clientId,
     } as any,
   });
-  const { data: users, isSuccess: workspaceCollaboratorsLoaded } = useWorkspaceCollaborators(
-    activeWorkspaceId,
-    currentUser?.role === 'admin',
-  );
+  const { data: users, isSuccess: workspaceCollaboratorsLoaded } = useWorkspaceCollaborators(activeWorkspaceId);
   const { data: organizationSettings } = useQuery<{ workedTimeEnabled?: boolean; timeTrackingModuleEnabled?: boolean }>({
     queryKey: ['organization-settings'],
     queryFn: async () => {
@@ -1283,7 +1280,7 @@ export default function TicketDetail() {
             <Box sx={{ fontSize: 11, fontWeight: 700, color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.07em', mb: '6px' }}>
               {t.ticketDetail.descriptionLabel}
             </Box>
-            <MarkdownContent content={ticket.description} />
+            <MarkdownContent content={ticket.description} mentionUsers={users} />
             {/* Ticket-level attachments */}
             {(() => {
               const allAttachments = attachments ?? [];
@@ -1646,7 +1643,10 @@ export default function TicketDetail() {
                                   </Box>
                                 </Box>
                               ) : (
-                                <MarkdownContent content={customerReply ? customerReply.body : c.commentText} />
+                                <MarkdownContent
+                                  content={customerReply ? customerReply.body : c.commentText}
+                                  mentionUsers={users}
+                                />
                               )}
                               {/* Comment attachments */}
                               {commentAttachments.length > 0 && (

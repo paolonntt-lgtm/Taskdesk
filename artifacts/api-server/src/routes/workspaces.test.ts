@@ -543,6 +543,21 @@ describe("shared workspaces", () => {
       billingAdminId,
       externalUserId,
     ]);
+    const sharedWorkspaceMemberProfile = await request(
+      `/api/users/${billingAdminId}`,
+      externalUserSessionId,
+      workspaceId,
+    );
+    expect(sharedWorkspaceMemberProfile.status).toBe(200);
+    expect(sharedWorkspaceMemberProfile.body).toMatchObject({
+      id: billingAdminId,
+      name: "Workspace Billing Admin",
+    });
+    const homeWorkspaceCannotReadExternalProfile = await request(
+      `/api/users/${externalUserId}`,
+      billingAdminSessionId,
+    );
+    expect(homeWorkspaceCannotReadExternalProfile.status).toBe(404);
     expect((await request(`/api/workspaces/${workspaceId}/invitations`, billingAdminSessionId, workspaceId)).body.invitations).toEqual([]);
     expect(acceptDirectInvite.body).toMatchObject({ joined: true, workspace: { id: workspaceId } });
     const rejectInviteResponse = await invite(`workspace-outsider-${runId}@example.test`);
