@@ -11,12 +11,13 @@ import { Feather } from "@expo/vector-icons";
 import { Stack, router } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useRef } from "react";
-import { Alert, Platform, Pressable } from "react-native";
+import { Platform, Pressable } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { WorkspaceAccessRevokedAlert } from "@/components/WorkspaceAccessRevokedAlert";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -52,7 +53,7 @@ const queryClient = new QueryClient({
 });
 
 function RootLayoutNav() {
-  const { user, isLoading, workspaceAccessRevoked, dismissWorkspaceAccessRevoked } = useAuth();
+  const { user, isLoading } = useAuth();
   const { lang, t } = useLanguage();
   const colors = useColors();
   const pendingTicketNotification = usePushNotifications(!!user);
@@ -66,17 +67,6 @@ function RootLayoutNav() {
       router.replace("/(tabs)");
     }
   }, [user, isLoading]);
-
-  useEffect(() => {
-    if (isLoading || !user || !workspaceAccessRevoked) return;
-
-    dismissWorkspaceAccessRevoked();
-    Alert.alert(
-      t.profile.workspaceAccessRevokedTitle,
-      t.profile.workspaceAccessRevokedMessage,
-      [{ text: t.profile.logoutCancel }],
-    );
-  }, [dismissWorkspaceAccessRevoked, isLoading, t.profile, user, workspaceAccessRevoked]);
 
   useEffect(() => {
     if (
@@ -189,6 +179,7 @@ export default function RootLayout() {
             <KeyboardProvider>
               <LanguageProvider>
                 <AuthProvider>
+                  <WorkspaceAccessRevokedAlert />
                   <RootLayoutNav />
                 </AuthProvider>
               </LanguageProvider>

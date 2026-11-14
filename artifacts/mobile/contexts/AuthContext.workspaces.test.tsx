@@ -3,18 +3,22 @@ import React, { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { WorkspaceAccessRevokedAlert } from "@/components/WorkspaceAccessRevokedAlert";
 import { AuthProvider, useAuth } from "./AuthContext";
+import { LanguageProvider, useLanguage } from "./LanguageContext";
 
 const mocks = vi.hoisted(() => ({
   activeWorkspaceId: null as number | null,
   stored: new Map<string, string>(),
   revokeContextRequest: false,
   refreshAuth: null as null | (() => Promise<void>),
+  alert: vi.fn(),
   apiFetch: vi.fn(),
   apiPost: vi.fn(),
 }));
 
 vi.mock("react-native", () => ({
+  Alert: { alert: mocks.alert },
   AppState: {
     currentState: "background",
     addEventListener: () => ({ remove: vi.fn() }),
@@ -76,11 +80,15 @@ function currentWorkspaceUser() {
 
 function Consumer() {
   const { user, workspaceAccessRevoked, switchWorkspace } = useAuth();
+  const { lang, setLang } = useLanguage();
   const [switchError, setSwitchError] = useState("");
   return (
     <div>
       <span data-testid="active-workspace">{user?.organizationName} · {user?.role}</span>
       <span data-testid="workspace-access-revoked">{String(workspaceAccessRevoked)}</span>
+      <span data-testid="language">{lang}</span>
+      <button data-testid="set-english" onClick={() => setLang("en")}>English</button>
+      <button data-testid="set-italian" onClick={() => setLang("it")}>Italiano</button>
       <button
         data-testid="switch-to-shared"
         onClick={() => void switchWorkspace(22).catch((error: Error) => setSwitchError(error.message))}
@@ -100,9 +108,14 @@ describe("mobile workspace authentication context", () => {
   const renderProvider = async () => {
     await act(async () => {
       root.render(
-        <QueryClientProvider client={queryClient}>
-          <AuthProvider><Consumer /></AuthProvider>
-        </QueryClientProvider>,
+        <LanguageProvider>
+          <QueryClientProvider client={queryClient}>
+            <AuthProvider>
+              <WorkspaceAccessRevokedAlert />
+              <Consumer />
+            </AuthProvider>
+          </QueryClientProvider>
+        </LanguageProvider>,
       );
     });
   };
@@ -117,6 +130,7 @@ describe("mobile workspace authentication context", () => {
     mocks.stored.clear();
     mocks.revokeContextRequest = false;
     mocks.refreshAuth = null;
+    mocks.alert.mockReset();
     mocks.apiFetch.mockReset().mockImplementation(async (path: string) => {
       if (path !== "/auth/me") return apiResponse(204, null);
       if (mocks.activeWorkspaceId === 22 && mocks.revokeContextRequest) return apiResponse(403, {});
@@ -152,7 +166,13 @@ describe("mobile workspace authentication context", () => {
     });
     expect(mocks.stored.has("taskdesk-active-workspace:5")).toBe(false);
     expect(mocks.activeWorkspaceId).toBe(7);
-    expect(host.querySelector('[data-testid="workspace-access-revoked"]')?.textContent).toBe("true");
+    expect(host.querySelector('[data-testid="workspace-access-revoked"]')?.textContent).toBe("false");
+    expect(mocks.alert).toHaveBeenCalledTimes(1);
+    expect(mocks.alert).toHaveBeenCalledWith(
+      "Spazio non disponibile",
+      "Lo spazio selezionato non è più disponibile. Sei stato riportato all’organizzazione principale.",
+      [{ text: "Annulla" }],
+    );
   });
 
   it("switches profile, role, and cached data together", async () => {
@@ -175,13 +195,6 @@ describe("mobile workspace authentication context", () => {
   it("does not show a revocation notice after a voluntary switch fails", async () => {
     await renderProvider();
     await vi.waitFor(() => expect(host.querySelector('[data-testid="active-workspace"]')?.textContent).toContain("Home office"));
-    await act(async () => {
-      host.querySelector<HTMLButtonElement>('[data-testid="switch-to-shared"]')?.click();
-    });
-    await vi.waitFor(() => {
-      expect(host.querySelector('[data-testid="active-workspace"]')?.textContent).toBe("Shared studio · user");
-    });
-
     mocks.revokeContextRequest = true;
     await act(async () => {
       host.querySelector<HTMLButtonElement>('[data-testid="switch-to-shared"]')?.click();
@@ -191,9 +204,23 @@ describe("mobile workspace authentication context", () => {
     });
     expect(mocks.stored.has("taskdesk-active-workspace:5")).toBe(false);
     expect(host.querySelector('[data-testid="workspace-access-revoked"]')?.textContent).toBe("false");
+    expect(mocks.alert).not.toHaveBeenCalled();
   });
 
-  it("notifies after automatically returning home when selected workspace access is revoked", async () => {
+  it.each([
+    {
+      lang: "it" as const,
+      title: "Spazio non disponibile",
+      message: "Lo spazio selezionato non è più disponibile. Sei stato riportato all’organizzazione principale.",
+      buttonTestId: undefined,
+    },
+    {
+      lang: "en" as const,
+      title: "Workspace unavailable",
+      message: "The selected workspace is no longer available. You have been returned to your main organization.",
+      buttonTestId: "set-english",
+    },
+  ])("shows the $lang warning once after automatic workspace fallback", async ({ lang, title, message, buttonTestId }) => {
     await renderProvider();
     await vi.waitFor(() => expect(host.querySelector('[data-testid="active-workspace"]')?.textContent).toContain("Home office"));
     await act(async () => {
@@ -203,12 +230,27 @@ describe("mobile workspace authentication context", () => {
       expect(host.querySelector('[data-testid="active-workspace"]')?.textContent).toBe("Shared studio · user");
     });
 
+    if (buttonTestId) {
+      await act(async () => {
+        host.querySelector<HTMLButtonElement>(`[data-testid="${buttonTestId}"]`)?.click();
+      });
+    }
+    await vi.waitFor(() => expect(host.querySelector('[data-testid="language"]')?.textContent).toBe(lang));
+    expect(mocks.alert).not.toHaveBeenCalled();
+
     mocks.revokeContextRequest = true;
     await act(async () => {
       await mocks.refreshAuth?.();
     });
 
     expect(host.querySelector('[data-testid="active-workspace"]')?.textContent).toBe("Home office · admin");
-    expect(host.querySelector('[data-testid="workspace-access-revoked"]')?.textContent).toBe("true");
+    expect(host.querySelector('[data-testid="workspace-access-revoked"]')?.textContent).toBe("false");
+    expect(mocks.alert).toHaveBeenCalledTimes(1);
+    expect(mocks.alert).toHaveBeenCalledWith(title, message, [{ text: lang === "it" ? "Annulla" : "Cancel" }]);
+
+    await act(async () => {
+      host.querySelector<HTMLButtonElement>(`[data-testid="${lang === "it" ? "set-english" : "set-italian"}"]`)?.click();
+    });
+    expect(mocks.alert).toHaveBeenCalledTimes(1);
   });
 });
