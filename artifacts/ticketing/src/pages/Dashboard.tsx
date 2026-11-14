@@ -16,8 +16,6 @@ import {
   PriorityHigh as UrgentIcon,
   Warning as OverdueIcon,
   History as HistoryIcon,
-  Edit as EditIcon,
-  Check as CheckIcon,
   Add as AddIcon,
   Close as CloseIcon,
   DragIndicator as DragIcon,
@@ -60,6 +58,7 @@ import ReferralApplicationStatus from '../components/ReferralApplicationStatus';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useDashboardEditMode } from '../contexts/DashboardEditModeContext';
 import { formatRecentActivitySummary } from './recentActivityLabels';
 import { useAuth } from '../contexts/AuthContext';
 import { useTicketStatuses } from '../hooks/useTicketStatuses';
@@ -2637,7 +2636,7 @@ function Dashboard() {
   const [detectedLocation, setDetectedLocation] = useState('');
   const [locationRequestState, setLocationRequestState] = useState<'idle' | 'loading' | 'error'>('idle');
 
-  const [editMode, setEditMode] = useState(false);
+  const { editMode } = useDashboardEditMode();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [settingsWidgetId, setSettingsWidgetId] = useState<string | null>(null);
 
@@ -3249,57 +3248,39 @@ function Dashboard() {
         </Box>
       </Box>
 
-      {/* Dashboard actions remain connected to the existing widget layout engine */}
-      <Box display={{ xs: 'none', sm: 'flex' }} alignItems="center" justifyContent="flex-end" mb={{ xs: 1.5, sm: 2 }} flexWrap="wrap" gap={1}>
-        {editMode && (
-          <>
+      {/* Layout actions stay beside the existing widget layout engine. */}
+      {editMode && (
+        <Box
+          display="flex"
+          alignItems="center"
+          justifyContent="flex-end"
+          mb={{ xs: 1.5, sm: 2 }}
+          flexWrap="wrap"
+          gap={1}
+        >
+          {!isMobile && (
             <Tooltip title={t.dashboard.resetLayout}>
-              <IconButton size="small" onClick={resetLayout} color="default">
+              <IconButton
+                size="small"
+                onClick={resetLayout}
+                color="default"
+                aria-label={t.dashboard.resetLayout}
+              >
                 <ResetIcon fontSize="small" />
               </IconButton>
             </Tooltip>
-            <Button
-              size="small" variant="outlined" startIcon={<AddIcon />}
-              onClick={() => setAddDialogOpen(true)}
-              disabled={hiddenWidgets.length === 0}
-            >
-              {t.dashboard.addWidget}
-            </Button>
-          </>
-        )}
-        <Button
-          size="small"
-          variant={editMode ? 'contained' : 'outlined'}
-          startIcon={editMode ? <CheckIcon /> : <EditIcon />}
-          onClick={() => setEditMode((v) => !v)}
-           sx={{
-             borderColor: '#1976d2',
-             color: editMode ? undefined : '#1976d2',
-             '&:hover': { borderColor: '#1d4ed8', backgroundColor: 'rgba(25,118,210,.06)' },
-             ...(editMode ? { backgroundColor: '#1976d2', color: '#fff' } : {}),
-           }}
-        >
-          {editMode ? t.dashboard.doneEditing : t.dashboard.editLayout}
-        </Button>
-      </Box>
-
-      {/* Mobile edit bar */}
-      {isMobile && (
-        <Box display="flex" gap={1} mb={1.5}>
-          <Button
-            size="small" fullWidth
-            variant={editMode ? 'contained' : 'outlined'}
-            startIcon={editMode ? <CheckIcon /> : <EditIcon />}
-            onClick={() => setEditMode((v) => !v)}
-          >
-            {editMode ? t.dashboard.doneEditing : t.dashboard.editLayout}
-          </Button>
-          {editMode && (
-            <Button size="small" variant="outlined" onClick={() => setAddDialogOpen(true)}
-              disabled={hiddenWidgets.length === 0}>
-              <AddIcon fontSize="small" />
-            </Button>
           )}
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<AddIcon />}
+            onClick={() => setAddDialogOpen(true)}
+            disabled={hiddenWidgets.length === 0}
+            aria-label={t.dashboard.addWidget}
+            sx={isMobile ? { minWidth: 40, px: 1 } : undefined}
+          >
+            {!isMobile && t.dashboard.addWidget}
+          </Button>
         </Box>
       )}
 

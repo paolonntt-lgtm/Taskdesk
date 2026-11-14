@@ -56,12 +56,15 @@ import {
   WhatsApp,
   ExpandMore,
   CheckCircleOutline,
+  Edit as DashboardEditIcon,
+  Check as DashboardDoneIcon,
   FitnessCenter,
 } from '@mui/icons-material';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
 import { useColorMode } from '../App';
 import { useLanguage } from '../contexts/LanguageContext';
+import { DashboardEditModeContext } from '../contexts/DashboardEditModeContext';
 import { useListNotifications, useMarkAllNotificationsRead, useMarkNotificationRead, useMarkNotificationUnread, getListNotificationsQueryKey, useGetPersonalTimeTrackingReport } from '@workspace/api-client-react';
 import { canAccessPersonalTimeReport, shouldShowPersonalTimeReport } from '../lib/personalTimeReportAccess';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -184,6 +187,7 @@ export default function Layout({
   });
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isCompactToolbar = useMediaQuery(theme.breakpoints.down('md'));
   const { data: timeTrackingSettings } = useQuery<{ timeTrackingModuleEnabled?: boolean }>({
     queryKey: ['organization-settings'],
     queryFn: async () => {
@@ -204,6 +208,10 @@ export default function Layout({
   });
 
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [dashboardEditMode, setDashboardEditMode] = useState(false);
+  useEffect(() => {
+    if (location !== '/') setDashboardEditMode(false);
+  }, [location]);
   useEffect(() => {
     if (highlightNewTicket && isMobile) setMobileOpen(true);
   }, [highlightNewTicket, isMobile]);
@@ -1006,6 +1014,7 @@ export default function Layout({
   );
 
   return (
+    <DashboardEditModeContext.Provider value={{ editMode: dashboardEditMode, setEditMode: setDashboardEditMode }}>
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
       <CssBaseline />
       <AppBar
@@ -1024,13 +1033,20 @@ export default function Layout({
           }),
         }}
       >
-        <Toolbar sx={{ gap: { xs: 0.5, sm: 1 }, minHeight: { xs: '48px !important', sm: '64px !important' }, px: { xs: 1, sm: 3 } }}>
+        <Toolbar sx={{
+          gap: { xs: location === '/' ? 0.25 : 0.5, sm: 1 },
+          minHeight: { xs: '48px !important', sm: '64px !important' },
+          px: { xs: location === '/' ? 0.75 : 1, sm: 3 },
+        }}>
           <IconButton
             color="inherit"
             aria-label="apri menu"
             edge="start"
             onClick={isMobile ? handleDrawerToggle : toggleSidebar}
-            sx={{ mr: 1, display: { xs: 'inline-flex', sm: 'var(--td-sidebar-toggle-display, none)' } }}
+            sx={{
+              mr: { xs: location === '/' ? 0.5 : 1, sm: 1 },
+              display: { xs: 'inline-flex', sm: 'var(--td-sidebar-toggle-display, none)' },
+            }}
           >
             <MenuIcon />
           </IconButton>
@@ -1040,7 +1056,12 @@ export default function Layout({
               item.path === '/' ? location === '/' : location.startsWith(item.path)
             );
             return active ? (
-              <Typography variant="subtitle1" fontWeight={700} noWrap sx={{ flexGrow: 1, ml: 0.5 }}>
+              <Typography
+                variant="subtitle1"
+                fontWeight={700}
+                noWrap
+                sx={{ flexGrow: location === '/' ? 0 : 1, minWidth: 0, ml: 0.5 }}
+              >
                 {active.text}
               </Typography>
             ) : location === '/notifications' ? (
@@ -1050,20 +1071,62 @@ export default function Layout({
             ) : <Box sx={{ flexGrow: 1 }} />;
           })()}
 
+          {isMobile && location === '/' && (
+            <>
+              <Tooltip title={dashboardEditMode ? t.dashboard.doneEditing : t.dashboard.editLayout}>
+                <IconButton
+                  size="small"
+                  onClick={() => setDashboardEditMode((value) => !value)}
+                  aria-label={dashboardEditMode ? t.dashboard.doneEditing : t.dashboard.editLayout}
+                  aria-pressed={dashboardEditMode}
+                  data-testid="dashboard-edit-toggle"
+                  sx={{ flexShrink: 0, p: 0.75 }}
+                >
+                  {dashboardEditMode
+                    ? <DashboardDoneIcon fontSize="small" />
+                    : <DashboardEditIcon fontSize="small" />}
+                </IconButton>
+              </Tooltip>
+              <Box sx={{ flexGrow: 1, minWidth: 0 }} />
+            </>
+          )}
+
           {!isMobile && location === '/' && (
-            <Box sx={{ display: 'flex', flexDirection: 'column', mr: 2, ml: 0.5 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', mr: { xs: 1, md: 2 }, ml: 0.5, minWidth: 0, flexShrink: 1 }}>
               <Typography sx={{ color: '#9ca3af', fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.06em', lineHeight: 1.2, textTransform: 'uppercase' }}>
                 {lang === 'it' ? 'Panoramica' : 'Overview'}
               </Typography>
-              <Typography sx={{ color: '#25364d', fontSize: '1.1rem', fontWeight: 800, lineHeight: 1.2 }}>
-                {t.nav.dashboard}
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                <Typography noWrap sx={{ color: '#25364d', fontSize: '1.1rem', fontWeight: 800, lineHeight: 1.2, minWidth: 0 }}>
+                  {t.nav.dashboard}
+                </Typography>
+                <Tooltip title={dashboardEditMode ? t.dashboard.doneEditing : t.dashboard.editLayout}>
+                  <Button
+                    size="small"
+                    variant={dashboardEditMode ? 'contained' : 'outlined'}
+                    startIcon={dashboardEditMode ? <DashboardDoneIcon fontSize="small" /> : <DashboardEditIcon fontSize="small" />}
+                    onClick={() => setDashboardEditMode((value) => !value)}
+                    aria-label={dashboardEditMode ? t.dashboard.doneEditing : t.dashboard.editLayout}
+                    aria-pressed={dashboardEditMode}
+                    data-testid="dashboard-edit-toggle"
+                    sx={{
+                      minWidth: isCompactToolbar ? 36 : 'auto',
+                      px: isCompactToolbar ? 0 : 1,
+                      flexShrink: 0,
+                      textTransform: 'none',
+                      '& .MuiButton-startIcon': { mr: isCompactToolbar ? 0 : 0.75 },
+                    }}
+                  >
+                    {!isCompactToolbar && (dashboardEditMode ? t.dashboard.doneEditing : t.dashboard.editLayout)}
+                  </Button>
+                </Tooltip>
+              </Box>
             </Box>
           )}
           {!isMobile && <Box sx={{ flexGrow: 1 }} />}
 
           {/* Search button */}
-          {contextualHelpSection && (
+          {contextualHelpSection && !(location === '/' && isCompactToolbar) && (
             <Tooltip title={t.nav.help}>
               <IconButton
                 onClick={() => setLocation(`/help?section=${contextualHelpSection}`)}
@@ -1084,22 +1147,22 @@ export default function Layout({
               aria-label={t.commandPalette.tooltip}
               startIcon={<Search fontSize="small" />}
               sx={{
-                minWidth: { xs: 36, sm: location === '/' ? 205 : 36 },
-                width: { xs: 36, sm: location === '/' ? 205 : 36 },
+                minWidth: { xs: 36, sm: location === '/' && !isCompactToolbar ? 205 : 36 },
+                width: { xs: 36, sm: location === '/' && !isCompactToolbar ? 205 : 36 },
                 flexShrink: 0,
                 justifyContent: 'flex-start',
-                px: { xs: 0.75, sm: location === '/' ? 1.25 : 1 },
+                px: { xs: 0.75, sm: location === '/' && !isCompactToolbar ? 1.25 : 1 },
                 py: 0.65,
                 border: '1px solid',
                 borderColor: 'divider',
                 borderRadius: '8px',
                 color: 'text.secondary',
                 bgcolor: location === '/' ? 'action.hover' : 'transparent',
-                '& .MuiButton-startIcon': { mr: { xs: 0, sm: location === '/' ? 0.75 : 0 } },
+                '& .MuiButton-startIcon': { mr: { xs: 0, sm: location === '/' && !isCompactToolbar ? 0.75 : 0 } },
                 '&:hover': { borderColor: 'primary.light', color: 'text.primary', bgcolor: 'background.paper' },
               }}
             >
-              {location === '/' && <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' }, fontSize: '0.72rem', fontWeight: 500 }}>{lang === 'it' ? 'Cerca su Taskdesk' : 'Search Taskdesk'}</Box>}
+              {location === '/' && <Box component="span" sx={{ display: { xs: 'none', sm: isCompactToolbar ? 'none' : 'inline' }, fontSize: '0.72rem', fontWeight: 500 }}>{lang === 'it' ? 'Cerca su Taskdesk' : 'Search Taskdesk'}</Box>}
             </Button>
           </Tooltip>
 
@@ -1771,5 +1834,6 @@ export default function Layout({
         }}
       />
     </Box>
+    </DashboardEditModeContext.Provider>
   );
 }
