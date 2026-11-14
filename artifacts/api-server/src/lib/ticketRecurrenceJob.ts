@@ -1,4 +1,4 @@
-import { and, eq, isNotNull, lte, sql } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import {
   db,
   ticketsTable,
@@ -46,6 +46,7 @@ async function checkTicketRecurrences(): Promise<void> {
         and(
           isNotNull(ticketsTable.recurrenceRule),
           isNotNull(ticketsTable.recurrenceNextAt),
+          isNull(ticketsTable.deletedAt),
           lte(ticketsTable.recurrenceNextAt, now)
         )
       );
@@ -86,6 +87,7 @@ async function checkTicketRecurrences(): Promise<void> {
               eq(ticketsTable.id, ticket.id),
               isNotNull(ticketsTable.recurrenceRule),
               isNotNull(ticketsTable.recurrenceNextAt),
+              isNull(ticketsTable.deletedAt),
               lte(ticketsTable.recurrenceNextAt, now),
             ),
           )

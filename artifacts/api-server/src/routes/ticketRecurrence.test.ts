@@ -238,4 +238,74 @@ describe("stopping recurring tickets", () => {
         item.id === recurringTicketId && item.ticketEvent === "recurrence",
     )).toBe(false);
   }, 20_000);
+
+  it("does not create occurrences from a trashed source and preserves existing tickets", async () => {
+    const dueAt = new Date(Date.now() - 60_000);
+    const endDate = new Date(Date.now() + 3 * 24 * 60 * 60_000).toISOString().slice(0, 10);
+    const [source] = await db.insert(ticketsTable).values({
+      organizationId,
+      title: `Trashed recurring source ${runId}`,
+      description: "The trashed source and its existing occurrence must be preserved.",
+      category: "Support",
+      location: "",
+      status: "open",
+      priority: "medium",
+      createdBy: adminId,
+      recurrenceRule: { frequency: "daily", interval: 1, endDate },
+      recurrenceNextAt: dueAt,
+    }).returning({ id: ticketsTable.id });
+    createdTicketIds.push(source.id);
+
+    const [existingOccurrence] = await db.insert(ticketsTable).values({
+      organizationId,
+      title: `Preserved occurrence ${runId}`,
+      description: "Existing work must remain unchanged.",
+      category: "Support",
+      location: "",
+      status: "in_progress",
+      priority: "high",
+      createdBy: adminId,
+      recurrenceParentId: source.id,
+    }).returning({ id: ticketsTable.id });
+    createdTicketIds.push(existingOccurrence.id);
+
+    const occurrenceBefore = await db.select({
+      id: ticketsTable.id,
+      title: ticketsTable.title,
+      description: ticketsTable.description,
+      status: ticketsTable.status,
+      priority: ticketsTable.priority,
+      recurrenceParentId: ticketsTable.recurrenceParentId,
+    }).from(ticketsTable).where(eq(ticketsTable.id, existingOccurrence.id));
+
+    const trashed = await request(`/api/tickets/${source.id}`, adminSessionId, { method: "DELETE" });
+    expect(trashed.status).toBe(200);
+    expect(trashed.body.deletedAt).toBeTruthy();
+
+    await runTicketRecurrenceJob();
+
+    const [sourceAfterJob] = await db.select({
+      deletedAt: ticketsTable.deletedAt,
+      recurrenceRule: ticketsTable.recurrenceRule,
+      recurrenceNextAt: ticketsTable.recurrenceNextAt,
+    }).from(ticketsTable).where(eq(ticketsTable.id, source.id));
+    expect(sourceAfterJob.deletedAt).toBeInstanceOf(Date);
+    expect(sourceAfterJob.recurrenceRule).toEqual({ frequency: "daily", interval: 1, endDate });
+    expect(sourceAfterJob.recurrenceNextAt?.getTime()).toBe(dueAt.getTime());
+
+    const occurrences = await db.select({
+      id: ticketsTable.id,
+    }).from(ticketsTable).where(eq(ticketsTable.recurrenceParentId, source.id));
+    expect(occurrences.map(({ id }) => id)).toEqual([existingOccurrence.id]);
+
+    const occurrenceAfter = await db.select({
+      id: ticketsTable.id,
+      title: ticketsTable.title,
+      description: ticketsTable.description,
+      status: ticketsTable.status,
+      priority: ticketsTable.priority,
+      recurrenceParentId: ticketsTable.recurrenceParentId,
+    }).from(ticketsTable).where(eq(ticketsTable.id, existingOccurrence.id));
+    expect(occurrenceAfter).toEqual(occurrenceBefore);
+  });
 });
