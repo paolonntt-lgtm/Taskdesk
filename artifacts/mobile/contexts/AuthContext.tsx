@@ -1,12 +1,20 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   createAuthRefreshHandler,
   forgotPassword,
   startAuthRefreshPolling,
 } from "@workspace/api-client-react";
-import { apiFetch, apiPost } from "@/utils/api";
+import { apiFetch, apiPost, setActiveWorkspaceContext } from "@/utils/api";
+
+interface Workspace {
+  id: number;
+  name: string;
+  role: string;
+  isSharedWorkspace?: boolean;
+}
 
 interface User {
   id: number;
@@ -14,6 +22,11 @@ interface User {
   email: string;
   role: string;
   organizationId?: number | null;
+  organizationName?: string | null;
+  activeWorkspaceId?: number | null;
+  billingOrganizationId?: number | null;
+  workspaces?: Workspace[];
+  isSharedWorkspace?: boolean;
   isSuperAdmin?: boolean;
   trialEndsAt?: string | null;
   stripeSubscriptionId?: string | null;
@@ -35,9 +48,19 @@ interface AuthContextType {
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (updates: Partial<User>) => void;
+  switchWorkspace: (workspaceId: number) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
+const workspaceStorageKey = (userId: number) => `taskdesk-active-workspace:${userId}`;
+
+function userWorkspaceId(user: User): number | null {
+  return user.activeWorkspaceId ?? user.organizationId ?? null;
+}
+
+function userBillingOrganizationId(user: User): number | null {
+  return user.billingOrganizationId ?? user.organizationId ?? null;
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -48,23 +71,104 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => { userRef.current = user; }, [user]);
 
   useEffect(() => {
-    apiFetch("/auth/me", { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => setUser(data ?? null))
-      .catch(() => setUser(null))
-      .finally(() => setIsLoading(false));
+    let cancelled = false;
+    const initialize = async () => {
+      setActiveWorkspaceContext(null, null);
+      try {
+        const response = await apiFetch("/auth/me", { cache: "no-store" });
+        if (!response.ok) {
+          if (!cancelled) setUser(null);
+          return;
+        }
+
+        const homeUser = await response.json() as User;
+        const homeWorkspaceId = userBillingOrganizationId(homeUser);
+        let activeUser = homeUser;
+        setActiveWorkspaceContext(userWorkspaceId(homeUser), homeWorkspaceId);
+
+        let savedWorkspaceId: number | null = null;
+        try {
+          const saved = Number(await AsyncStorage.getItem(workspaceStorageKey(homeUser.id)));
+          if (Number.isInteger(saved) && saved > 0) savedWorkspaceId = saved;
+        } catch {
+          // Continue in the home organization if local persistence is unavailable.
+        }
+
+        const savedWorkspaceIsAvailable = savedWorkspaceId != null &&
+          savedWorkspaceId !== homeWorkspaceId &&
+          homeUser.workspaces?.some((workspace) => workspace.id === savedWorkspaceId);
+        if (savedWorkspaceIsAvailable && savedWorkspaceId != null) {
+          setActiveWorkspaceContext(savedWorkspaceId, homeWorkspaceId);
+          try {
+            const contextualResponse = await apiFetch("/auth/me", { cache: "no-store" });
+            if (contextualResponse.ok) {
+              activeUser = await contextualResponse.json() as User;
+              setActiveWorkspaceContext(userWorkspaceId(activeUser), homeWorkspaceId);
+            } else {
+              setActiveWorkspaceContext(homeWorkspaceId, homeWorkspaceId);
+              if (contextualResponse.status === 403) {
+                await AsyncStorage.removeItem(workspaceStorageKey(homeUser.id)).catch(() => {});
+              }
+            }
+          } catch {
+            setActiveWorkspaceContext(homeWorkspaceId, homeWorkspaceId);
+          }
+        } else if (savedWorkspaceId != null && savedWorkspaceId !== homeWorkspaceId) {
+          await AsyncStorage.removeItem(workspaceStorageKey(homeUser.id)).catch(() => {});
+        }
+
+        if (!cancelled) {
+          userRef.current = activeUser;
+          setUser(activeUser);
+        }
+      } catch {
+        setActiveWorkspaceContext(null, null);
+        if (!cancelled) setUser(null);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+    void initialize();
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
     if (isLoading || !user?.id) return;
     const refreshAuth = createAuthRefreshHandler<User>({
-      request: () => apiFetch("/auth/me", { cache: "no-store" }),
+      request: async () => {
+        const response = await apiFetch("/auth/me", { cache: "no-store" });
+        const currentUser = userRef.current;
+        if (response.status !== 403 || !currentUser ||
+            userWorkspaceId(currentUser) === userBillingOrganizationId(currentUser)) {
+          return response;
+        }
+        const homeWorkspaceId = userBillingOrganizationId(currentUser);
+        setActiveWorkspaceContext(homeWorkspaceId, homeWorkspaceId);
+        await AsyncStorage.removeItem(workspaceStorageKey(currentUser.id)).catch(() => {});
+        queryClient.clear();
+        try {
+          const homeResponse = await apiFetch("/auth/me", { cache: "no-store" });
+          if (!homeResponse.ok) {
+            userRef.current = null;
+            setUser(null);
+            queryClient.clear();
+          }
+          return homeResponse;
+        } catch (error) {
+          userRef.current = null;
+          setUser(null);
+          queryClient.clear();
+          throw error;
+        }
+      },
       getCurrentUser: () => userRef.current,
       setCurrentUser: (freshUser) => {
+        setActiveWorkspaceContext(userWorkspaceId(freshUser), userBillingOrganizationId(freshUser));
         userRef.current = freshUser;
         setUser(freshUser);
       },
       onUnauthorized: () => {
+        setActiveWorkspaceContext(null, null);
         userRef.current = null;
         setUser(null);
         queryClient.clear();
@@ -103,7 +207,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           cache: "no-store",
           signal: controller.signal,
         });
-        if (response.status === 401) {
+        if (response.status === 401 || response.status === 403) {
           await refreshAuth();
         } else if (response.status !== 204 && response.ok) {
           const event = await response.json().catch(() => null);
@@ -146,8 +250,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [isLoading, user?.id, queryClient]);
 
   const login = async (email: string, password: string, rememberMe: boolean) => {
-    const data = await apiPost<{ user: User }>("/auth/login", { email, password, rememberMe });
-    setUser(data.user);
+    await apiPost<{ user: User }>("/auth/login", { email, password, rememberMe });
+    setActiveWorkspaceContext(null, null);
+    queryClient.clear();
+    const response = await apiFetch("/auth/me", { cache: "no-store" });
+    if (!response.ok) throw new Error("Unable to load account");
+    const homeUser = await response.json() as User;
+    let nextUser = homeUser;
+    const homeWorkspaceId = userBillingOrganizationId(homeUser);
+    setActiveWorkspaceContext(userWorkspaceId(homeUser), homeWorkspaceId);
+    const savedValue = await AsyncStorage.getItem(workspaceStorageKey(homeUser.id)).catch(() => null);
+    const savedWorkspaceId = Number(savedValue);
+    if (Number.isInteger(savedWorkspaceId) && savedWorkspaceId > 0 &&
+        savedWorkspaceId !== homeWorkspaceId &&
+        homeUser.workspaces?.some((workspace) => workspace.id === savedWorkspaceId)) {
+      setActiveWorkspaceContext(savedWorkspaceId, homeWorkspaceId);
+      const contextualResponse = await apiFetch("/auth/me", { cache: "no-store" }).catch(() => null);
+      if (contextualResponse?.ok) {
+        nextUser = await contextualResponse.json() as User;
+        setActiveWorkspaceContext(userWorkspaceId(nextUser), homeWorkspaceId);
+      } else {
+        setActiveWorkspaceContext(homeWorkspaceId, homeWorkspaceId);
+        if (contextualResponse?.status === 403) {
+          await AsyncStorage.removeItem(workspaceStorageKey(homeUser.id)).catch(() => {});
+        }
+      }
+    }
+    userRef.current = nextUser;
+    setUser(nextUser);
   };
 
   const requestPasswordReset = async (email: string) => {
@@ -156,20 +286,72 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const register = async (name: string, email: string, password: string) => {
     const data = await apiPost<{ user: User }>("/auth/register", { name, email, password });
-    setUser(data.user);
+    const homeId = data.user.organizationId ?? null;
+    setActiveWorkspaceContext(homeId, homeId);
+    const response = await apiFetch("/auth/me", { cache: "no-store" }).catch(() => null);
+    const nextUser = response?.ok ? await response.json() as User : data.user;
+    setActiveWorkspaceContext(userWorkspaceId(nextUser), userBillingOrganizationId(nextUser));
+    userRef.current = nextUser;
+    setUser(nextUser);
   };
 
   const logout = async () => {
     await apiFetch("/auth/logout", { method: "POST" });
+    setActiveWorkspaceContext(null, null);
     setUser(null);
+    userRef.current = null;
+    queryClient.clear();
   };
 
   const updateUser = (updates: Partial<User>) => {
-    setUser((current) => current ? { ...current, ...updates } : current);
+    setUser((current) => {
+      if (!current) return current;
+      const next = { ...current, ...updates };
+      userRef.current = next;
+      setActiveWorkspaceContext(userWorkspaceId(next), userBillingOrganizationId(next));
+      return next;
+    });
+  };
+
+  const switchWorkspace = async (workspaceId: number) => {
+    const currentUser = userRef.current;
+    if (!currentUser) throw new Error("Workspace access denied");
+    const homeWorkspaceId = userBillingOrganizationId(currentUser);
+    const isAvailable = workspaceId === homeWorkspaceId ||
+      currentUser.workspaces?.some((workspace) => workspace.id === workspaceId);
+    if (!Number.isInteger(workspaceId) || !isAvailable) throw new Error("Workspace access denied");
+
+    setActiveWorkspaceContext(workspaceId, homeWorkspaceId);
+    queryClient.clear();
+    try {
+      const response = await apiFetch("/auth/me", { cache: "no-store" });
+      if (!response.ok) throw new Error("Workspace access denied");
+      const freshUser = await response.json() as User;
+      if (userWorkspaceId(freshUser) !== workspaceId) throw new Error("Workspace access denied");
+      await AsyncStorage.setItem(workspaceStorageKey(currentUser.id), String(workspaceId)).catch(() => {});
+      setActiveWorkspaceContext(workspaceId, homeWorkspaceId);
+      userRef.current = freshUser;
+      setUser(freshUser);
+    } catch (error) {
+      setActiveWorkspaceContext(homeWorkspaceId, homeWorkspaceId);
+      queryClient.clear();
+      await AsyncStorage.removeItem(workspaceStorageKey(currentUser.id)).catch(() => {});
+      const homeResponse = await apiFetch("/auth/me", { cache: "no-store" }).catch(() => null);
+      if (homeResponse?.ok) {
+        const homeUser = await homeResponse.json() as User;
+        setActiveWorkspaceContext(userWorkspaceId(homeUser), homeWorkspaceId);
+        userRef.current = homeUser;
+        setUser(homeUser);
+      } else {
+        userRef.current = null;
+        setUser(null);
+      }
+      throw error;
+    }
   };
 
   return (
-      <AuthContext.Provider value={{ user, isLoading, login, requestPasswordReset, register, logout, updateUser }}>
+      <AuthContext.Provider value={{ user, isLoading, login, requestPasswordReset, register, logout, updateUser, switchWorkspace }}>
       {children}
     </AuthContext.Provider>
   );

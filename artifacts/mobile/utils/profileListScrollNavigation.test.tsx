@@ -26,6 +26,8 @@ const mocks = vi.hoisted(() => ({
   apiGet: vi.fn(() => Promise.resolve([])),
   apiPatch: vi.fn(),
   updateUser: vi.fn(),
+  switchWorkspace: vi.fn(),
+  workspaces: [] as Array<{ id: number; name: string; role: string }>,
   setQueryData: vi.fn(),
   launchImageLibraryAsync: vi.fn(),
   manipulateAsync: vi.fn(),
@@ -84,7 +86,7 @@ vi.mock("react-native", async () => {
         element(ReactModule.Fragment, { key: index }, renderItem({ item })),
       ),
     ),
-    Modal: nativeComponent("div"),
+    Modal: ({ visible, ...props }: Record<string, any>) => visible ? nativeComponent("div")(props) : null,
     Platform: { OS: "ios" },
     Pressable: nativeComponent("button"),
     RefreshControl: () => null,
@@ -213,9 +215,13 @@ vi.mock("@/contexts/AuthContext", () => ({
       email: "paolo@example.com",
       role: "admin",
       organizationId: 7,
+      organizationName: "Home office",
+      activeWorkspaceId: 7,
+      workspaces: mocks.workspaces,
     },
     logout: vi.fn(),
       updateUser: mocks.updateUser,
+      switchWorkspace: mocks.switchWorkspace,
   }),
 }));
 vi.mock("@/contexts/LanguageContext", () => ({
@@ -260,6 +266,14 @@ vi.mock("@/contexts/LanguageContext", () => ({
         logoutMessage: "Do you want to sign out?",
         logoutCancel: "Cancel",
         logoutConfirm: "Sign out",
+        workspaceSection: "Workspace",
+        activeWorkspace: "Active workspace",
+        changeWorkspace: "Switch",
+        workspacePickerTitle: "Choose a workspace",
+        workspacePickerSubtitle: "Choose one you belong to.",
+        workspaceClose: "Close workspace picker",
+        workspaceSwitching: "Switching workspace…",
+        workspaceSwitchError: "Could not switch workspace. Please try again.",
       },
       dashboard: { searchPlaceholder: "Search" },
       tickets: {
@@ -368,6 +382,8 @@ describe("mobile list position after returning from Profile", () => {
     mocks.apiPatch.mockReset();
     mocks.apiPatch.mockResolvedValue({ user: { avatarUrl: "data:image/jpeg;base64,abc" } });
     mocks.updateUser.mockClear();
+    mocks.switchWorkspace.mockReset().mockResolvedValue(undefined);
+    mocks.workspaces = [];
     mocks.setQueryData.mockClear();
     mocks.launchImageLibraryAsync.mockReset();
     mocks.launchImageLibraryAsync.mockResolvedValue({
@@ -392,6 +408,29 @@ describe("mobile list position after returning from Profile", () => {
     expect(
       host.querySelector('[data-testid="profile-tool-reports"]')?.parentElement,
     ).toBe(host.querySelector('[data-testid="profile-admin-users"]')?.parentElement);
+  });
+
+  it("shows the active workspace and offers only available workspace choices", async () => {
+    mocks.workspaces = [
+      { id: 7, name: "Home office", role: "admin" },
+      { id: 22, name: "Shared studio", role: "user" },
+    ];
+    await act(async () => root.render(React.createElement(ProfileScreen)));
+
+    expect(host.querySelector('[data-testid="profile-workspace-section"]')?.textContent).toContain("Home office");
+    await act(async () => {
+      host.querySelector<HTMLButtonElement>('[data-testid="profile-change-workspace"]')?.click();
+    });
+    expect(host.querySelector('[data-testid="workspace-picker-modal"]')).not.toBeNull();
+    expect(host.querySelector('[data-testid="workspace-option-7"]')).not.toBeNull();
+    expect(host.querySelector('[data-testid="workspace-option-22"]')).not.toBeNull();
+    expect(host.querySelector('[data-testid="workspace-option-99"]')).toBeNull();
+
+    await act(async () => {
+      host.querySelector<HTMLButtonElement>('[data-testid="workspace-option-22"]')?.click();
+    });
+    expect(mocks.switchWorkspace).toHaveBeenCalledWith(22);
+    await vi.waitFor(() => expect(host.querySelector('[data-testid="workspace-picker-modal"]')).toBeNull());
   });
 
   it("marks Profile section navigation for a contextual back button", async () => {

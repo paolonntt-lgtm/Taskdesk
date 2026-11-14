@@ -1,8 +1,53 @@
 import { Platform } from "react-native";
+import { hashKey } from "@tanstack/react-query";
 
 const BASE_URL = Platform.OS !== "web" && process.env.EXPO_PUBLIC_DOMAIN
   ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
   : "";
+
+let activeWorkspaceHeaderId: number | null = null;
+let activeWorkspaceCacheId: number | null = null;
+
+export function setActiveWorkspaceContext(workspaceId: number | null, billingOrganizationId: number | null) {
+  activeWorkspaceCacheId = workspaceId;
+  activeWorkspaceHeaderId = workspaceId != null && workspaceId !== billingOrganizationId ? workspaceId : null;
+}
+
+export function getActiveWorkspaceCacheId() {
+  return activeWorkspaceCacheId;
+}
+
+export function hashWorkspaceQueryKey(queryKey: readonly unknown[], workspaceId: number | null) {
+  const alreadyScoped = queryKey.length >= 2 &&
+    queryKey[queryKey.length - 2] === "workspace" &&
+    queryKey[queryKey.length - 1] === workspaceId;
+  return hashKey(alreadyScoped ? queryKey : [...queryKey, "workspace", workspaceId]);
+}
+
+export function installWorkspaceFetchInterceptor() {
+  const global = globalThis as typeof globalThis & { __taskdeskWorkspaceFetchPatched?: boolean };
+  if (global.__taskdeskWorkspaceFetchPatched) return () => {};
+  const nativeFetch = globalThis.fetch.bind(globalThis);
+  const workspaceFetch: typeof fetch = (input, init) => {
+    const url = typeof input === "string" || input instanceof URL ? String(input) : input.url;
+    const isApiRequest = url.startsWith("/api/") ||
+      (!!BASE_URL && url.startsWith(`${BASE_URL}/api/`));
+    if (!isApiRequest || activeWorkspaceHeaderId == null) return nativeFetch(input, init);
+
+    const headers = new Headers(input instanceof Request ? input.headers : undefined);
+    new Headers(init?.headers).forEach((value, key) => headers.set(key, value));
+    headers.set("X-Workspace-ID", String(activeWorkspaceHeaderId));
+    return nativeFetch(input, { ...init, headers });
+  };
+  globalThis.fetch = workspaceFetch;
+  global.__taskdeskWorkspaceFetchPatched = true;
+  return () => {
+    if (globalThis.fetch === workspaceFetch) {
+      globalThis.fetch = nativeFetch;
+      global.__taskdeskWorkspaceFetchPatched = false;
+    }
+  };
+}
 
 export function getUserAvatarQueryKey(teamScopeId: number | null, userId: number) {
   return ["/api/users", teamScopeId, userId, "avatar"] as const;

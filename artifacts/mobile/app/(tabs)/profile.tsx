@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import {
   View, Text, Image, StyleSheet, TouchableOpacity, Linking,
-  ScrollView, Alert, Platform, Share, ActivityIndicator,
+  ScrollView, Alert, Platform, Share, ActivityIndicator, Modal,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
@@ -18,7 +18,7 @@ import { getOptionalProfileMenuItems, type MobileOrganizationSettings } from "@/
 
 export default function ProfileScreen() {
   const colors = useColors();
-  const { user, logout, updateUser } = useAuth();
+  const { user, logout, updateUser, switchWorkspace } = useAuth();
   const { t, lang, setLang } = useLanguage();
   const queryClient = useQueryClient();
   const s = styles(colors);
@@ -26,6 +26,9 @@ export default function ProfileScreen() {
   const [avatarOverride, setAvatarOverride] = useState<string | null | undefined>(undefined);
   const [avatarSaving, setAvatarSaving] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [workspacePickerOpen, setWorkspacePickerOpen] = useState(false);
+  const [workspaceSwitching, setWorkspaceSwitching] = useState(false);
+  const [workspaceError, setWorkspaceError] = useState<string | null>(null);
   const [mediaPermission, requestMediaPermission] = ImagePicker.useMediaLibraryPermissions();
   const organizationSettings = useQuery({
     queryKey: ["mobile-profile-organization-settings", user?.organizationId],
@@ -161,6 +164,12 @@ export default function ProfileScreen() {
   const initials = user?.name?.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase() ?? "?";
   const avatarUrl = avatarOverride === undefined ? user?.avatarUrl ?? null : avatarOverride;
   const isOrganizationAdmin = user?.role === "admin" && user.organizationId != null;
+  const workspaces = user?.workspaces ?? [];
+  const activeWorkspaceId = user?.activeWorkspaceId ?? user?.organizationId;
+  const activeWorkspaceName =
+    workspaces.find((workspace) => workspace.id === activeWorkspaceId)?.name ??
+    user?.organizationName ??
+    "";
   const menuAccents = [colors.primary, colors.accent, colors.warning];
   const openSection = (path: string) =>
     router.push({ pathname: path as any, params: { fromProfile: "1" } } as any);
@@ -233,6 +242,35 @@ export default function ProfileScreen() {
           </View>
         )}
       </View>
+
+      {workspaces.length > 0 && (
+        <View style={s.card} testID="profile-workspace-section">
+          <Text style={s.cardTitle}>{t.profile.workspaceSection}</Text>
+          <View style={s.workspaceSummary}>
+            <View style={s.workspaceIcon}>
+              <Feather name="briefcase" size={17} color={colors.primary} />
+            </View>
+            <View style={s.workspaceCopy}>
+              <Text style={s.workspaceLabel}>{t.profile.activeWorkspace}</Text>
+              <Text style={s.workspaceName} numberOfLines={2}>{activeWorkspaceName}</Text>
+            </View>
+            <TouchableOpacity
+              style={[s.workspaceChangeButton, workspaces.length < 2 && s.workspaceChangeButtonDisabled]}
+              onPress={() => {
+                setWorkspaceError(null);
+                setWorkspacePickerOpen(true);
+              }}
+              disabled={workspaces.length < 2 || workspaceSwitching}
+              accessibilityRole="button"
+              accessibilityLabel={t.profile.changeWorkspace}
+              testID="profile-change-workspace"
+            >
+              <Text style={s.workspaceChangeText}>{t.profile.changeWorkspace}</Text>
+              <Feather name="chevron-down" size={15} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       <View style={s.card}>
         <Text style={s.cardTitle}>{t.profile.settings}</Text>
@@ -368,6 +406,75 @@ export default function ProfileScreen() {
         <Feather name="log-out" size={18} color={colors.destructive} />
         <Text style={s.logoutText}>{t.profile.logout}</Text>
       </TouchableOpacity>
+      <Modal
+        visible={workspacePickerOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => { if (!workspaceSwitching) setWorkspacePickerOpen(false); }}
+      >
+        <View style={s.workspaceModalBackdrop}>
+          <View style={s.workspaceModal} accessibilityViewIsModal testID="workspace-picker-modal">
+            <View style={s.workspaceModalHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.workspaceModalTitle}>{t.profile.workspacePickerTitle}</Text>
+                <Text style={s.workspaceModalSubtitle}>{t.profile.workspacePickerSubtitle}</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setWorkspacePickerOpen(false)}
+                disabled={workspaceSwitching}
+                accessibilityRole="button"
+                accessibilityLabel={t.profile.workspaceClose}
+                testID="workspace-picker-close"
+              >
+                <Feather name="x" size={22} color={colors.mutedForeground} />
+              </TouchableOpacity>
+            </View>
+            {workspaceError ? <Text style={s.workspaceError} accessibilityRole="alert">{workspaceError}</Text> : null}
+            {workspaces.map((workspace) => {
+              const selected = workspace.id === activeWorkspaceId;
+              return (
+                <TouchableOpacity
+                  key={workspace.id}
+                  style={[s.workspaceOption, selected && s.workspaceOptionSelected]}
+                  onPress={() => {
+                    if (selected || workspaceSwitching) return;
+                    setWorkspaceSwitching(true);
+                    setWorkspaceError(null);
+                    void switchWorkspace(workspace.id)
+                      .then(() => setWorkspacePickerOpen(false))
+                      .catch(() => setWorkspaceError(t.profile.workspaceSwitchError))
+                      .finally(() => setWorkspaceSwitching(false));
+                  }}
+                  disabled={workspaceSwitching}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected, disabled: workspaceSwitching, busy: workspaceSwitching && !selected }}
+                  testID={`workspace-option-${workspace.id}`}
+                >
+                  <View style={s.workspaceOptionCopy}>
+                    <Text style={[s.workspaceOptionName, selected && s.workspaceOptionNameSelected]} numberOfLines={2}>
+                      {workspace.name}
+                    </Text>
+                    <Text style={s.workspaceOptionRole}>
+                      {workspace.role === "admin" ? t.profile.admin : t.profile.user}
+                    </Text>
+                  </View>
+                  {workspaceSwitching && !selected
+                    ? <ActivityIndicator size="small" color={colors.primary} />
+                    : selected
+                      ? <Feather name="check-circle" size={19} color={colors.primary} />
+                      : <View style={s.workspaceOptionSpacer} />}
+                </TouchableOpacity>
+              );
+            })}
+            {workspaceSwitching ? (
+              <View style={s.workspaceSwitching}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={s.workspaceOptionRole}>{t.profile.workspaceSwitching}</Text>
+              </View>
+            ) : null}
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -425,6 +532,28 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       backgroundColor: colors.muted + "55",
       textTransform: "uppercase", letterSpacing: 0.5,
     },
+    workspaceSummary: { minHeight: 72, flexDirection: "row", alignItems: "center", gap: 11, padding: 14 },
+    workspaceIcon: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary + "14" },
+    workspaceCopy: { flex: 1, minWidth: 0, gap: 3 },
+    workspaceLabel: { color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_500Medium" },
+    workspaceName: { color: colors.foreground, fontSize: 15, fontFamily: "Inter_600SemiBold" },
+    workspaceChangeButton: { minHeight: 40, flexDirection: "row", alignItems: "center", gap: 3, paddingHorizontal: 8, borderRadius: 10, backgroundColor: colors.primary + "12" },
+    workspaceChangeButtonDisabled: { opacity: 0.55 },
+    workspaceChangeText: { color: colors.primary, fontSize: 12, fontFamily: "Inter_600SemiBold" },
+    workspaceModalBackdrop: { flex: 1, justifyContent: "center", padding: 22, backgroundColor: "rgba(0,0,0,0.45)" },
+    workspaceModal: { padding: 18, borderRadius: 18, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
+    workspaceModalHeader: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 14 },
+    workspaceModalTitle: { color: colors.foreground, fontSize: 19, fontFamily: "Inter_700Bold" },
+    workspaceModalSubtitle: { color: colors.mutedForeground, fontSize: 13, lineHeight: 18, marginTop: 4, fontFamily: "Inter_400Regular" },
+    workspaceOption: { minHeight: 58, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 12, borderWidth: 1, borderColor: colors.border, marginTop: 8 },
+    workspaceOptionSelected: { backgroundColor: colors.primary + "0C", borderColor: colors.primary },
+    workspaceOptionCopy: { flex: 1, gap: 3 },
+    workspaceOptionName: { color: colors.foreground, fontSize: 14, fontFamily: "Inter_600SemiBold" },
+    workspaceOptionNameSelected: { color: colors.primary },
+    workspaceOptionRole: { color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular" },
+    workspaceOptionSpacer: { width: 19, height: 19 },
+    workspaceError: { color: colors.destructive, fontSize: 13, lineHeight: 18, marginBottom: 6, fontFamily: "Inter_500Medium" },
+    workspaceSwitching: { flexDirection: "row", alignItems: "center", gap: 8, justifyContent: "center", paddingTop: 14 },
   menuSectionHeader: {
     minHeight: 40, flexDirection: "row", alignItems: "center", gap: 9,
     paddingHorizontal: 14, paddingVertical: 9,

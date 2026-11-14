@@ -22,12 +22,18 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import {
+  getActiveWorkspaceCacheId,
+  hashWorkspaceQueryKey,
+  installWorkspaceFetchInterceptor,
+} from "@/utils/api";
 
 if (Platform.OS !== "web" && process.env.EXPO_PUBLIC_DOMAIN) {
   setBaseUrl(`https://${process.env.EXPO_PUBLIC_DOMAIN}`);
 } else {
   setBaseUrl(null);
 }
+installWorkspaceFetchInterceptor();
 
 SplashScreen.preventAutoHideAsync();
 
@@ -40,6 +46,7 @@ const queryClient = new QueryClient({
       refetchOnWindowFocus: false,
       refetchOnReconnect: false,
       refetchOnMount: false,
+      queryKeyHashFn: (queryKey) => hashWorkspaceQueryKey(queryKey, getActiveWorkspaceCacheId()),
     },
   },
 });
