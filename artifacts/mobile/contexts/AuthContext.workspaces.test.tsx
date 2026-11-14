@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   activeWorkspaceId: null as number | null,
   stored: new Map<string, string>(),
   revokeContextRequest: false,
+  failNextHomeRequest: false,
   refreshAuth: null as null | (() => Promise<void>),
   alert: vi.fn(),
   apiFetch: vi.fn(),
@@ -79,12 +80,13 @@ function currentWorkspaceUser() {
 }
 
 function Consumer() {
-  const { user, workspaceAccessRevoked, switchWorkspace } = useAuth();
+  const { user, workspaceAccessRevoked, switchWorkspace, login } = useAuth();
   const { lang, setLang } = useLanguage();
   const [switchError, setSwitchError] = useState("");
   return (
     <div>
       <span data-testid="active-workspace">{user?.organizationName} · {user?.role}</span>
+      <span data-testid="authenticated-user">{user ? String(user.id) : "signed-out"}</span>
       <span data-testid="workspace-access-revoked">{String(workspaceAccessRevoked)}</span>
       <span data-testid="language">{lang}</span>
       <button data-testid="set-english" onClick={() => setLang("en")}>English</button>
@@ -94,6 +96,12 @@ function Consumer() {
         onClick={() => void switchWorkspace(22).catch((error: Error) => setSwitchError(error.message))}
       >
         Switch
+      </button>
+      <button
+        data-testid="sign-in-again"
+        onClick={() => void login("ada@example.test", "password", true).catch(() => {})}
+      >
+        Sign in again
       </button>
       <span data-testid="switch-error">{switchError}</span>
     </div>
@@ -129,14 +137,19 @@ describe("mobile workspace authentication context", () => {
     mocks.activeWorkspaceId = null;
     mocks.stored.clear();
     mocks.revokeContextRequest = false;
+    mocks.failNextHomeRequest = false;
     mocks.refreshAuth = null;
     mocks.alert.mockReset();
     mocks.apiFetch.mockReset().mockImplementation(async (path: string) => {
       if (path !== "/auth/me") return apiResponse(204, null);
       if (mocks.activeWorkspaceId === 22 && mocks.revokeContextRequest) return apiResponse(403, {});
+      if (mocks.activeWorkspaceId !== 22 && mocks.failNextHomeRequest) {
+        mocks.failNextHomeRequest = false;
+        return apiResponse(503, {});
+      }
       return apiResponse(200, currentWorkspaceUser());
     });
-    mocks.apiPost.mockReset();
+    mocks.apiPost.mockReset().mockResolvedValue({ user: homeUser });
   });
 
   afterEach(async () => {
@@ -204,6 +217,46 @@ describe("mobile workspace authentication context", () => {
     });
     expect(mocks.stored.has("taskdesk-active-workspace:5")).toBe(false);
     expect(host.querySelector('[data-testid="workspace-access-revoked"]')?.textContent).toBe("false");
+    expect(mocks.alert).not.toHaveBeenCalled();
+  });
+
+  it("clears shared data and signs out if home reload fails after access is denied", async () => {
+    await renderProvider();
+    await vi.waitFor(() => expect(host.querySelector('[data-testid="authenticated-user"]')?.textContent).toBe("5"));
+    await act(async () => {
+      host.querySelector<HTMLButtonElement>('[data-testid="switch-to-shared"]')?.click();
+    });
+    await vi.waitFor(() => {
+      expect(host.querySelector('[data-testid="active-workspace"]')?.textContent).toBe("Shared studio · user");
+    });
+    expect(mocks.stored.get("taskdesk-active-workspace:5")).toBe("22");
+
+    queryClient.setQueryData(["tickets"], ["shared workspace ticket"]);
+    expect(queryClient.getQueryData(["tickets"])).toEqual(["shared workspace ticket"]);
+    mocks.revokeContextRequest = true;
+    mocks.failNextHomeRequest = true;
+    await act(async () => {
+      await mocks.refreshAuth?.();
+    });
+
+    expect(mocks.activeWorkspaceId).toBe(7);
+    expect(mocks.stored.has("taskdesk-active-workspace:5")).toBe(false);
+    expect(host.querySelector('[data-testid="authenticated-user"]')?.textContent).toBe("signed-out");
+    expect(queryClient.getQueryCache().getAll()).toHaveLength(0);
+    expect(host.querySelector('[data-testid="workspace-access-revoked"]')?.textContent).toBe("false");
+    expect(mocks.alert).not.toHaveBeenCalled();
+
+    mocks.revokeContextRequest = false;
+    await act(async () => {
+      host.querySelector<HTMLButtonElement>('[data-testid="sign-in-again"]')?.click();
+    });
+
+    await vi.waitFor(() => {
+      expect(host.querySelector('[data-testid="authenticated-user"]')?.textContent).toBe("5");
+      expect(host.querySelector('[data-testid="active-workspace"]')?.textContent).toBe("Home office · admin");
+    });
+    expect(mocks.stored.has("taskdesk-active-workspace:5")).toBe(false);
+    expect(mocks.activeWorkspaceId).toBe(7);
     expect(mocks.alert).not.toHaveBeenCalled();
   });
 
