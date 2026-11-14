@@ -15,7 +15,9 @@ import { fileURLToPath } from "node:url";
 const workspaceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const masterPath = path.join(workspaceRoot, "artifacts/landing/public/favicon.svg");
 const manifestPath = path.join(workspaceRoot, "scripts/taskdesk-icons.manifest.json");
-const foregroundSize = 508;
+const foregroundSize = 560;
+// Clip the enlarged mark to Android's inner circular safe area.
+const adaptiveSafeRadius = 310;
 const faviconArtworkSize = 900;
 const adaptiveForegroundPath = "artifacts/mobile/assets/images/taskdesk-adaptive-foreground.png";
 const targets = [
@@ -90,6 +92,11 @@ function render(targetPath, size, variant, sourcePath) {
       "-background", "none", sourcePath, "-alpha", "on", "-trim", "+repage",
       "-resize", `${foregroundSize}x${foregroundSize}`,
       "-gravity", "center", "-background", "none", "-extent", `${size}x${size}`,
+      "(",
+      "-size", `${size}x${size}`, "xc:none", "-fill", "white",
+      "-draw", `circle ${size / 2},${size / 2} ${size / 2},${size / 2 - adaptiveSafeRadius}`,
+      ")",
+      "-compose", "CopyOpacity", "-composite",
       "-depth", "8", "-strip", `PNG32:${targetPath}`,
     ]);
     return;
@@ -149,7 +156,7 @@ function withGeneratedAssets(callback) {
     const generated = targets.map(([relativePath, size, variant], index) => {
       const outputPath = path.join(tempDirectory, `generated-${index}.png`);
       const sourcePath = variant === "favicon"
-        ? generatedByPath.get(adaptiveForegroundPath)
+        ? transparentSvgPath
         : variant === "foreground" || variant === "transparent"
           ? transparentSvgPath
           : masterPath;

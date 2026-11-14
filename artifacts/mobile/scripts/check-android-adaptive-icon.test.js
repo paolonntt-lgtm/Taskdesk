@@ -417,7 +417,7 @@ describe("Android adaptive icon safe-area check", () => {
 });
 
 describe("mobile shared app icon, splash, and favicon asset", () => {
-  it("uses the shared square app icon for splash and derives a transparent favicon from the adaptive foreground", () => {
+  it("uses the shared app icon for splash and keeps the full mark in the favicon", () => {
     const projectRoot = path.resolve(scriptDirectory, "..");
     const config = JSON.parse(fs.readFileSync(path.join(projectRoot, "app.json"), "utf8")).expo;
     const adaptiveForeground = parsePng(
@@ -454,13 +454,7 @@ describe("mobile shared app icon, splash, and favicon asset", () => {
     expect(favicon.height).toBe(1024);
     expect(favicon.transparentPixelCount).toBeGreaterThan(0);
     expect(favicon.visibleBounds.maxX - favicon.visibleBounds.minX + 1).toBe(900);
-    expect(favicon.visibleBounds.maxY - favicon.visibleBounds.minY + 1).toBe(
-      Math.round(
-        900 *
-          (adaptiveForeground.visibleBounds.maxY - adaptiveForeground.visibleBounds.minY + 1) /
-          (adaptiveForeground.visibleBounds.maxX - adaptiveForeground.visibleBounds.minX + 1),
-      ),
-    );
+    expect(favicon.visibleBounds.maxY - favicon.visibleBounds.minY + 1).toBe(672);
     const faviconCheck = checkAdaptiveIcon(projectRoot).favicon;
     expect(faviconCheck.renditions.map(({ size }) => size)).toEqual([16, 32, 48]);
     for (const rendition of faviconCheck.renditions) {

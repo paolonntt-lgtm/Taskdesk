@@ -32,9 +32,11 @@ foreground image, `taskdesk-adaptive-foreground.png`.
 ## Launcher icon masks
 
 The shared app icon is a square, opaque 1024×1024 PNG. The Android adaptive
-foreground is transparent and checked against both the central 66/108 safe-zone
-bounds and its circular radius, so the monogram stays intact in circular and
-rounded launcher masks.
+foreground is transparent, enlarged for the Android Home launcher, and clipped
+to the central 66/108 circular safe area. The outer tips of the wide monogram
+are intentionally cropped so the larger artwork remains visible across
+circular and rounded launcher masks. The browser favicon uses the uncropped
+master mark instead.
 
 ## Browser favicon
 
