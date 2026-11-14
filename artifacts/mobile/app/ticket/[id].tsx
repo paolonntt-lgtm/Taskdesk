@@ -609,6 +609,11 @@ export default function TicketDetailScreen() {
     new Date(d).toLocaleDateString(lang === "en" ? "en-GB" : "it-IT", {
       day: "2-digit", month: "short", year: "numeric",
     });
+  const formatDateTime = (d: string) =>
+    new Date(d).toLocaleString(lang === "en" ? "en-GB" : "it-IT", {
+      day: "2-digit", month: "short", year: "numeric",
+      hour: "2-digit", minute: "2-digit",
+    });
 
   if (isLoading) {
     return (
@@ -673,7 +678,6 @@ export default function TicketDetailScreen() {
         : ticket.assignee?.name ?? t.ticketDetail.unassigned,
     },
     ...(ticket.client?.name ? [{ label: t.newTicket.client, value: ticket.client.name }] : []),
-    { label: t.ticketDetail.date, value: formatDate(ticket.createdAt) },
     ...(ticket.resource ? [{ label: t.ticketDetail.resource, value: ticket.resource }] : []),
     ...(workedTimeEnabled && ticket.workedMinutes != null ? [{ label: t.ticketDetail.workedTime, value: formatWorkedDuration(ticket.workedMinutes, lang) }] : []),
   ];
@@ -693,6 +697,12 @@ export default function TicketDetailScreen() {
           <View style={{ flex: 1 }}>
             <Text style={[s.ticketId, { borderColor: `${priorityColor}55` }]}>Ticket #{ticket.id}</Text>
             <Text style={s.title}>{ticket.title}</Text>
+            <View style={s.ticketOpenedAt} testID="ticket-opened-at">
+              <Feather name="clock" size={13} color={colors.mutedForeground} />
+              <Text style={s.ticketOpenedAtText}>
+                {t.ticketDetail.openedAt} {formatDateTime(ticket.createdAt)}
+              </Text>
+            </View>
           </View>
           {canEditTicket && (
             <TouchableOpacity
@@ -1587,6 +1597,8 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     priorityBar: { width: 5, borderRadius: 3, alignSelf: "stretch", minHeight: 42 },
     ticketId: { alignSelf: "flex-start", marginBottom: 5, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, borderWidth: 1, backgroundColor: colors.secondary, fontSize: 11, color: colors.secondaryForeground, fontFamily: "Inter_600SemiBold" },
     title: { fontSize: 18, fontWeight: "700" as const, color: colors.foreground, fontFamily: "Inter_700Bold", lineHeight: 23 },
+    ticketOpenedAt: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 5 },
+    ticketOpenedAtText: { fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_500Medium" },
     metaCard: { backgroundColor: colors.card, borderRadius: 12, borderWidth: 1, borderColor: colors.border, overflow: "hidden" },
     descriptionSection: { gap: 8 },
     descriptionHeading: { flexDirection: "row", alignItems: "center", gap: 8 },

@@ -242,6 +242,27 @@ describe("mobile ticket detail client and assignee", () => {
     expect(host.querySelector('[data-testid="ticket-additional-details"]')).toBeNull();
   });
 
+  it("shows the ticket creation date and time before expanding additional details", async () => {
+    await renderScreen();
+
+    const openedAt = host.querySelector('[data-testid="ticket-opened-at"]');
+    const formattedCreationTime = new Date(ticketResponse().createdAt).toLocaleString("it-IT", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    expect(openedAt?.textContent).toContain(translations.it.ticketDetail.openedAt);
+    expect(openedAt?.textContent).toContain(formattedCreationTime);
+    expect(host.querySelector('[data-testid="ticket-additional-details"]')).toBeNull();
+
+    await expandAdditionalDetails();
+    const additionalDetails = host.querySelector('[data-testid="ticket-additional-details"]');
+    expect(additionalDetails?.textContent).not.toContain(translations.it.ticketDetail.date);
+    expect(additionalDetails?.textContent).not.toContain(formattedCreationTime);
+  });
+
   it("shows main-field changes with their author and excludes unrelated activity", async () => {
     mocks.activity = [
       {
