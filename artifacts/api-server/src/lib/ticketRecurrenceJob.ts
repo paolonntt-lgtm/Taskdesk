@@ -53,141 +53,177 @@ async function checkTicketRecurrences(): Promise<void> {
     if (due.length === 0) return;
 
     for (const ticket of due) {
-      const rule = ticket.recurrenceRule as RecurrenceRule;
-      if (!rule?.frequency) continue;
+      const result = await db.transaction(async (tx) => {
+        // Re-read and lock the source so a concurrent stop cannot race the
+        // occurrence creation. The initial query above only finds candidates.
+        const [lockedTicket] = await tx
+          .select({
+            id: ticketsTable.id,
+            organizationId: ticketsTable.organizationId,
+            ticketNumber: ticketsTable.ticketNumber,
+            title: ticketsTable.title,
+            description: ticketsTable.description,
+            category: ticketsTable.category,
+            location: ticketsTable.location,
+            resource: ticketsTable.resource,
+            priority: ticketsTable.priority,
+            visibility: ticketsTable.visibility,
+            status: ticketsTable.status,
+            createdBy: ticketsTable.createdBy,
+            assignedTo: ticketsTable.assignedTo,
+            assignedToGroup: ticketsTable.assignedToGroup,
+            clientId: ticketsTable.clientId,
+            timeTrackingEnabled: ticketsTable.timeTrackingEnabled,
+            timeTrackingBillable: ticketsTable.timeTrackingBillable,
+            timeTrackingCompensationOverride: ticketsTable.timeTrackingCompensationOverride,
+            recurrenceRule: ticketsTable.recurrenceRule,
+            recurrenceNextAt: ticketsTable.recurrenceNextAt,
+            recurrenceParentId: ticketsTable.recurrenceParentId,
+          })
+          .from(ticketsTable)
+          .where(
+            and(
+              eq(ticketsTable.id, ticket.id),
+              isNotNull(ticketsTable.recurrenceRule),
+              isNotNull(ticketsTable.recurrenceNextAt),
+              lte(ticketsTable.recurrenceNextAt, now),
+            ),
+          )
+          .for("update");
 
-      const occurrenceAt = ticket.recurrenceNextAt!;
-      const endDate = rule.endDate ? parseRecurrenceEndDate(rule.endDate) : null;
-      if (endDate && occurrenceAt > endDate) {
-        await db
-          .update(ticketsTable)
-          .set({ recurrenceNextAt: null })
-          .where(eq(ticketsTable.id, ticket.id));
-        continue;
-      }
-      const nextAt = computeNextRecurrenceOccurrence(occurrenceAt, rule);
-      const shouldContinue = !endDate || nextAt <= endDate;
+        if (!lockedTicket?.recurrenceRule || !lockedTicket.recurrenceNextAt) return null;
+        const rule = lockedTicket.recurrenceRule as RecurrenceRule;
+        if (!rule.frequency) return null;
 
-      const violatesTimeTrackingRequirements =
-        ticket.timeTrackingEnabled &&
-        ((ticket.timeTrackingBillable && ticket.clientId == null) ||
-          (ticket.timeTrackingCompensationOverride === true && ticket.assignedTo == null));
-      if (violatesTimeTrackingRequirements) {
-        await db
-          .update(ticketsTable)
-          .set({ recurrenceNextAt: shouldContinue ? nextAt : null })
-          .where(eq(ticketsTable.id, ticket.id));
-        logger.warn(
-          { ticketId: ticket.id },
-          "ticketRecurrenceJob: skipped invalid time-tracked recurrence"
-        );
-        continue;
-      }
+        const occurrenceAt = lockedTicket.recurrenceNextAt;
+        const endDate = rule.endDate ? parseRecurrenceEndDate(rule.endDate) : null;
+        if (endDate && occurrenceAt > endDate) {
+          await tx.update(ticketsTable)
+            .set({ recurrenceNextAt: null })
+            .where(eq(ticketsTable.id, lockedTicket.id));
+          return null;
+        }
 
-      const [orgMax] = await db
-        .select({ maxNum: sql<number>`COALESCE(MAX(ticket_number), 0)` })
-        .from(ticketsTable)
-        .where(
-          ticket.organizationId != null
-            ? eq(ticketsTable.organizationId, ticket.organizationId)
-            : sql`organization_id IS NULL`
-        );
-      const nextTicketNumber = (Number(orgMax.maxNum) || 0) + 1;
+        const nextAt = computeNextRecurrenceOccurrence(occurrenceAt, rule);
+        const shouldContinue = !endDate || nextAt <= endDate;
+        const violatesTimeTrackingRequirements =
+          lockedTicket.timeTrackingEnabled &&
+          ((lockedTicket.timeTrackingBillable && lockedTicket.clientId == null) ||
+            (lockedTicket.timeTrackingCompensationOverride === true && lockedTicket.assignedTo == null));
+        if (violatesTimeTrackingRequirements) {
+          await tx.update(ticketsTable)
+            .set({ recurrenceNextAt: shouldContinue ? nextAt : null })
+            .where(eq(ticketsTable.id, lockedTicket.id));
+          return { skipped: true as const };
+        }
 
-      const [newTicket] = await db
-        .insert(ticketsTable)
-        .values({
-          organizationId: ticket.organizationId,
-          ticketNumber: nextTicketNumber,
-          title: ticket.title,
-          description: ticket.description,
-          category: ticket.category,
-          location: ticket.location,
-          resource: ticket.resource,
-          priority: ticket.priority,
-          status: "open",
-          visibility: ticket.visibility,
-          createdBy: ticket.createdBy,
-          assignedTo: ticket.assignedTo,
-          assignedToGroup: ticket.assignedToGroup,
-          clientId: ticket.clientId,
-          timeTrackingEnabled: ticket.timeTrackingEnabled,
-          timeTrackingBillable: ticket.timeTrackingBillable,
-          timeTrackingCompensationOverride: ticket.timeTrackingCompensationOverride,
-          recurrenceParentId: ticket.id,
-        })
-        .returning();
-
-      await db.insert(ticketActivityLogsTable).values({
-        ticketId: newTicket.id,
-        userId: ticket.createdBy,
-        actionType: "recurrence_created",
-        actionDescription: `Pratica creata da ricorrenza della pratica #${ticket.ticketNumber ?? ticket.id}`,
-      });
-
-      const checklists = await db
-        .select()
-        .from(ticketChecklistsTable)
-        .where(eq(ticketChecklistsTable.ticketId, ticket.id));
-
-      for (const cl of checklists) {
-        const [newCl] = await db
-          .insert(ticketChecklistsTable)
+        const [orgMax] = await tx
+          .select({ maxNum: sql<number>`COALESCE(MAX(ticket_number), 0)` })
+          .from(ticketsTable)
+          .where(
+            lockedTicket.organizationId != null
+              ? eq(ticketsTable.organizationId, lockedTicket.organizationId)
+              : sql`organization_id IS NULL`,
+          );
+        const nextTicketNumber = (Number(orgMax.maxNum) || 0) + 1;
+        const [newTicket] = await tx
+          .insert(ticketsTable)
           .values({
-            ticketId: newTicket.id,
-            orgId: cl.orgId,
-            title: cl.title,
-            position: cl.position,
+            organizationId: lockedTicket.organizationId,
+            ticketNumber: nextTicketNumber,
+            title: lockedTicket.title,
+            description: lockedTicket.description,
+            category: lockedTicket.category,
+            location: lockedTicket.location,
+            resource: lockedTicket.resource,
+            priority: lockedTicket.priority,
+            status: "open",
+            visibility: lockedTicket.visibility,
+            createdBy: lockedTicket.createdBy,
+            assignedTo: lockedTicket.assignedTo,
+            assignedToGroup: lockedTicket.assignedToGroup,
+            clientId: lockedTicket.clientId,
+            timeTrackingEnabled: lockedTicket.timeTrackingEnabled,
+            timeTrackingBillable: lockedTicket.timeTrackingBillable,
+            timeTrackingCompensationOverride: lockedTicket.timeTrackingCompensationOverride,
+            recurrenceParentId: lockedTicket.id,
           })
           .returning();
 
-        const items = await db
-          .select()
-          .from(ticketChecklistItemsTable)
-          .where(eq(ticketChecklistItemsTable.checklistId, cl.id));
+        await tx.insert(ticketActivityLogsTable).values({
+          ticketId: newTicket.id,
+          userId: lockedTicket.createdBy,
+          actionType: "recurrence_created",
+          actionDescription: `Pratica creata da ricorrenza della pratica #${lockedTicket.ticketNumber ?? lockedTicket.id}`,
+        });
 
-        if (items.length > 0) {
-          await db.insert(ticketChecklistItemsTable).values(
-            items.map((item) => ({
-              checklistId: newCl.id,
-              orgId: item.orgId,
-              text: item.text,
-              checked: false,
-              position: item.position,
-            }))
-          );
+        const checklists = await tx.select()
+          .from(ticketChecklistsTable)
+          .where(eq(ticketChecklistsTable.ticketId, lockedTicket.id));
+        for (const cl of checklists) {
+          const [newCl] = await tx.insert(ticketChecklistsTable)
+            .values({
+              ticketId: newTicket.id,
+              orgId: cl.orgId,
+              title: cl.title,
+              position: cl.position,
+            })
+            .returning();
+          const items = await tx.select()
+            .from(ticketChecklistItemsTable)
+            .where(eq(ticketChecklistItemsTable.checklistId, cl.id));
+          if (items.length > 0) {
+            await tx.insert(ticketChecklistItemsTable).values(
+              items.map((item) => ({
+                checklistId: newCl.id,
+                orgId: item.orgId,
+                text: item.text,
+                checked: false,
+                position: item.position,
+              })),
+            );
+          }
         }
+
+        await tx.update(ticketsTable)
+          .set({ recurrenceNextAt: shouldContinue ? nextAt : null })
+          .where(eq(ticketsTable.id, lockedTicket.id));
+
+        return { ticket: lockedTicket, newTicket, skipped: false as const };
+      });
+
+      if (!result) continue;
+      if (result.skipped) {
+        logger.warn(
+          { ticketId: ticket.id },
+          "ticketRecurrenceJob: skipped invalid time-tracked recurrence",
+        );
+        continue;
       }
 
-      if (ticket.assignedTo) {
+      if (result.ticket.assignedTo) {
         const [assignee] = await db
           .select({ id: usersTable.id, name: usersTable.name })
           .from(usersTable)
-          .where(eq(usersTable.id, ticket.assignedTo));
+          .where(eq(usersTable.id, result.ticket.assignedTo));
         if (assignee) {
           await createNotificationForUser(
-            ticket.assignedTo,
-            newTicket.id,
+            result.ticket.assignedTo,
+            result.newTicket.id,
             {
               key: "recurring_ticket_assigned",
-              ticketNumber: newTicket.ticketNumber ?? newTicket.id,
-              ticketTitle: newTicket.title,
+              ticketNumber: result.newTicket.ticketNumber ?? result.newTicket.id,
+              ticketTitle: result.newTicket.title,
             },
             "ticket_assigned",
-            ticket.organizationId
+            result.ticket.organizationId,
           );
         }
       }
 
-      const newRecurrenceNextAt = shouldContinue ? nextAt : null;
-      await db
-        .update(ticketsTable)
-        .set({ recurrenceNextAt: newRecurrenceNextAt })
-        .where(eq(ticketsTable.id, ticket.id));
-
       logger.info(
-        { ticketId: ticket.id, newTicketId: newTicket.id, nextAt: newRecurrenceNextAt },
-        "ticketRecurrenceJob: created recurrence child ticket"
+        { ticketId: result.ticket.id, newTicketId: result.newTicket.id },
+        "ticketRecurrenceJob: created recurrence child ticket",
       );
     }
   } catch (err) {

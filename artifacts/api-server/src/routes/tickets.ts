@@ -4633,7 +4633,7 @@ router.delete("/tickets/:id/recurrence", requireAuth, requireAdmin, async (req, 
     ticketId: id,
     userId: currentUser.id,
     actionType: "recurrence_removed",
-    actionDescription: "Ricorrenza rimossa",
+    actionDescription: "Ricorrenza interrotta; i ticket già creati restano invariati",
   
 }
 )

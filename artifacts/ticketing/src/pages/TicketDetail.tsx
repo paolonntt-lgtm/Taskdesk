@@ -220,6 +220,7 @@ export default function TicketDetail() {
   const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
   const [recurrenceSaving, setRecurrenceSaving] = useState(false);
   const [recurrenceError, setRecurrenceError] = useState<string | null>(null);
+  const [recurrenceNotice, setRecurrenceNotice] = useState<string | null>(null);
 
   const { data: ticket, isLoading } = useGetTicket(ticketId, { query: { enabled: !!ticketId, refetchInterval: 30_000, refetchIntervalInBackground: false } as any });
   const clientsEnabled = (currentUser as any)?.clientsEnabled !== false;
@@ -751,16 +752,18 @@ export default function TicketDetail() {
     }
   };
 
-  const handleRecurrenceRemove = async () => {
+  const handleRecurrenceStop = async () => {
     setRecurrenceSaving(true);
     setRecurrenceError(null);
     try {
       await deleteRecurrenceMut.mutateAsync({ id: ticketId });
       queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
       queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
+      queryClient.invalidateQueries({ queryKey: ['/api/calendar'] });
+      setRecurrenceNotice(t.ticketDetail.recurrenceStopped);
       setRecurrenceDialog(false);
     } catch (err: any) {
-      setRecurrenceError(err?.data?.message || err?.message || t.ticketDetail.recurrenceRemoveError);
+      setRecurrenceError(err?.data?.message || err?.message || t.ticketDetail.recurrenceStopError);
     } finally {
       setRecurrenceSaving(false);
     }
@@ -2281,6 +2284,10 @@ export default function TicketDetail() {
         <Alert severity="success" onClose={() => setEmailReplySent(false)} sx={{ width: '100%' }}>{t.ticketDetail.emailReplySentOk}</Alert>
       </Snackbar>
 
+      <Snackbar open={recurrenceNotice != null} autoHideDuration={5000} onClose={() => setRecurrenceNotice(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+        <Alert severity="success" onClose={() => setRecurrenceNotice(null)} sx={{ width: '100%' }}>{recurrenceNotice}</Alert>
+      </Snackbar>
+
       {/* Status change error */}
       <Snackbar open={statusError != null} autoHideDuration={5000} onClose={() => setStatusError(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
         <Alert severity="error" onClose={() => setStatusError(null)} sx={{ width: '100%' }}>{statusError}</Alert>
@@ -2354,6 +2361,9 @@ export default function TicketDetail() {
         <DialogContent>
           <Box display="flex" flexDirection="column" gap={2} mt={1}>
             {recurrenceError && <Alert severity="error">{recurrenceError}</Alert>}
+            {(ticket as any).recurrenceRule && (
+              <Alert severity="info">{t.ticketDetail.recurrenceStopInfo}</Alert>
+            )}
             <TextField select fullWidth size="small" label={t.ticketDetail.recurrenceFrequency} value={recurrenceFreq} onChange={(e) => setRecurrenceFreq(e.target.value as any)}>
               <MenuItem value="daily">{t.ticketDetail.recurrenceFreqDaily}</MenuItem>
               <MenuItem value="weekly">{t.ticketDetail.recurrenceFreqWeekly}</MenuItem>
@@ -2406,7 +2416,7 @@ export default function TicketDetail() {
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2, justifyContent: 'space-between' }}>
-          <Box>{(ticket as any).recurrenceRule && <Button color="error" onClick={handleRecurrenceRemove} disabled={recurrenceSaving}>{t.ticketDetail.recurrenceRemove}</Button>}</Box>
+          <Box>{(ticket as any).recurrenceRule && <Button color="error" onClick={handleRecurrenceStop} disabled={recurrenceSaving}>{t.ticketDetail.recurrenceStop}</Button>}</Box>
           <Box display="flex" gap={1}>
             <Button onClick={() => setRecurrenceDialog(false)} color="inherit" disabled={recurrenceSaving}>{t.ticketDetail.recurrenceCancel}</Button>
             <Button variant="contained" onClick={handleRecurrenceSave} disabled={recurrenceSaving} startIcon={recurrenceSaving ? <CircularProgress size={16} color="inherit" /> : <RepeatIcon />}>{t.ticketDetail.recurrenceSave}</Button>
