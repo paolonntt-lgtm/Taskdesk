@@ -55,6 +55,50 @@ export const ListWorkspaceInvitationsResponse = zod.object({
 
 
 /**
+ * @summary List members of the active shared workspace
+ */
+export const ListWorkspaceMembersParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const ListWorkspaceMembersResponse = zod.object({
+  "members": zod.array(zod.object({
+  "userId": zod.int(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "role": zod.enum(['admin', 'user']),
+  "billingOrganizationId": zod.int().nullable(),
+  "billingOrganizationName": zod.string().nullable(),
+  "sponsored": zod.boolean(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Invite or add an existing account to a shared workspace
+ */
+export const AddWorkspaceMemberParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const AddWorkspaceMemberBody = zod.object({
+  "email": zod.email(),
+  "role": zod.enum(['admin', 'user'])
+})
+
+export const AddWorkspaceMemberResponse = zod.object({
+  "membership": zod.object({
+  "userId": zod.int(),
+  "role": zod.enum(['admin', 'user'])
+}).optional(),
+  "expiresAt": zod.coerce.date().optional(),
+  "pendingAcceptance": zod.boolean().optional(),
+  "emailSent": zod.boolean().optional()
+})
+
+
+/**
  * @summary Resend an active pending workspace invitation
  */
 export const ResendWorkspaceInvitationParams = zod.object({

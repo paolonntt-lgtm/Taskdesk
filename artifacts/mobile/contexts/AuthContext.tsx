@@ -9,10 +9,12 @@ import {
 } from "@workspace/api-client-react";
 import { apiFetch, apiPost, setActiveWorkspaceContext } from "@/utils/api";
 
+type WorkspaceRole = "admin" | "user";
+
 interface Workspace {
   id: number;
   name: string;
-  role: string;
+  role: WorkspaceRole;
   isSharedWorkspace?: boolean;
 }
 
@@ -20,7 +22,7 @@ interface User {
   id: number;
   name: string;
   email: string;
-  role: string;
+  role: WorkspaceRole;
   organizationId?: number | null;
   organizationName?: string | null;
   activeWorkspaceId?: number | null;
@@ -42,6 +44,7 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
+  activeWorkspaceRole: WorkspaceRole | null;
   isLoading: boolean;
   workspaceAccessRevoked: boolean;
   login: (email: string, password: string, rememberMe: boolean) => Promise<void>;
@@ -381,10 +384,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const dismissWorkspaceAccessRevoked = () => setWorkspaceAccessRevoked(false);
+  const activeWorkspaceRole = user
+    ? user.workspaces?.find((workspace) => workspace.id === userWorkspaceId(user))?.role ?? user.role
+    : null;
 
   return (
       <AuthContext.Provider value={{
         user,
+        activeWorkspaceRole,
         isLoading,
         workspaceAccessRevoked,
         login,

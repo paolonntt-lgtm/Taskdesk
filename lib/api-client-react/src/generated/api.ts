@@ -156,6 +156,9 @@ import type {
   WorkspaceInvitationList,
   WorkspaceInvitationResendResponse,
   WorkspaceInvitationRevokeResponse,
+  WorkspaceMemberAddResponse,
+  WorkspaceMemberInput,
+  WorkspaceMemberList,
   WorkspaceSharingInput,
   WorkspaceSharingResponse
 } from './api.schemas';
@@ -347,6 +350,164 @@ export function useListWorkspaceInvitations<TData = Awaited<ReturnType<typeof li
 
 
 
+
+export const getListWorkspaceMembersUrl = (id: number,) => {
+
+
+
+
+  return `/api/workspaces/${id}/members`
+}
+
+/**
+ * @summary List members of the active shared workspace
+ */
+export const listWorkspaceMembers = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<WorkspaceMemberList> => {
+
+  return customFetch<WorkspaceMemberList>(getListWorkspaceMembersUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListWorkspaceMembersQueryKey = (id: number,) => {
+    return [
+    `/api/workspaces/${id}/members`
+    ] as const;
+    }
+
+
+export const getListWorkspaceMembersQueryOptions = <TData = Awaited<ReturnType<typeof listWorkspaceMembers>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listWorkspaceMembers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListWorkspaceMembersQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listWorkspaceMembers>>> = ({ signal }) => listWorkspaceMembers(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listWorkspaceMembers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListWorkspaceMembersQueryResult = NonNullable<Awaited<ReturnType<typeof listWorkspaceMembers>>>
+export type ListWorkspaceMembersQueryError = ErrorType<void>
+
+
+/**
+ * @summary List members of the active shared workspace
+ */
+
+export function useListWorkspaceMembers<TData = Awaited<ReturnType<typeof listWorkspaceMembers>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listWorkspaceMembers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListWorkspaceMembersQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAddWorkspaceMemberUrl = (id: number,) => {
+
+
+
+
+  return `/api/workspaces/${id}/members`
+}
+
+/**
+ * @summary Invite or add an existing account to a shared workspace
+ */
+export const addWorkspaceMember = async (id: number,
+    workspaceMemberInput: WorkspaceMemberInput, options?: Parameters<typeof customFetch>[1]): Promise<WorkspaceMemberAddResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Array.isArray(h)) return Object.fromEntries(h);
+    return h;
+  };
+return customFetch<WorkspaceMemberAddResponse>(getAddWorkspaceMemberUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(workspaceMemberInput)
+  }
+);}
+
+
+
+
+
+export const getAddWorkspaceMemberMutationKey = () => ['addWorkspaceMember'] as const;
+
+export const getAddWorkspaceMemberMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addWorkspaceMember>>, TError,AddWorkspaceMemberMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addWorkspaceMember>>, TError,AddWorkspaceMemberMutationVariables, TContext> => {
+
+const mutationKey = getAddWorkspaceMemberMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addWorkspaceMember>>, AddWorkspaceMemberMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  addWorkspaceMember(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddWorkspaceMemberMutationResult = NonNullable<Awaited<ReturnType<typeof addWorkspaceMember>>>
+    export type AddWorkspaceMemberMutationBody = BodyType<WorkspaceMemberInput>
+    export type AddWorkspaceMemberMutationError = ErrorType<void>
+    export type AddWorkspaceMemberMutationVariables = {id: number;data: BodyType<WorkspaceMemberInput>}
+
+    /**
+ * @summary Invite or add an existing account to a shared workspace
+ */
+export const useAddWorkspaceMember = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addWorkspaceMember>>, TError,AddWorkspaceMemberMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof addWorkspaceMember>>,
+        TError,
+        AddWorkspaceMemberMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAddWorkspaceMemberMutationOptions(options));
+    }
 
 export const getResendWorkspaceInvitationUrl = (id: number,
     invitationId: number,) => {

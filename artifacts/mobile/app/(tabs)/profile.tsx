@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import {
   View, Text, Image, StyleSheet, TouchableOpacity, Linking,
-  ScrollView, Alert, Platform, Share, ActivityIndicator, Modal,
+  ScrollView, Alert, Platform, Share, ActivityIndicator, Modal, TextInput,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
@@ -14,11 +14,19 @@ import { Lang } from "@/i18n/translations";
 import * as Haptics from "expo-haptics";
 import { apiGet, apiPatch, apiPost, getUserAvatarQueryKey } from "@/utils/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useAddWorkspaceMember,
+  useListWorkspaceInvitations,
+  useListWorkspaceMembers,
+  useRevokeWorkspaceInvitation,
+  type WorkspaceInvitation,
+  type WorkspaceMember,
+} from "@workspace/api-client-react";
 import { getOptionalProfileMenuItems, type MobileOrganizationSettings } from "@/utils/profileMenu";
 
 export default function ProfileScreen() {
   const colors = useColors();
-  const { user, logout, updateUser, switchWorkspace } = useAuth();
+  const { user, activeWorkspaceRole, logout, updateUser, switchWorkspace } = useAuth();
   const { t, lang, setLang } = useLanguage();
   const queryClient = useQueryClient();
   const s = styles(colors);
@@ -29,7 +37,33 @@ export default function ProfileScreen() {
   const [workspacePickerOpen, setWorkspacePickerOpen] = useState(false);
   const [workspaceSwitching, setWorkspaceSwitching] = useState(false);
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
+  const [workspaceInviteEmail, setWorkspaceInviteEmail] = useState("");
+  const [workspaceInviteRole, setWorkspaceInviteRole] = useState<"user" | "admin">("user");
+  const [workspaceInviteError, setWorkspaceInviteError] = useState<string | null>(null);
+  const [workspaceInviteNotice, setWorkspaceInviteNotice] = useState<string | null>(null);
   const [mediaPermission, requestMediaPermission] = ImagePicker.useMediaLibraryPermissions();
+  const activeWorkspaceId = user?.activeWorkspaceId ?? user?.organizationId ?? null;
+  const workspacePeopleEnabled = user?.isSharedWorkspace === true &&
+    activeWorkspaceRole === "admin" && activeWorkspaceId != null;
+  const workspacePeopleQueryId = activeWorkspaceId ?? 0;
+  const membersQueryKey = ["workspace-members", workspacePeopleQueryId] as const;
+  const invitationsQueryKey = ["workspace-invitations", workspacePeopleQueryId] as const;
+  const workspaceMembersQuery = useListWorkspaceMembers(workspacePeopleQueryId, {
+    query: {
+      enabled: workspacePeopleEnabled,
+      retry: false,
+      queryKey: membersQueryKey,
+    },
+  });
+  const workspaceInvitationsQuery = useListWorkspaceInvitations(workspacePeopleQueryId, {
+    query: {
+      enabled: workspacePeopleEnabled,
+      retry: false,
+      queryKey: invitationsQueryKey,
+    },
+  });
+  const addWorkspaceMemberMutation = useAddWorkspaceMember();
+  const revokeWorkspaceInvitationMutation = useRevokeWorkspaceInvitation();
   const organizationSettings = useQuery({
     queryKey: ["mobile-profile-organization-settings", user?.organizationId],
     queryFn: () => apiGet<MobileOrganizationSettings>("/settings/organization"),
@@ -53,6 +87,74 @@ export default function ProfileScreen() {
     } finally {
       setGeneratingInvite(false);
     }
+  };
+
+  const inviteWorkspaceMember = async () => {
+    const email = workspaceInviteEmail.trim();
+    if (!activeWorkspaceId) return;
+    setWorkspaceInviteError(null);
+    setWorkspaceInviteNotice(null);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setWorkspaceInviteError(t.profile.workspaceInviteInvalidEmail);
+      return;
+    }
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      const result = await addWorkspaceMemberMutation.mutateAsync({
+        id: activeWorkspaceId,
+        data: { email, role: workspaceInviteRole },
+      });
+      setWorkspaceInviteEmail("");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: membersQueryKey }),
+        queryClient.invalidateQueries({ queryKey: invitationsQueryKey }),
+      ]);
+      setWorkspaceInviteNotice(result.emailSent
+        ? t.profile.workspaceInviteSent.replace("{email}", email)
+        : t.profile.workspaceMemberAdded);
+    } catch (error) {
+      const status = (error as { status?: number })?.status;
+      const message = status === 400 ? t.profile.workspaceInviteInvalidEmail
+        : status === 403 ? t.profile.workspaceAdminRequired
+        : status === 404 ? t.profile.workspaceInviteAccountUnavailable
+        : status === 409 ? t.profile.workspaceInviteConflict
+        : status === 502 ? t.profile.workspaceInviteEmailFailure
+        : t.profile.workspaceInviteFailure;
+      setWorkspaceInviteError(message);
+    }
+  };
+
+  const revokeWorkspaceInvitation = async (invitation: WorkspaceInvitation) => {
+    if (!activeWorkspaceId) return;
+    setWorkspaceInviteError(null);
+    setWorkspaceInviteNotice(null);
+    try {
+      await revokeWorkspaceInvitationMutation.mutateAsync({
+        id: activeWorkspaceId,
+        invitationId: invitation.id,
+      });
+      await queryClient.invalidateQueries({ queryKey: invitationsQueryKey });
+      setWorkspaceInviteNotice(t.profile.workspaceInvitationRevoked);
+    } catch (error) {
+      const status = (error as { status?: number })?.status;
+      setWorkspaceInviteError(status === 403
+        ? t.profile.workspaceAdminRequired
+        : status === 404
+          ? t.profile.workspaceInvitationMissing
+          : t.profile.workspaceRevokeFailure);
+    }
+  };
+
+  const confirmRevokeWorkspaceInvitation = (invitation: WorkspaceInvitation) => {
+    Alert.alert(t.profile.workspaceRevokeTitle, t.profile.workspaceRevokeConfirm, [
+      { text: t.profile.workspaceRevokeCancel, style: "cancel" },
+      {
+        text: t.profile.workspaceRevokeConfirmAction,
+        style: "destructive",
+        onPress: () => { void revokeWorkspaceInvitation(invitation); },
+      },
+    ]);
   };
 
   const saveAvatar = async (avatarUrl: string | null) => {
@@ -163,9 +265,10 @@ export default function ProfileScreen() {
 
   const initials = user?.name?.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase() ?? "?";
   const avatarUrl = avatarOverride === undefined ? user?.avatarUrl ?? null : avatarOverride;
-  const isOrganizationAdmin = user?.role === "admin" && user.organizationId != null;
+  const isOrganizationAdmin = activeWorkspaceRole === "admin" &&
+    user?.organizationId != null &&
+    user.organizationId === user.billingOrganizationId;
   const workspaces = user?.workspaces ?? [];
-  const activeWorkspaceId = user?.activeWorkspaceId ?? user?.organizationId;
   const activeWorkspaceName =
     workspaces.find((workspace) => workspace.id === activeWorkspaceId)?.name ??
     user?.organizationName ??
@@ -183,6 +286,7 @@ export default function ProfileScreen() {
     <ScrollView
       style={s.root}
       contentContainerStyle={[s.content, { paddingBottom: Platform.OS === "web" ? 100 : 24 }]}
+      keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
       <View style={s.avatarSection}>
@@ -251,7 +355,11 @@ export default function ProfileScreen() {
               <Feather name="briefcase" size={17} color={colors.primary} />
             </View>
             <View style={s.workspaceCopy}>
-              <Text style={s.workspaceLabel}>{t.profile.activeWorkspace}</Text>
+              <Text style={s.workspaceLabel}>
+                {t.profile.activeWorkspace} · {activeWorkspaceRole === "admin"
+                  ? t.profile.workspaceRoleAdmin
+                  : t.profile.workspaceRoleMember}
+              </Text>
               <Text style={s.workspaceName} numberOfLines={2}>{activeWorkspaceName}</Text>
             </View>
             <TouchableOpacity
@@ -268,6 +376,172 @@ export default function ProfileScreen() {
               <Text style={s.workspaceChangeText}>{t.profile.changeWorkspace}</Text>
               <Feather name="chevron-down" size={15} color={colors.primary} />
             </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {workspacePeopleEnabled && (
+        <View style={s.card} testID="profile-workspace-people">
+          <Text style={s.cardTitle}>{t.profile.workspacePeopleTitle}</Text>
+          <View style={s.workspacePeopleContent}>
+            <Text style={s.workspacePeopleDescription}>{t.profile.workspacePeopleDescription}</Text>
+            {workspaceInviteError ? (
+              <Text style={s.workspacePeopleError} accessibilityRole="alert">{workspaceInviteError}</Text>
+            ) : null}
+            {workspaceInviteNotice ? (
+              <Text style={s.workspacePeopleNotice} accessibilityLiveRegion="polite">{workspaceInviteNotice}</Text>
+            ) : null}
+
+            <TextInput
+              style={s.workspaceInviteInput}
+              value={workspaceInviteEmail}
+              onChangeText={setWorkspaceInviteEmail}
+              placeholder={t.profile.workspaceInviteEmail}
+              placeholderTextColor={colors.mutedForeground}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              editable={!addWorkspaceMemberMutation.isPending}
+              accessibilityLabel={t.profile.workspaceInviteEmail}
+              testID="workspace-invite-email"
+            />
+            <Text style={s.workspaceFieldLabel}>{t.profile.workspaceInviteRole}</Text>
+            <View style={s.workspaceRoleOptions}>
+              {([
+                { value: "user" as const, label: t.profile.workspaceInviteUser },
+                { value: "admin" as const, label: t.profile.workspaceInviteAdmin },
+              ]).map((option) => {
+                const selected = workspaceInviteRole === option.value;
+                return (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[s.workspaceRoleOption, selected && s.workspaceRoleOptionSelected]}
+                    onPress={() => setWorkspaceInviteRole(option.value)}
+                    disabled={addWorkspaceMemberMutation.isPending}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected, disabled: addWorkspaceMemberMutation.isPending }}
+                    testID={`workspace-invite-role-${option.value}`}
+                  >
+                    <Text style={[s.workspaceRoleOptionText, selected && s.workspaceRoleOptionTextSelected]}>
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <TouchableOpacity
+              style={[s.workspaceInviteButton, addWorkspaceMemberMutation.isPending && s.workspaceActionDisabled]}
+              onPress={() => void inviteWorkspaceMember()}
+              disabled={addWorkspaceMemberMutation.isPending || !workspaceInviteEmail.trim()}
+              accessibilityRole="button"
+              accessibilityLabel={addWorkspaceMemberMutation.isPending
+                ? t.profile.workspaceInviteSending
+                : t.profile.workspaceInviteAction}
+              accessibilityState={{
+                disabled: addWorkspaceMemberMutation.isPending || !workspaceInviteEmail.trim(),
+                busy: addWorkspaceMemberMutation.isPending,
+              }}
+              testID="workspace-invite-submit"
+            >
+              {addWorkspaceMemberMutation.isPending
+                ? <ActivityIndicator size="small" color={colors.primaryForeground} />
+                : <Feather name="user-plus" size={16} color={colors.primaryForeground} />}
+              <Text style={s.workspaceInviteButtonText}>
+                {addWorkspaceMemberMutation.isPending
+                  ? t.profile.workspaceInviteSending
+                  : t.profile.workspaceInviteAction}
+              </Text>
+            </TouchableOpacity>
+
+            <View style={s.workspacePeopleSection}>
+              <Text style={s.workspacePeopleHeading}>{t.profile.workspaceMembersTitle}</Text>
+              {workspaceMembersQuery.isLoading ? (
+                <View style={s.workspacePeopleStatus}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={s.workspacePeopleMuted}>{t.profile.workspaceLoadingMembers}</Text>
+                </View>
+              ) : workspaceMembersQuery.isError ? (
+                <TouchableOpacity
+                  onPress={() => void workspaceMembersQuery.refetch()}
+                  accessibilityRole="button"
+                  testID="workspace-members-retry"
+                >
+                  <Text style={s.workspacePeopleError}>{t.profile.workspaceMembersLoadError}</Text>
+                </TouchableOpacity>
+              ) : (workspaceMembersQuery.data?.members ?? []).length === 0 ? (
+                <Text style={s.workspacePeopleMuted}>{t.profile.workspaceMembersEmpty}</Text>
+              ) : (
+                (workspaceMembersQuery.data?.members ?? []).map((member: WorkspaceMember) => (
+                  <View key={member.userId} style={s.workspacePersonRow} testID={`workspace-member-${member.userId}`}>
+                    <View style={s.workspacePersonAvatar}>
+                      <Text style={s.workspacePersonInitials}>
+                        {member.name.split(" ").map((word) => word[0]).slice(0, 2).join("").toUpperCase()}
+                      </Text>
+                    </View>
+                    <View style={s.workspacePersonCopy}>
+                      <Text style={s.workspacePersonName} numberOfLines={1}>{member.name}</Text>
+                      <Text style={s.workspacePeopleMuted} numberOfLines={1}>{member.email}</Text>
+                      {member.billingOrganizationName ? (
+                        <Text style={s.workspacePersonOrganization} numberOfLines={1}>{member.billingOrganizationName}</Text>
+                      ) : null}
+                    </View>
+                    <Text style={[s.workspacePersonRole, member.role === "admin" && s.workspacePersonRoleAdmin]}>
+                      {member.role === "admin" ? t.profile.workspaceInviteAdmin : t.profile.workspaceInviteUser}
+                    </Text>
+                  </View>
+                ))
+              )}
+            </View>
+
+            <View style={s.workspacePeopleSection}>
+              <Text style={s.workspacePeopleHeading}>{t.profile.workspaceInvitationsTitle}</Text>
+              {workspaceInvitationsQuery.isLoading ? (
+                <View style={s.workspacePeopleStatus}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={s.workspacePeopleMuted}>{t.profile.workspaceLoadingInvitations}</Text>
+                </View>
+              ) : workspaceInvitationsQuery.isError ? (
+                <TouchableOpacity
+                  onPress={() => void workspaceInvitationsQuery.refetch()}
+                  accessibilityRole="button"
+                  testID="workspace-invitations-retry"
+                >
+                  <Text style={s.workspacePeopleError}>{t.profile.workspaceInvitationsLoadError}</Text>
+                </TouchableOpacity>
+              ) : (workspaceInvitationsQuery.data?.invitations ?? []).length === 0 ? (
+                <Text style={s.workspacePeopleMuted}>{t.profile.workspaceInvitationsEmpty}</Text>
+              ) : (
+                (workspaceInvitationsQuery.data?.invitations ?? []).map((invitation: WorkspaceInvitation) => (
+                  <View key={invitation.id} style={s.workspacePersonRow} testID={`workspace-invitation-${invitation.id}`}>
+                    <View style={[s.workspacePersonAvatar, s.workspaceInvitationAvatar]}>
+                      <Feather name="mail" size={16} color={colors.warning} />
+                    </View>
+                    <View style={s.workspacePersonCopy}>
+                      <Text style={s.workspacePersonName} numberOfLines={1}>{invitation.name}</Text>
+                      <Text style={s.workspacePeopleMuted} numberOfLines={1}>{invitation.email}</Text>
+                      <Text style={s.workspacePersonOrganization}>
+                        {invitation.role === "admin" ? t.profile.workspaceInviteAdmin : t.profile.workspaceInviteUser}
+                        {" · "}{t.profile.workspaceInviteExpires}{" "}
+                        {new Date(invitation.expiresAt).toLocaleDateString(lang === "it" ? "it-IT" : "en-GB")}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={s.workspaceRevokeButton}
+                      onPress={() => confirmRevokeWorkspaceInvitation(invitation)}
+                      disabled={revokeWorkspaceInvitationMutation.isPending}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${t.profile.workspaceRevokeInvitation}: ${invitation.email}`}
+                      accessibilityState={{ disabled: revokeWorkspaceInvitationMutation.isPending }}
+                      testID={`workspace-invitation-revoke-${invitation.id}`}
+                    >
+                      {revokeWorkspaceInvitationMutation.isPending
+                        ? <ActivityIndicator size="small" color={colors.destructive} />
+                        : <Feather name="x-circle" size={19} color={colors.destructive} />}
+                    </TouchableOpacity>
+                  </View>
+                ))
+              )}
+            </View>
           </View>
         </View>
       )}
@@ -554,6 +828,38 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     workspaceOptionSpacer: { width: 19, height: 19 },
     workspaceError: { color: colors.destructive, fontSize: 13, lineHeight: 18, marginBottom: 6, fontFamily: "Inter_500Medium" },
     workspaceSwitching: { flexDirection: "row", alignItems: "center", gap: 8, justifyContent: "center", paddingTop: 14 },
+    workspacePeopleContent: { padding: 14, gap: 10 },
+    workspacePeopleDescription: { color: colors.mutedForeground, fontSize: 13, lineHeight: 18, fontFamily: "Inter_400Regular" },
+    workspacePeopleError: { color: colors.destructive, fontSize: 13, lineHeight: 18, fontFamily: "Inter_500Medium" },
+    workspacePeopleNotice: { color: colors.success, fontSize: 13, lineHeight: 18, fontFamily: "Inter_500Medium" },
+    workspaceInviteInput: {
+      minHeight: 46, paddingHorizontal: 12, borderWidth: 1, borderColor: colors.border,
+      borderRadius: 10, color: colors.foreground, backgroundColor: colors.background,
+      fontSize: 14, fontFamily: "Inter_400Regular",
+    },
+    workspaceFieldLabel: { color: colors.foreground, fontSize: 13, fontFamily: "Inter_500Medium" },
+    workspaceRoleOptions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    workspaceRoleOption: { minHeight: 38, justifyContent: "center", paddingHorizontal: 12, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
+    workspaceRoleOptionSelected: { borderColor: colors.primary, backgroundColor: colors.primary + "15" },
+    workspaceRoleOptionText: { color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_500Medium" },
+    workspaceRoleOptionTextSelected: { color: colors.primary, fontFamily: "Inter_600SemiBold" },
+    workspaceInviteButton: { minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 2, paddingHorizontal: 14, borderRadius: 11, backgroundColor: colors.primary },
+    workspaceInviteButtonText: { color: colors.primaryForeground, fontSize: 14, fontFamily: "Inter_600SemiBold" },
+    workspaceActionDisabled: { opacity: 0.55 },
+    workspacePeopleSection: { gap: 6, paddingTop: 13, borderTopWidth: 1, borderTopColor: colors.border },
+    workspacePeopleHeading: { color: colors.foreground, fontSize: 14, fontFamily: "Inter_600SemiBold", marginBottom: 2 },
+    workspacePeopleStatus: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 6 },
+    workspacePeopleMuted: { color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular" },
+    workspacePersonRow: { minHeight: 58, flexDirection: "row", alignItems: "center", gap: 9, paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: colors.border },
+    workspacePersonAvatar: { width: 34, height: 34, alignItems: "center", justifyContent: "center", borderRadius: 17, backgroundColor: colors.primary + "18" },
+    workspaceInvitationAvatar: { backgroundColor: colors.warning + "28" },
+    workspacePersonInitials: { color: colors.primary, fontSize: 11, fontFamily: "Inter_700Bold" },
+    workspacePersonCopy: { flex: 1, minWidth: 0, gap: 2 },
+    workspacePersonName: { color: colors.foreground, fontSize: 13, fontFamily: "Inter_600SemiBold" },
+    workspacePersonOrganization: { color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_400Regular" },
+    workspacePersonRole: { overflow: "hidden", maxWidth: 112, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, backgroundColor: colors.muted, color: colors.mutedForeground, fontSize: 10, fontFamily: "Inter_500Medium" },
+    workspacePersonRoleAdmin: { color: colors.primary, backgroundColor: colors.primary + "18" },
+    workspaceRevokeButton: { minWidth: 36, minHeight: 36, alignItems: "center", justifyContent: "center" },
   menuSectionHeader: {
     minHeight: 40, flexDirection: "row", alignItems: "center", gap: 9,
     paddingHorizontal: 14, paddingVertical: 9,

@@ -80,13 +80,14 @@ function currentWorkspaceUser() {
 }
 
 function Consumer() {
-  const { user, workspaceAccessRevoked, switchWorkspace, login } = useAuth();
+  const { user, activeWorkspaceRole, workspaceAccessRevoked, switchWorkspace, login } = useAuth();
   const { lang, setLang } = useLanguage();
   const [switchError, setSwitchError] = useState("");
   return (
     <div>
       <span data-testid="active-workspace">{user?.organizationName} · {user?.role}</span>
       <span data-testid="authenticated-user">{user ? String(user.id) : "signed-out"}</span>
+      <span data-testid="active-workspace-role">{activeWorkspaceRole}</span>
       <span data-testid="workspace-access-revoked">{String(workspaceAccessRevoked)}</span>
       <span data-testid="language">{lang}</span>
       <button data-testid="set-english" onClick={() => setLang("en")}>English</button>
@@ -165,6 +166,7 @@ describe("mobile workspace authentication context", () => {
     await vi.waitFor(() => {
       expect(host.querySelector('[data-testid="active-workspace"]')?.textContent).toBe("Shared studio · user");
     });
+    expect(host.querySelector('[data-testid="active-workspace-role"]')?.textContent).toBe("user");
     expect(mocks.apiFetch).toHaveBeenCalledTimes(2);
     expect(mocks.activeWorkspaceId).toBe(22);
   });
@@ -200,6 +202,7 @@ describe("mobile workspace authentication context", () => {
       expect(host.querySelector('[data-testid="active-workspace"]')?.textContent).toBe("Shared studio · user");
     });
 
+    expect(host.querySelector('[data-testid="active-workspace-role"]')?.textContent).toBe("user");
     expect(mocks.activeWorkspaceId).toBe(22);
     expect(mocks.stored.get("taskdesk-active-workspace:5")).toBe("22");
     expect(queryClient.getQueryData(["tickets"])).toBeUndefined();

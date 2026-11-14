@@ -31,6 +31,15 @@ const mocks = vi.hoisted(() => ({
   setQueryData: vi.fn(),
   launchImageLibraryAsync: vi.fn(),
   manipulateAsync: vi.fn(),
+  workspaceId: 7,
+  workspaceAdmin: true,
+  sharedWorkspace: false,
+  workspaceMembers: [] as Array<{ userId: number; name: string; email: string; role: "admin" | "user"; billingOrganizationName: string | null }>,
+  workspaceInvitations: [] as Array<{ id: number; name: string; email: string; role: "admin" | "user"; expiresAt: string }>,
+  addWorkspaceMember: vi.fn(),
+  revokeWorkspaceInvitation: vi.fn(),
+  invalidateQueries: vi.fn(),
+  alert: vi.fn(),
 }));
 
 vi.mock("react-native", async () => {
@@ -71,7 +80,7 @@ vi.mock("react-native", async () => {
       addEventListener: () => ({ remove: vi.fn() }),
     },
     ActivityIndicator: () => null,
-    Alert: { alert: vi.fn() },
+    Alert: { alert: mocks.alert },
     Image: () => null,
     FlatList: ({
       data,
@@ -200,6 +209,28 @@ vi.mock("expo-haptics", () => ({
   ImpactFeedbackStyle: { Light: "light", Medium: "medium" },
 }));
 vi.mock("expo-symbols", () => ({ SymbolView: () => null }));
+vi.mock("@workspace/api-client-react", () => ({
+  useListWorkspaceMembers: () => ({
+    data: { members: mocks.workspaceMembers },
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  }),
+  useListWorkspaceInvitations: () => ({
+    data: { invitations: mocks.workspaceInvitations },
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  }),
+  useAddWorkspaceMember: () => ({
+    isPending: false,
+    mutateAsync: mocks.addWorkspaceMember,
+  }),
+  useRevokeWorkspaceInvitation: () => ({
+    isPending: false,
+    mutateAsync: mocks.revokeWorkspaceInvitation,
+  }),
+}));
 vi.mock("@expo/vector-icons", () => ({ Feather: () => null }));
 vi.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
@@ -214,11 +245,14 @@ vi.mock("@/contexts/AuthContext", () => ({
       name: "Paolo Prosperi",
       email: "paolo@example.com",
       role: "admin",
-      organizationId: 7,
+      organizationId: mocks.workspaceId,
+      billingOrganizationId: 7,
       organizationName: "Home office",
-      activeWorkspaceId: 7,
+      activeWorkspaceId: mocks.workspaceId,
+      isSharedWorkspace: mocks.sharedWorkspace,
       workspaces: mocks.workspaces,
     },
+    activeWorkspaceRole: mocks.workspaceAdmin ? "admin" : "user",
     logout: vi.fn(),
       updateUser: mocks.updateUser,
       switchWorkspace: mocks.switchWorkspace,
@@ -268,12 +302,48 @@ vi.mock("@/contexts/LanguageContext", () => ({
         logoutConfirm: "Sign out",
         workspaceSection: "Workspace",
         activeWorkspace: "Active workspace",
+        workspaceRoleAdmin: "Workspace administrator",
+        workspaceRoleMember: "Workspace member",
         changeWorkspace: "Switch",
         workspacePickerTitle: "Choose a workspace",
         workspacePickerSubtitle: "Choose one you belong to.",
         workspaceClose: "Close workspace picker",
         workspaceSwitching: "Switching workspace…",
         workspaceSwitchError: "Could not switch workspace. Please try again.",
+        workspacePeopleTitle: "Members and invitations",
+        workspacePeopleDescription: "Manage who can access this workspace.",
+        workspaceInviteEmail: "TaskDesk account email",
+        workspaceInviteRole: "Role",
+        workspaceInviteUser: "Collaborator",
+        workspaceInviteAdmin: "Administrator",
+        workspaceInviteAction: "Send invitation",
+        workspaceInviteSending: "Sending…",
+        workspaceMembersTitle: "Members",
+        workspaceLoadingMembers: "Loading members…",
+        workspaceMembersEmpty: "There are no members to show.",
+        workspaceMemberOrgUnavailable: "Organization unavailable",
+        workspaceInvitationsTitle: "Pending invitations",
+        workspaceLoadingInvitations: "Loading invitations…",
+        workspaceInvitationsEmpty: "There are no pending invitations.",
+        workspaceInviteExpires: "Expires",
+        workspaceRevokeInvitation: "Revoke invitation",
+        workspaceMembersLoadError: "Could not load members. Try again.",
+        workspaceInvitationsLoadError: "Could not load invitations. Try again.",
+        workspaceInviteInvalidEmail: "Enter a valid email address.",
+        workspaceInviteAccountUnavailable: "The email must belong to an active account with a billing organization.",
+        workspaceInviteConflict: "This account is already a member or has a pending invitation.",
+        workspaceInviteEmailFailure: "The email was not sent and no active invitation was created.",
+        workspaceAdminRequired: "Only a workspace administrator can complete this action.",
+        workspaceInviteFailure: "Could not send the invitation. Try again.",
+        workspaceInviteSent: "Invitation sent to {email}. They can join after accepting it.",
+        workspaceMemberAdded: "Account added to the workspace.",
+        workspaceRevokeTitle: "Revoke this invitation?",
+        workspaceRevokeConfirm: "The person will no longer be able to join using this invitation.",
+        workspaceRevokeCancel: "Cancel",
+        workspaceRevokeConfirmAction: "Revoke",
+        workspaceInvitationRevoked: "Invitation revoked. Workspace sharing remains enabled.",
+        workspaceInvitationMissing: "This invitation is no longer active. Refresh the list.",
+        workspaceRevokeFailure: "Could not revoke the invitation. Try again.",
       },
       dashboard: { searchPlaceholder: "Search" },
       tickets: {
@@ -358,7 +428,7 @@ vi.mock("@tanstack/react-query", () => ({
     }
     return { data: undefined, isLoading: false };
   },
-  useQueryClient: () => ({ invalidateQueries: vi.fn(), setQueryData: mocks.setQueryData }),
+  useQueryClient: () => ({ invalidateQueries: mocks.invalidateQueries, setQueryData: mocks.setQueryData }),
 }));
 
 describe("mobile list position after returning from Profile", () => {
@@ -384,6 +454,15 @@ describe("mobile list position after returning from Profile", () => {
     mocks.updateUser.mockClear();
     mocks.switchWorkspace.mockReset().mockResolvedValue(undefined);
     mocks.workspaces = [];
+    mocks.workspaceId = 7;
+    mocks.workspaceAdmin = true;
+    mocks.sharedWorkspace = false;
+    mocks.workspaceMembers = [];
+    mocks.workspaceInvitations = [];
+    mocks.addWorkspaceMember.mockReset().mockResolvedValue({ emailSent: true });
+    mocks.revokeWorkspaceInvitation.mockReset().mockResolvedValue({ success: true });
+    mocks.invalidateQueries.mockReset().mockResolvedValue(undefined);
+    mocks.alert.mockReset();
     mocks.setQueryData.mockClear();
     mocks.launchImageLibraryAsync.mockReset();
     mocks.launchImageLibraryAsync.mockResolvedValue({
@@ -431,6 +510,98 @@ describe("mobile list position after returning from Profile", () => {
     });
     expect(mocks.switchWorkspace).toHaveBeenCalledWith(22);
     await vi.waitFor(() => expect(host.querySelector('[data-testid="workspace-picker-modal"]')).toBeNull());
+  });
+
+  it("shows members and pending invitations only to admins of the active shared workspace", async () => {
+    mocks.workspaceId = 22;
+    mocks.workspaceAdmin = true;
+    mocks.sharedWorkspace = true;
+    mocks.workspaces = [{ id: 22, name: "Shared studio", role: "admin" }];
+    mocks.workspaceMembers = [{
+      userId: 4,
+      name: "Grace Hopper",
+      email: "grace@example.test",
+      role: "user",
+      billingOrganizationName: "Harbor Labs",
+    }];
+    mocks.workspaceInvitations = [{
+      id: 9,
+      name: "Katherine Johnson",
+      email: "katherine@example.test",
+      role: "admin",
+      expiresAt: "2026-11-20T12:00:00.000Z",
+    }];
+    await act(async () => root.render(React.createElement(ProfileScreen)));
+
+    expect(host.querySelector('[data-testid="profile-workspace-people"]')).not.toBeNull();
+    expect(host.querySelector('[data-testid="workspace-member-4"]')?.textContent).toContain("grace@example.test");
+    expect(host.querySelector('[data-testid="workspace-invitation-9"]')?.textContent).toContain("katherine@example.test");
+
+    mocks.workspaceAdmin = false;
+    await act(async () => root.render(React.createElement(ProfileScreen)));
+    expect(host.querySelector('[data-testid="profile-workspace-people"]')).toBeNull();
+  });
+
+  it("invites an account and revokes a pending invitation for the selected workspace", async () => {
+    mocks.workspaceId = 22;
+    mocks.workspaceAdmin = true;
+    mocks.sharedWorkspace = true;
+    mocks.workspaces = [{ id: 22, name: "Shared studio", role: "admin" }];
+    mocks.workspaceInvitations = [{
+      id: 9,
+      name: "Katherine Johnson",
+      email: "katherine@example.test",
+      role: "admin",
+      expiresAt: "2026-11-20T12:00:00.000Z",
+    }];
+    await act(async () => root.render(React.createElement(ProfileScreen)));
+
+    const emailInput = host.querySelector<HTMLInputElement>('[data-testid="workspace-invite-email"]');
+    expect(emailInput).not.toBeNull();
+    await act(async () => {
+      if (!emailInput) return;
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(emailInput, "grace@example.test");
+      emailInput.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => {
+      host.querySelector<HTMLButtonElement>('[data-testid="workspace-invite-submit"]')?.click();
+    });
+    expect(mocks.addWorkspaceMember).toHaveBeenCalledWith({
+      id: 22,
+      data: { email: "grace@example.test", role: "user" },
+    });
+    expect(host.textContent).toContain("Invitation sent to grace@example.test");
+
+    await act(async () => {
+      host.querySelector<HTMLButtonElement>('[data-testid="workspace-invitation-revoke-9"]')?.click();
+    });
+    const actions = mocks.alert.mock.calls[0]?.[2] as Array<{ onPress?: () => void }>;
+    expect(actions?.[1]?.onPress).toBeTypeOf("function");
+    await act(async () => {
+      actions[1].onPress?.();
+      await Promise.resolve();
+    });
+    expect(mocks.revokeWorkspaceInvitation).toHaveBeenCalledWith({ id: 22, invitationId: 9 });
+  });
+
+  it("shows translated feedback when a workspace invitation conflicts", async () => {
+    mocks.workspaceId = 22;
+    mocks.workspaceAdmin = true;
+    mocks.sharedWorkspace = true;
+    mocks.workspaces = [{ id: 22, name: "Shared studio", role: "admin" }];
+    mocks.addWorkspaceMember.mockRejectedValue({ status: 409 });
+    await act(async () => root.render(React.createElement(ProfileScreen)));
+
+    const emailInput = host.querySelector<HTMLInputElement>('[data-testid="workspace-invite-email"]');
+    await act(async () => {
+      if (!emailInput) return;
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(emailInput, "grace@example.test");
+      emailInput.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => {
+      host.querySelector<HTMLButtonElement>('[data-testid="workspace-invite-submit"]')?.click();
+    });
+    expect(host.textContent).toContain("This account is already a member or has a pending invitation.");
   });
 
   it("marks Profile section navigation for a contextual back button", async () => {

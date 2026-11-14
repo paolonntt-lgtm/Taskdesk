@@ -117,6 +117,63 @@ paths:
           description: Not authenticated
         "403":
           description: Workspace administrator access required
+  /workspaces/{id}/members:
+    get:
+      operationId: listWorkspaceMembers
+      tags: [users]
+      summary: List members of the active shared workspace
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Workspace members
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceMemberList"
+        "401":
+          description: Not authenticated
+        "403":
+          description: Workspace administrator access required
+    post:
+      operationId: addWorkspaceMember
+      tags: [users]
+      summary: Invite or add an existing account to a shared workspace
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkspaceMemberInput"
+      responses:
+        "201":
+          description: Invitation sent or account added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceMemberAddResponse"
+        "400":
+          description: Invalid email address
+        "401":
+          description: Not authenticated
+        "403":
+          description: Workspace administrator access required
+        "404":
+          description: Account or workspace not found
+        "409":
+          description: Account is already a member or has a pending invitation
+        "502":
+          description: Invitation email could not be sent
   /workspaces/{id}/invitations/{invitationId}/resend:
     post:
       operationId: resendWorkspaceInvitation
@@ -6652,3 +6709,64 @@ components:
           type: boolean
         email:
           type: string
+    WorkspaceMember:
+      type: object
+      required: [userId, name, email, role, billingOrganizationId, billingOrganizationName, sponsored, createdAt]
+      properties:
+        userId:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [admin, user]
+        billingOrganizationId:
+          type: integer
+          nullable: true
+        billingOrganizationName:
+          type: string
+          nullable: true
+        sponsored:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+    WorkspaceMemberList:
+      type: object
+      required: [members]
+      properties:
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkspaceMember"
+    WorkspaceMemberInput:
+      type: object
+      required: [email, role]
+      properties:
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [admin, user]
+    WorkspaceMemberAddResponse:
+      type: object
+      properties:
+        membership:
+          type: object
+          required: [userId, role]
+          properties:
+            userId:
+              type: integer
+            role:
+              type: string
+              enum: [admin, user]
+        expiresAt:
+          type: string
+          format: date-time
+        pendingAcceptance:
+          type: boolean
+        emailSent:
+          type: boolean

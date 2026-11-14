@@ -1635,6 +1635,62 @@ export interface WorkspaceInvitationResendResponse {
   email?: string;
 }
 
+export type WorkspaceMemberRole = typeof WorkspaceMemberRole[keyof typeof WorkspaceMemberRole];
+
+
+export const WorkspaceMemberRole = {
+  admin: 'admin',
+  user: 'user',
+} as const;
+
+export interface WorkspaceMember {
+  userId: number;
+  name: string;
+  email: string;
+  role: WorkspaceMemberRole;
+  billingOrganizationId: number | null;
+  billingOrganizationName: string | null;
+  sponsored: boolean;
+  createdAt: string;
+}
+
+export interface WorkspaceMemberList {
+  members: WorkspaceMember[];
+}
+
+export type WorkspaceMemberInputRole = typeof WorkspaceMemberInputRole[keyof typeof WorkspaceMemberInputRole];
+
+
+export const WorkspaceMemberInputRole = {
+  admin: 'admin',
+  user: 'user',
+} as const;
+
+export interface WorkspaceMemberInput {
+  email: string;
+  role: WorkspaceMemberInputRole;
+}
+
+export type WorkspaceMemberAddResponseMembershipRole = typeof WorkspaceMemberAddResponseMembershipRole[keyof typeof WorkspaceMemberAddResponseMembershipRole];
+
+
+export const WorkspaceMemberAddResponseMembershipRole = {
+  admin: 'admin',
+  user: 'user',
+} as const;
+
+export type WorkspaceMemberAddResponseMembership = {
+  userId: number;
+  role: WorkspaceMemberAddResponseMembershipRole;
+};
+
+export interface WorkspaceMemberAddResponse {
+  membership?: WorkspaceMemberAddResponseMembership;
+  expiresAt?: string;
+  pendingAcceptance?: boolean;
+  emailSent?: boolean;
+}
+
 export type GetCurrentWeatherParams = {
 /**
  * @minimum -90
