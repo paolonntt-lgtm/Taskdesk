@@ -9,6 +9,7 @@ import { translations } from "../i18n/translations";
 const mocks = vi.hoisted(() => ({
   responses: {} as Record<string, unknown>,
   activity: [] as Array<Record<string, any>>,
+  lang: "it" as "it" | "en",
   apiGet: vi.fn(),
   user: {
     id: 1,
@@ -90,7 +91,7 @@ vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({ user: mocks.user }),
 }));
 vi.mock("@/contexts/LanguageContext", () => ({
-  useLanguage: () => ({ lang: "it", t: translations.it }),
+  useLanguage: () => ({ lang: mocks.lang, t: translations[mocks.lang] }),
 }));
 vi.mock("@workspace/api-client-react", () => ({
   getListTicketActivityQueryKey: (id: number) => [`/api/tickets/${id}/activity`],
@@ -192,6 +193,7 @@ describe("mobile ticket detail client and assignee", () => {
       "/settings/ticket-statuses": [],
     };
     mocks.activity = [];
+    mocks.lang = "it";
     mocks.apiGet.mockReset().mockImplementation(async (path: string) => mocks.responses[path]);
   });
 
@@ -261,6 +263,35 @@ describe("mobile ticket detail client and assignee", () => {
     const additionalDetails = host.querySelector('[data-testid="ticket-additional-details"]');
     expect(additionalDetails?.textContent).not.toContain(translations.it.ticketDetail.date);
     expect(additionalDetails?.textContent).not.toContain(formattedCreationTime);
+  });
+
+  it("shows a future deadline in the primary summary without opening more details", async () => {
+    const dueAt = "2099-11-15T15:26:00.000Z";
+    mocks.responses["/tickets/9"] = { ...ticketResponse(), dueAt };
+    await renderScreen();
+
+    const primaryDetails = host.querySelector('[data-testid="ticket-primary-details"]');
+    expect(primaryDetails?.textContent).toContain(translations.it.ticketDetail.dueAtLabel);
+    expect(primaryDetails?.textContent).toContain("In scadenza il");
+    expect(host.querySelector('[data-testid="ticket-additional-details"]')).toBeNull();
+  });
+
+  it("shows an expired deadline in English when English is selected", async () => {
+    mocks.lang = "en";
+    mocks.responses["/tickets/9"] = {
+      ...ticketResponse(),
+      dueAt: "2020-11-13T15:26:00.000Z",
+    };
+    await renderScreen();
+
+    const primaryDetails = host.querySelector('[data-testid="ticket-primary-details"]');
+    expect(primaryDetails?.textContent).toContain("Expired on November 13 at");
+  });
+
+  it("does not add a deadline row when no deadline is set", async () => {
+    await renderScreen();
+    const primaryDetails = host.querySelector('[data-testid="ticket-primary-details"]');
+    expect(primaryDetails?.textContent).not.toContain(translations.it.ticketDetail.dueAtLabel);
   });
 
   it("shows main-field changes with their author and excludes unrelated activity", async () => {

@@ -41,6 +41,7 @@ import { trackEvent } from '../lib/analytics';
 
 import { getEmailClientAssociationExplanationKey } from '../lib/emailClientAssociationDisplay';
 import { scopeWorkspaceQueryKey } from '../lib/workspaceQueryScope';
+import { formatTicketDeadlineLabel } from '../lib/ticketDeadline';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -459,6 +460,8 @@ export default function TicketDetail() {
   }
 
   const selectedTabValue = tabValue ?? ((ticket as any).timeTrackingEnabled ? 1 : 0);
+  const dueAt = (ticket as any).dueAt as string | null | undefined;
+  const dueAtLabel = formatTicketDeadlineLabel(dueAt, lang, t.ticketDetail.dueAtExpired) ?? '';
 
   const handleStatusChange = async (newStatus: string) => {
     if (newStatus === ticket.status) return;
@@ -1153,11 +1156,11 @@ export default function TicketDetail() {
                 <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
                   {((ticket as any).dueAt || canChangeDueAt) && (
                     (ticket as any).dueAt ? (
-                    <Box component="span"
-                      onClick={canChangeDueAt ? (e) => openDueAtEditor(e.currentTarget) : undefined}
-                      sx={{ fontSize: { xs: 12, sm: 14 }, fontWeight: 600, color: new Date((ticket as any).dueAt) < new Date() && ticket.status !== 'resolved' && !isClosedKey(ticket.status) ? '#d32f2f' : '#e65100', ...(canChangeDueAt ? { cursor: 'pointer', '&:hover': { opacity: 0.75 } } : {}) }}>
-                      ⚠ {lang === 'it' ? 'Scade' : 'Due'} {new Date((ticket as any).dueAt).toLocaleString(dateLocale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                    </Box>
+                      <Box component="span"
+                        onClick={canChangeDueAt ? (e) => openDueAtEditor(e.currentTarget) : undefined}
+                        sx={{ fontSize: { xs: 12, sm: 14 }, fontWeight: 600, color: new Date((ticket as any).dueAt) < new Date() && ticket.status !== 'resolved' && !isClosedKey(ticket.status) ? '#d32f2f' : '#e65100', ...(canChangeDueAt ? { cursor: 'pointer', '&:hover': { opacity: 0.75 } } : {}) }}>
+                        ⚠ {dueAtLabel}
+                      </Box>
                     ) : (
                       <Button
                         size="small"

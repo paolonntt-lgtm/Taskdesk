@@ -35,6 +35,7 @@ import {
   canViewTicketTrackedTime,
 } from "@/utils/ticketDetailRules";
 import { getTicketDetailBackHref } from "@/utils/ticketCreationNavigation";
+import { formatTicketDeadlineParts } from "@/utils/ticketDeadline";
 
 type RecurrenceFreq = "daily" | "weekly" | "monthly" | "yearly";
 
@@ -42,6 +43,7 @@ interface Ticket {
   id: number; title: string; description: string;
   category: string; location: string; resource?: string;
   priority: string; status: string;
+  dueAt?: string | null;
   assignedTo?: number | null;
   createdBy?: number;
   clientId?: number | null;
@@ -662,12 +664,19 @@ export default function TicketDetailScreen() {
       )
     : orgStatuses;
   const priorityColor = PRIORITY_COLORS[ticket.priority] ?? colors.muted;
+  const deadline = formatTicketDeadlineParts(ticket.dueAt, lang);
+  const deadlineText = deadline
+    ? deadline.expired
+      ? t.ticketDetail.dueAtExpired(deadline.date, deadline.time)
+      : t.ticketDetail.dueAtUpcoming(deadline.date, deadline.time)
+    : null;
 
   const primaryMetaRows = [
     { label: t.ticketDetail.status, value: t.status[ticket.status] ?? ticket.status },
     { label: t.ticketDetail.priority, value: t.priority[ticket.priority] ?? ticket.priority },
     { label: t.ticketDetail.category, value: ticket.category },
     ...(ticket.location ? [{ label: t.ticketDetail.location, value: ticket.location }] : []),
+    ...(deadlineText ? [{ label: t.ticketDetail.dueAtLabel, value: deadlineText }] : []),
   ];
   const additionalMetaRows = [
     { label: t.ticketDetail.createdBy, value: ticket.creator?.name ?? "–" },
