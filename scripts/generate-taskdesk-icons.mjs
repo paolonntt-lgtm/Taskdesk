@@ -19,13 +19,18 @@ const foregroundSize = 560;
 // Clip the enlarged mark to Android's inner circular safe area.
 const adaptiveSafeRadius = 310;
 const faviconArtworkSize = 900;
+const mobileIconZoom = 1.18;
+const splashVerticalScale = 1.1;
 const adaptiveForegroundPath = "artifacts/mobile/assets/images/taskdesk-adaptive-foreground.png";
+const adaptiveBackgroundPath = "artifacts/mobile/assets/images/taskdesk-adaptive-background.png";
 const targets = [
   ["artifacts/landing/public/favicon.png", 192, "opaque"],
   ["artifacts/landing/public/apple-touch-icon.png", 180, "opaque"],
   ["artifacts/landing/public/icon-192.png", 192, "opaque"],
   ["artifacts/landing/public/icon-512.png", 512, "opaque"],
   ["artifacts/mobile/assets/images/taskdesk-app-icon.png", 1024, "mobile-icon"],
+  [adaptiveBackgroundPath, 1024, "white-background"],
+  ["artifacts/mobile/assets/images/taskdesk-splash.png", 1024, "splash"],
   [adaptiveForegroundPath, 1024, "foreground"],
   ["artifacts/mobile/assets/images/taskdesk-favicon.png", 1024, "favicon"],
 ];
@@ -77,11 +82,29 @@ function makeTransparentMaster(svg) {
 
 function render(targetPath, size, variant, sourcePath) {
   mkdirSync(path.dirname(targetPath), { recursive: true });
+  if (variant === "white-background") {
+    runMagick([
+      "-size", `${size}x${size}`, "xc:white",
+      "-depth", "8", "-strip", `PNG24:${targetPath}`,
+    ]);
+    return;
+  }
   if (variant === "mobile-icon") {
-    const zoomedSize = Math.round(size * 1.18);
+    const zoomedSize = Math.round(size * mobileIconZoom);
     runMagick([
       "-background", "white", sourcePath, "-alpha", "remove", "-alpha", "off",
       "-filter", "Lanczos", "-resize", `${zoomedSize}x${zoomedSize}!`,
+      "-gravity", "center", "-background", "white", "-extent", `${size}x${size}`,
+      "-depth", "8", "-strip", `PNG24:${targetPath}`,
+    ]);
+    return;
+  }
+  if (variant === "splash") {
+    const zoomedWidth = Math.round(size * mobileIconZoom);
+    const zoomedHeight = Math.round(zoomedWidth * splashVerticalScale);
+    runMagick([
+      "-background", "white", sourcePath, "-alpha", "remove", "-alpha", "off",
+      "-filter", "Lanczos", "-resize", `${zoomedWidth}x${zoomedHeight}!`,
       "-gravity", "center", "-background", "white", "-extent", `${size}x${size}`,
       "-depth", "8", "-strip", `PNG24:${targetPath}`,
     ]);
@@ -233,7 +256,10 @@ function check() {
     const hasAlpha = data[25] === 4 || data[25] === 6 || data.includes(Buffer.from("tRNS"));
     if (dimensions !== `${size}x${size}`) {
       differences.push(`${relativePath} has dimensions ${dimensions}; expected ${size}x${size}`);
-    } else if (variant !== "opaque" && variant !== "mobile-icon" && !hasAlpha) {
+    } else if (
+      !["opaque", "mobile-icon", "white-background", "splash"].includes(variant) &&
+      !hasAlpha
+    ) {
       differences.push(`${relativePath} must preserve its transparent background`);
     } else if (sha256(data) !== manifest.assets[relativePath]) {
       differences.push(`${relativePath} differs from its recorded generated version`);

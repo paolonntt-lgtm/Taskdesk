@@ -207,7 +207,11 @@ function createProject({
       expo: {
         web: { favicon: "./assets/favicon.png" },
         android: {
-          adaptiveIcon: { foregroundImage: "./assets/foreground.png" },
+          adaptiveIcon: {
+            foregroundImage: "./assets/foreground.png",
+            backgroundImage: "./assets/adaptive-background.png",
+            backgroundColor: "#ffffff",
+          },
         },
         plugins: [
           ["expo-splash-screen", { image: "./assets/splash.png" }],
@@ -219,6 +223,10 @@ function createProject({
   fs.writeFileSync(
     path.join(projectRoot, "assets/foreground.png"),
     foreground,
+  );
+  fs.writeFileSync(
+    path.join(projectRoot, "assets/adaptive-background.png"),
+    rgbaPng(108, 108, [], [255, 255, 255, 255]),
   );
   fs.writeFileSync(
     path.join(projectRoot, "assets/splash.png"),
@@ -246,12 +254,39 @@ describe("Android adaptive icon safe-area check", () => {
 
     expect(result.foregroundImage).toBe("./assets/images/taskdesk-adaptive-foreground.png");
     expect(result.width).toBe(1024);
+    expect(result.adaptiveBackgroundPath).toBe(
+      "./assets/images/taskdesk-adaptive-background.png",
+    );
+    expect(result.adaptiveBackgroundWidth).toBe(1024);
+    expect(result.adaptiveBackgroundHeight).toBe(1024);
     expect(result.requiredMargin).toBe(200);
     expect(result.maxVisibleRadius).toBeLessThanOrEqual(result.safeRadius);
     expect(result.margins.left).toBeGreaterThanOrEqual(result.requiredMargin);
     expect(result.margins.right).toBeGreaterThanOrEqual(result.requiredMargin);
     expect(result.margins.top).toBeGreaterThanOrEqual(result.requiredMargin);
     expect(result.margins.bottom).toBeGreaterThanOrEqual(result.requiredMargin);
+  });
+
+  it("rejects a missing adaptive background image", () => {
+    const projectRoot = createProject();
+    const configPath = path.join(projectRoot, "app.json");
+    const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+    config.expo.android.adaptiveIcon.backgroundImage = "./assets/missing-background.png";
+    fs.writeFileSync(configPath, JSON.stringify(config));
+
+    expect(() => checkAdaptiveIcon(projectRoot)).toThrow(
+      /Configured android\.adaptiveIcon\.backgroundImage image does not exist/,
+    );
+  });
+
+  it("rejects a non-white adaptive background image", () => {
+    const projectRoot = createProject();
+    fs.writeFileSync(
+      path.join(projectRoot, "assets/adaptive-background.png"),
+      rgbaPng(108, 108, [{ x: 0, y: 0, color: [0, 0, 0] }], [255, 255, 255, 255]),
+    );
+
+    expect(() => checkAdaptiveIcon(projectRoot)).toThrow(/must be solid white/);
   });
 
   it("rejects visible content that crosses the central Android safe zone", () => {
@@ -416,14 +451,18 @@ describe("Android adaptive icon safe-area check", () => {
   });
 });
 
-describe("mobile shared app icon, splash, and favicon asset", () => {
-  it("uses the shared app icon for splash and keeps the full mark in the favicon", () => {
+describe("mobile app icon, splash, and favicon assets", () => {
+  it("uses an explicit white Android background and a taller splash mark", () => {
     const projectRoot = path.resolve(scriptDirectory, "..");
     const config = JSON.parse(fs.readFileSync(path.join(projectRoot, "app.json"), "utf8")).expo;
     const adaptiveForeground = parsePng(
       fs.readFileSync(path.join(projectRoot, config.android.adaptiveIcon.foregroundImage)),
       config.android.adaptiveIcon.foregroundImage,
     );
+    const adaptiveBackground = parsePng(
+      fs.readFileSync(path.join(projectRoot, config.android.adaptiveIcon.backgroundImage)),
+      config.android.adaptiveIcon.backgroundImage,
+     );
     const splash = config.plugins.find(
       (plugin) => Array.isArray(plugin) && plugin[0] === "expo-splash-screen",
     )[1];
@@ -434,20 +473,32 @@ describe("mobile shared app icon, splash, and favicon asset", () => {
 
     expect(config.icon).toBe("./assets/images/taskdesk-app-icon.png");
     expect(config.web.favicon).toBe("./assets/images/taskdesk-favicon.png");
+    expect(config.android.adaptiveIcon.backgroundColor).toBe("#ffffff");
+    expect(config.android.adaptiveIcon.backgroundImage).toBe(
+      "./assets/images/taskdesk-adaptive-background.png",
+    );
+    expect(adaptiveBackground.width).toBe(1024);
+    expect(adaptiveBackground.height).toBe(1024);
+    expect(adaptiveBackground.transparentPixelCount).toBe(0);
+    expect(adaptiveBackground.nonWhiteVisiblePixelCount).toBe(0);
     expect(splash).toMatchObject({
-      image: config.icon,
+      image: "./assets/images/taskdesk-splash.png",
       imageWidth: 250,
       resizeMode: "contain",
       backgroundColor: "#ffffff",
       dark: {
-        image: config.icon,
+        image: "./assets/images/taskdesk-splash.png",
         backgroundColor: "#ffffff",
       },
     });
     expect(image.width).toBe(1024);
     expect(image.height).toBe(1024);
     expect(image.transparentPixelCount).toBe(0);
-    expect(image.nonWhiteBounds.maxX - image.nonWhiteBounds.minX + 1).toBeGreaterThan(850);
+    const splashMarkWidth = image.nonWhiteBounds.maxX - image.nonWhiteBounds.minX + 1;
+    const splashMarkHeight = image.nonWhiteBounds.maxY - image.nonWhiteBounds.minY + 1;
+    expect(splashMarkWidth).toBeGreaterThan(850);
+    expect(splashMarkHeight).toBeGreaterThan(750);
+    expect(splashMarkWidth / splashMarkHeight).toBeLessThan(1.25);
     expect(Math.abs((image.nonWhiteBounds.minX + image.nonWhiteBounds.maxX) / 2 - 511.5)).toBeLessThanOrEqual(5);
     expect(Math.abs((image.nonWhiteBounds.minY + image.nonWhiteBounds.maxY) / 2 - 511.5)).toBeLessThanOrEqual(5);
     expect(favicon.width).toBe(1024);

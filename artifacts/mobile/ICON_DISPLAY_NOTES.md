@@ -2,11 +2,12 @@
 
 ## Splash screen
 
-`assets/images/taskdesk-app-icon.png` is the single opaque 1024×1024 source for
-the Expo app icon and splash image. The splash plugin renders it in `contain`
-mode at 220 dp on a white background in both appearances. Its white image
-background matches the splash background, so it does not introduce a visible
-box or crop the mark.
+`assets/images/taskdesk-app-icon.png` is the opaque 1024×1024 launcher source.
+The splash plugin uses the separately generated
+`assets/images/taskdesk-splash.png`, which keeps the same centered mark and
+white background while making the mark 10% taller to avoid a flattened startup
+appearance. It is rendered in `contain` mode on a white background in both
+appearances.
 
 The plugin generates Android night resources for dark appearance and iOS
 appearance-specific launch-screen assets on iOS 13 and later. Older Android or
@@ -35,8 +36,10 @@ The shared app icon is a square, opaque 1024×1024 PNG. The Android adaptive
 foreground is transparent, enlarged for the Android Home launcher, and clipped
 to the central 66/108 circular safe area. The outer tips of the wide monogram
 are intentionally cropped so the larger artwork remains visible across
-circular and rounded launcher masks. The browser favicon uses the uncropped
-master mark instead.
+circular and rounded launcher masks. The adaptive background is also supplied
+as a solid-white image, with white retained as the color fallback; this makes
+the launcher background explicit instead of relying only on a color resource.
+The browser favicon uses the uncropped master mark instead.
 
 ## Browser favicon
 

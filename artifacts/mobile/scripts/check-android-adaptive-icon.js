@@ -564,6 +564,25 @@ function checkCenteredSplash(projectRoot, imagePath, label, configPath) {
   return image;
 }
 
+function checkAdaptiveBackground(projectRoot, imagePath, configPath) {
+  const image = getConfiguredAsset(
+    projectRoot,
+    imagePath,
+    "android.adaptiveIcon.backgroundImage",
+    configPath,
+  );
+  if (image.width !== image.height) {
+    fail(`${imagePath} must be square to render as the Android adaptive icon background.`);
+  }
+  if (image.transparentPixelCount > 0 || image.partialAlphaPixelCount > 0) {
+    fail(`${imagePath} must be fully opaque so Android cannot expose a black fallback.`);
+  }
+  if (image.nonWhiteVisiblePixelCount > 0) {
+    fail(`${imagePath} must be solid white.`);
+  }
+  return image;
+}
+
 function checkAdaptiveIcon(projectRoot) {
   const configPath = path.join(projectRoot, "app.json");
   let config;
@@ -586,6 +605,13 @@ function checkAdaptiveIcon(projectRoot) {
   if (!fs.existsSync(imagePath)) {
     fail(`Configured foreground image does not exist: ${foregroundImage}.`);
   }
+
+  const adaptiveBackgroundPath = config?.expo?.android?.adaptiveIcon?.backgroundImage;
+  const adaptiveBackground = checkAdaptiveBackground(
+    projectRoot,
+    adaptiveBackgroundPath,
+    configPath,
+  );
 
   let image;
   try {
@@ -698,6 +724,9 @@ function checkAdaptiveIcon(projectRoot) {
     foregroundImage,
     width: image.width,
     height: image.height,
+    adaptiveBackgroundPath,
+    adaptiveBackgroundWidth: adaptiveBackground.width,
+    adaptiveBackgroundHeight: adaptiveBackground.height,
     margins,
     requiredMargin,
     maxVisibleRadius: image.maxVisibleRadius,

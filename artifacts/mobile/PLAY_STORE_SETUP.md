@@ -196,9 +196,10 @@ Follow the prompts. EAS will ask you to log in to your Google Play account and s
 
 | Asset | Path | Notes |
 |-------|------|-------|
-| App icon (1024×1024) | `assets/images/taskdesk-app-icon.png` | Shared by iOS/Play Store launcher, splash screen, and web favicon |
+| App icon (1024×1024) | `assets/images/taskdesk-app-icon.png` | Opaque iOS and Play Store launcher icon; the splash and favicon use separate artwork generated from the same mark |
 | Adaptive icon foreground (1024×1024) | `assets/images/taskdesk-adaptive-foreground.png` | Transparent official mark, sized for Android's adaptive mask |
-| Adaptive icon background color | `#ffffff` (white) | Set in `app.json` → `android.adaptiveIcon.backgroundColor` |
+| Adaptive icon background (1024×1024) | `assets/images/taskdesk-adaptive-background.png` | Solid white background image, with white color fallback in `app.json` |
+| Splash artwork (1024×1024) | `assets/images/taskdesk-splash.png` | White background and mark made 10% taller for the startup screen |
 | Android notification icon (96×96) | `assets/images/notification-icon.png` | White silhouette on transparency; tinted `#0f62fe` by the notifications plugin |
 | `google-services.json` | `artifacts/mobile/google-services.json` | **Not committed** — download from Firebase Console |
 
