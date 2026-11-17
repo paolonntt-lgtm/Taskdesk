@@ -15,10 +15,10 @@ import { fileURLToPath } from "node:url";
 const workspaceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const masterPath = path.join(workspaceRoot, "artifacts/landing/public/favicon.svg");
 const manifestPath = path.join(workspaceRoot, "scripts/taskdesk-icons.manifest.json");
-const foregroundSize = 500;
+const foregroundSize = 510;
 const faviconArtworkSize = 900;
 const mobileIconZoom = 1.18;
-const splashVerticalScale = 1.1;
+const splashVerticalScale = 1.2;
 const adaptiveForegroundPath = "artifacts/mobile/assets/images/taskdesk-adaptive-foreground.png";
 const adaptiveBackgroundPath = "artifacts/mobile/assets/images/taskdesk-adaptive-background.png";
 const targets = [

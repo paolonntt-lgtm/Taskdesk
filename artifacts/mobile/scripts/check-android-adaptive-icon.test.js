@@ -502,8 +502,8 @@ describe("mobile app icon, splash, and favicon assets", () => {
     const splashMarkWidth = image.nonWhiteBounds.maxX - image.nonWhiteBounds.minX + 1;
     const splashMarkHeight = image.nonWhiteBounds.maxY - image.nonWhiteBounds.minY + 1;
     expect(splashMarkWidth).toBeGreaterThan(850);
-    expect(splashMarkHeight).toBeGreaterThan(750);
-    expect(splashMarkWidth / splashMarkHeight).toBeLessThan(1.25);
+    expect(splashMarkHeight).toBeGreaterThan(800);
+    expect(splashMarkWidth / splashMarkHeight).toBeLessThan(1.2);
     expect(Math.abs((image.nonWhiteBounds.minX + image.nonWhiteBounds.maxX) / 2 - 511.5)).toBeLessThanOrEqual(5);
     expect(Math.abs((image.nonWhiteBounds.minY + image.nonWhiteBounds.maxY) / 2 - 511.5)).toBeLessThanOrEqual(5);
     expect(favicon.width).toBe(1024);
