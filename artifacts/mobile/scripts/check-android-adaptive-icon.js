@@ -640,7 +640,8 @@ function checkAdaptiveIcon(projectRoot) {
     );
   }
 
-  const hasNonWhiteContent = image.nonWhiteVisiblePixelCount > 0;
+  const hasNonWhiteContent =
+    image.transparentPixelCount === 0 && image.nonWhiteVisiblePixelCount > 0;
   const contentBounds = hasNonWhiteContent ? image.nonWhiteBounds : image.visibleBounds;
   const { minX, minY, maxX, maxY } = contentBounds;
   if (maxX < 0) {
