@@ -180,7 +180,7 @@ function withGeneratedAssets(callback) {
       const outputPath = path.join(tempDirectory, `generated-${index}.png`);
       const sourcePath = variant === "favicon"
         ? transparentSvgPath
-        : variant === "foreground" || variant === "transparent"
+        : variant === "transparent"
           ? transparentSvgPath
           : masterPath;
       if (!sourcePath) {

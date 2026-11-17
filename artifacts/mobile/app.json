@@ -2,7 +2,7 @@
   "expo": {
     "name": "TaskDesk",
     "slug": "taskdesk",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "orientation": "portrait",
     "icon": "./assets/images/taskdesk-app-icon.png",
     "scheme": "mobile",
@@ -13,11 +13,11 @@
     },
     "android": {
       "package": "com.taskdesk.mobile",
-        "versionCode": 4,
+      "versionCode": 5,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/taskdesk-adaptive-foreground.png",
-          "backgroundImage": "./assets/images/taskdesk-adaptive-background.png",
+        "backgroundImage": "./assets/images/taskdesk-adaptive-background.png",
         "backgroundColor": "#ffffff"
       },
       "permissions": [

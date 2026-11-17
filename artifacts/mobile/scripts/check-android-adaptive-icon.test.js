@@ -458,6 +458,7 @@ describe("mobile app icon, splash, and favicon assets", () => {
     const adaptiveForeground = parsePng(
       fs.readFileSync(path.join(projectRoot, config.android.adaptiveIcon.foregroundImage)),
       config.android.adaptiveIcon.foregroundImage,
+      { includePixels: true },
     );
     const adaptiveBackground = parsePng(
       fs.readFileSync(path.join(projectRoot, config.android.adaptiveIcon.backgroundImage)),
@@ -477,6 +478,9 @@ describe("mobile app icon, splash, and favicon assets", () => {
     expect(config.android.adaptiveIcon.backgroundImage).toBe(
       "./assets/images/taskdesk-adaptive-background.png",
     );
+    expect(adaptiveForeground.rgba.subarray((512 * 1024 + 512) * 4, (512 * 1024 + 512) * 4 + 4))
+      .toEqual(Buffer.from([255, 255, 255, 255]));
+    expect(adaptiveForeground.rgba.subarray(0, 4)).toEqual(Buffer.from([0, 0, 0, 0]));
     expect(adaptiveBackground.width).toBe(1024);
     expect(adaptiveBackground.height).toBe(1024);
     expect(adaptiveBackground.transparentPixelCount).toBe(0);
