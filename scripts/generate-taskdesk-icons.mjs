@@ -15,9 +15,7 @@ import { fileURLToPath } from "node:url";
 const workspaceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const masterPath = path.join(workspaceRoot, "artifacts/landing/public/favicon.svg");
 const manifestPath = path.join(workspaceRoot, "scripts/taskdesk-icons.manifest.json");
-const foregroundSize = 560;
-// Clip the enlarged mark to Android's inner circular safe area.
-const adaptiveSafeRadius = 310;
+const foregroundSize = 500;
 const faviconArtworkSize = 900;
 const mobileIconZoom = 1.18;
 const splashVerticalScale = 1.1;
@@ -114,13 +112,9 @@ function render(targetPath, size, variant, sourcePath) {
     runMagick([
       "-background", "none", sourcePath, "-alpha", "on", "-trim", "+repage",
       "-resize", `${foregroundSize}x${foregroundSize}`,
-      "-gravity", "center", "-background", "none", "-extent", `${size}x${size}`,
-      "(",
-      "-size", `${size}x${size}`, "xc:none", "-fill", "white",
-      "-draw", `circle ${size / 2},${size / 2} ${size / 2},${size / 2 - adaptiveSafeRadius}`,
-      ")",
-      "-compose", "CopyOpacity", "-composite",
-      "-depth", "8", "-strip", `PNG32:${targetPath}`,
+      "-gravity", "center", "-background", "white", "-extent", `${size}x${size}`,
+      "-alpha", "remove", "-alpha", "off",
+      "-depth", "8", "-strip", `PNG24:${targetPath}`,
     ]);
     return;
   }
@@ -178,9 +172,7 @@ function withGeneratedAssets(callback) {
     const generatedByPath = new Map();
     const generated = targets.map(([relativePath, size, variant], index) => {
       const outputPath = path.join(tempDirectory, `generated-${index}.png`);
-      const sourcePath = variant === "favicon"
-        ? transparentSvgPath
-        : variant === "transparent"
+      const sourcePath = variant === "favicon" || variant === "foreground"
           ? transparentSvgPath
           : masterPath;
       if (!sourcePath) {
@@ -257,7 +249,7 @@ function check() {
     if (dimensions !== `${size}x${size}`) {
       differences.push(`${relativePath} has dimensions ${dimensions}; expected ${size}x${size}`);
     } else if (
-      !["opaque", "mobile-icon", "white-background", "splash"].includes(variant) &&
+      !["opaque", "mobile-icon", "white-background", "splash", "foreground"].includes(variant) &&
       !hasAlpha
     ) {
       differences.push(`${relativePath} must preserve its transparent background`);

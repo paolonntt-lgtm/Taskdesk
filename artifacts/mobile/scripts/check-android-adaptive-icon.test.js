@@ -452,7 +452,7 @@ describe("Android adaptive icon safe-area check", () => {
 });
 
 describe("mobile app icon, splash, and favicon assets", () => {
-  it("uses an explicit white Android background and a taller splash mark", () => {
+  it("uses an opaque white Android icon background and a taller splash mark", () => {
     const projectRoot = path.resolve(scriptDirectory, "..");
     const config = JSON.parse(fs.readFileSync(path.join(projectRoot, "app.json"), "utf8")).expo;
     const adaptiveForeground = parsePng(
@@ -480,7 +480,8 @@ describe("mobile app icon, splash, and favicon assets", () => {
     );
     expect(adaptiveForeground.rgba.subarray((512 * 1024 + 512) * 4, (512 * 1024 + 512) * 4 + 4))
       .toEqual(Buffer.from([255, 255, 255, 255]));
-    expect(adaptiveForeground.rgba.subarray(0, 4)).toEqual(Buffer.from([0, 0, 0, 0]));
+    expect(adaptiveForeground.transparentPixelCount).toBe(0);
+    expect(adaptiveForeground.rgba.subarray(0, 4)).toEqual(Buffer.from([255, 255, 255, 255]));
     expect(adaptiveBackground.width).toBe(1024);
     expect(adaptiveBackground.height).toBe(1024);
     expect(adaptiveBackground.transparentPixelCount).toBe(0);

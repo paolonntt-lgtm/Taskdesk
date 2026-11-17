@@ -114,6 +114,7 @@ function parsePng(buffer, filePath, { includePixels = false } = {}) {
   let transparentPixelCount = 0;
   let partialAlphaPixelCount = 0;
   let nonWhiteVisiblePixelCount = 0;
+  let maxNonWhiteRadiusSquared = 0;
   const centerX = (header.width - 1) / 2;
   const centerY = (header.height - 1) / 2;
   let dataOffset = 0;
@@ -204,6 +205,12 @@ function parsePng(buffer, filePath, { includePixels = false } = {}) {
           nonWhiteBounds.minY = Math.min(nonWhiteBounds.minY, y);
           nonWhiteBounds.maxX = Math.max(nonWhiteBounds.maxX, x);
           nonWhiteBounds.maxY = Math.max(nonWhiteBounds.maxY, y);
+          const distanceX = x - centerX;
+          const distanceY = y - centerY;
+          maxNonWhiteRadiusSquared = Math.max(
+            maxNonWhiteRadiusSquared,
+            distanceX * distanceX + distanceY * distanceY,
+          );
         }
       }
 
@@ -238,6 +245,7 @@ function parsePng(buffer, filePath, { includePixels = false } = {}) {
     visibleBounds,
     nonWhiteBounds,
     maxVisibleRadius: Math.sqrt(maxVisibleRadiusSquared),
+    maxNonWhiteRadius: Math.sqrt(maxNonWhiteRadiusSquared),
     transparentPixelCount,
     partialAlphaPixelCount,
     nonWhiteVisiblePixelCount,
@@ -632,7 +640,9 @@ function checkAdaptiveIcon(projectRoot) {
     );
   }
 
-  const { minX, minY, maxX, maxY } = image.visibleBounds;
+  const hasNonWhiteContent = image.nonWhiteVisiblePixelCount > 0;
+  const contentBounds = hasNonWhiteContent ? image.nonWhiteBounds : image.visibleBounds;
+  const { minX, minY, maxX, maxY } = contentBounds;
   if (maxX < 0) {
     fail(`${foregroundImage} has no visible pixels; the monogram may be missing.`);
   }
@@ -659,10 +669,13 @@ function checkAdaptiveIcon(projectRoot) {
   }
 
   const safeRadius = (SAFE_ZONE_RATIO * image.width) / 2;
-  if (image.maxVisibleRadius > safeRadius) {
+  const maxContentRadius = hasNonWhiteContent
+    ? image.maxNonWhiteRadius
+    : image.maxVisibleRadius;
+  if (maxContentRadius > safeRadius) {
     fail(
       `${foregroundImage} visible content exceeds Android's central 66/108 circular safe zone. ` +
-        `Maximum visible radius: ${image.maxVisibleRadius.toFixed(1)}px; ` +
+        `Maximum visible radius: ${maxContentRadius.toFixed(1)}px; ` +
         `safe radius: ${safeRadius.toFixed(1)}px.`,
     );
   }
@@ -729,7 +742,7 @@ function checkAdaptiveIcon(projectRoot) {
     adaptiveBackgroundHeight: adaptiveBackground.height,
     margins,
     requiredMargin,
-    maxVisibleRadius: image.maxVisibleRadius,
+    maxVisibleRadius: maxContentRadius,
     safeRadius,
     splashImagePath,
     splashWidth: splashImage.width,
