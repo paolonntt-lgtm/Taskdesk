@@ -18,7 +18,8 @@ const manifestPath = path.join(workspaceRoot, "scripts/taskdesk-icons.manifest.j
 const foregroundSize = 510;
 const faviconArtworkSize = 900;
 const mobileIconZoom = 1.18;
-const splashVerticalScale = 1.2;
+const splashHorizontalScale = 1.05;
+const splashVerticalScale = 1.1;
 const adaptiveForegroundPath = "artifacts/mobile/assets/images/taskdesk-adaptive-foreground.png";
 const adaptiveBackgroundPath = "artifacts/mobile/assets/images/taskdesk-adaptive-background.png";
 const targets = [
@@ -98,12 +99,13 @@ function render(targetPath, size, variant, sourcePath) {
     return;
   }
   if (variant === "splash") {
-    const zoomedWidth = Math.round(size * mobileIconZoom);
-    const zoomedHeight = Math.round(zoomedWidth * splashVerticalScale);
+    const zoomedWidth = Math.round(size * mobileIconZoom * splashHorizontalScale);
+    const zoomedHeight = Math.round(size * mobileIconZoom * splashVerticalScale);
     runMagick([
       "-background", "white", sourcePath, "-alpha", "remove", "-alpha", "off",
       "-filter", "Lanczos", "-resize", `${zoomedWidth}x${zoomedHeight}!`,
       "-gravity", "center", "-background", "white", "-extent", `${size}x${size}`,
+      "-roll", "-6+0",
       "-depth", "8", "-strip", `PNG24:${targetPath}`,
     ]);
     return;
