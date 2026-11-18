@@ -9,8 +9,46 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiGet, apiPatch, apiPost } from "@/utils/api";
 import { getMobileOrganizationSettingsQueryKey } from "@/utils/optionalTabs";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 
-type Client = { id: number; name: string; alias?: string | null; email?: string | null; phone?: string | null; address?: string | null };
+type Client = {
+  id: number;
+  name: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  dateOfBirth?: string | null;
+  membershipNumber?: string | null;
+  alias?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  vatNumber?: string | null;
+  taxCode?: string | null;
+  address?: string | null;
+  pec?: string | null;
+  contactPerson?: string | null;
+  notes?: string | null;
+};
+type ClientDraft = Omit<Client, "id">;
+const emptyDraft = (): ClientDraft => ({
+  name: "",
+  firstName: "",
+  lastName: "",
+  dateOfBirth: "",
+  membershipNumber: "",
+  alias: "",
+  email: "",
+  phone: "",
+  vatNumber: "",
+  taxCode: "",
+  address: "",
+  pec: "",
+  contactPerson: "",
+  notes: "",
+});
+const splitClientName = (name: string) => {
+  const parts = name.trim().split(/\s+/);
+  return { firstName: parts.shift() ?? "", lastName: parts.join(" ") };
+};
 const CLIENT_PAGE_SIZE = 100;
 const CLIENT_SEARCH_DEBOUNCE_MS = 250;
 export default function ClientsScreen() {
@@ -18,12 +56,13 @@ export default function ClientsScreen() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const { user } = useAuth(); const qc = useQueryClient();
   const [formOpen, setFormOpen] = useState(false); const [editing, setEditing] = useState<Client | null>(null);
-  const [name, setName] = useState(""); const [email, setEmail] = useState(""); const [phone, setPhone] = useState(""); const [saving, setSaving] = useState(false);
+  const [draft, setDraft] = useState<ClientDraft>(emptyDraft); const [saving, setSaving] = useState(false);
   const organizationSettings = useQuery({
     queryKey: getMobileOrganizationSettingsQueryKey(user?.organizationId),
-    queryFn: () => apiGet<{ clientsEnabled?: boolean }>("/settings/organization"),
+    queryFn: () => apiGet<{ clientsEnabled?: boolean; profession?: string | null }>("/settings/organization"),
     enabled: user?.organizationId != null,
   });
+  const isGym = organizationSettings.data?.profession === "palestre";
   const settingsUnavailable = organizationSettings.isError || organizationSettings.isRefetchError;
   const clientsEnabled =
     organizationSettings.isSuccess &&
@@ -59,12 +98,41 @@ export default function ClientsScreen() {
   });
   const clients = useMemo(() => clientPages?.pages.flat() ?? [], [clientPages]);
   const secondaryFor = (client: Client) => client.alias || client.email || client.phone || client.address || null;
-  const openForm = (client?: Client) => { setEditing(client ?? null); setName(client?.name ?? ""); setEmail(client?.email ?? ""); setPhone(client?.phone ?? ""); setFormOpen(true); };
+  const openForm = (client?: Client) => {
+    const legacyName = client && isGym ? splitClientName(client.name) : null;
+    setEditing(client ?? null);
+    setDraft({
+      ...emptyDraft(),
+      ...client,
+      firstName: client?.firstName ?? legacyName?.firstName ?? "",
+      lastName: client?.lastName ?? legacyName?.lastName ?? "",
+    });
+    setFormOpen(true);
+  };
+  const setField = (field: keyof ClientDraft, value: string) =>
+    setDraft((current) => ({ ...current, [field]: value }));
   const save = async () => {
-    if (!name.trim()) return;
+    const firstName = draft.firstName?.trim() ?? "";
+    const lastName = draft.lastName?.trim() ?? "";
+    if (isGym ? (!firstName || !lastName) : !draft.name.trim()) return;
     setSaving(true);
     try {
-      const body = { name: name.trim(), email: email.trim() || null, phone: phone.trim() || null };
+      const body = {
+        name: isGym ? `${firstName} ${lastName}` : draft.name.trim(),
+        firstName: isGym ? firstName : (draft.firstName?.trim() || null),
+        lastName: isGym ? lastName : (draft.lastName?.trim() || null),
+        dateOfBirth: draft.dateOfBirth || null,
+        membershipNumber: draft.membershipNumber?.trim() || null,
+        alias: isGym ? null : (draft.alias?.trim() || null),
+        email: draft.email?.split(/[;,\n]/).map((address) => address.trim()).filter(Boolean).join("; ") || null,
+        phone: draft.phone?.trim() || null,
+        vatNumber: isGym ? null : (draft.vatNumber?.trim() || null),
+        taxCode: draft.taxCode?.trim() || null,
+        address: draft.address?.trim() || null,
+        pec: isGym ? null : (draft.pec?.trim() || null),
+        contactPerson: isGym ? null : (draft.contactPerson?.trim() || null),
+        notes: draft.notes?.trim() || null,
+      };
       if (editing) await apiPatch(`/clients/${editing.id}`, body);
       else await apiPost("/clients", body);
       await qc.invalidateQueries({ queryKey: ["mobile-clients", user?.organizationId] });
@@ -173,12 +241,38 @@ export default function ClientsScreen() {
       showsVerticalScrollIndicator={false}
     />
     <Modal visible={formOpen} transparent animationType="slide" onRequestClose={() => setFormOpen(false)}>
-      <View style={s.overlay}><View style={s.modal}><Text style={s.modalTitle}>{editing ? (it ? "Modifica cliente" : "Edit client") : (it ? "Nuovo cliente" : "New client")}</Text>
-        <TextInput value={name} onChangeText={setName} placeholder={it ? "Nome cliente *" : "Client name *"} placeholderTextColor={c.mutedForeground} style={s.input} />
-        <TextInput value={email} onChangeText={setEmail} placeholder="Email" keyboardType="email-address" autoCapitalize="none" placeholderTextColor={c.mutedForeground} style={s.input} />
-        <TextInput value={phone} onChangeText={setPhone} placeholder={it ? "Telefono" : "Phone"} keyboardType="phone-pad" placeholderTextColor={c.mutedForeground} style={s.input} />
-        <View style={s.actions}><Pressable onPress={() => setFormOpen(false)} style={s.cancel}><Text style={s.cancelText}>{it ? "Annulla" : "Cancel"}</Text></Pressable><Pressable onPress={() => void save()} disabled={!name.trim() || saving} style={s.save}><Text style={s.saveText}>{saving ? "…" : (it ? "Salva" : "Save")}</Text></Pressable></View>
-      </View></View>
+      <View style={s.overlay}>
+        <View style={s.modal}>
+          <Text style={s.modalTitle}>{editing ? (it ? "Modifica cliente" : "Edit client") : (it ? "Nuovo cliente" : "New client")}</Text>
+          <KeyboardAwareScrollViewCompat style={s.formScroll} contentContainerStyle={s.formFields} bottomOffset={70}>
+            {isGym ? (
+              <>
+                <TextInput testID="client-first-name" accessibilityLabel={it ? "Nome" : "First name"} value={draft.firstName ?? ""} onChangeText={(value) => setField("firstName", value)} placeholder={it ? "Nome *" : "First name *"} placeholderTextColor={c.mutedForeground} style={s.input} />
+                <TextInput testID="client-last-name" accessibilityLabel={it ? "Cognome" : "Last name"} value={draft.lastName ?? ""} onChangeText={(value) => setField("lastName", value)} placeholder={it ? "Cognome *" : "Last name *"} placeholderTextColor={c.mutedForeground} style={s.input} />
+                <TextInput testID="client-date-of-birth" accessibilityLabel={it ? "Data di nascita" : "Date of birth"} value={draft.dateOfBirth ?? ""} onChangeText={(value) => setField("dateOfBirth", value)} placeholder={it ? "Data di nascita (AAAA-MM-GG)" : "Date of birth (YYYY-MM-DD)"} placeholderTextColor={c.mutedForeground} style={s.input} />
+                <TextInput testID="client-membership-number" accessibilityLabel={it ? "Numero tessera" : "Membership number"} value={draft.membershipNumber ?? ""} onChangeText={(value) => setField("membershipNumber", value)} placeholder={it ? "Numero tessera" : "Membership number"} placeholderTextColor={c.mutedForeground} style={s.input} />
+              </>
+            ) : (
+              <>
+                <TextInput testID="client-name" accessibilityLabel={it ? "Nome cliente" : "Client name"} value={draft.name} onChangeText={(value) => setField("name", value)} placeholder={it ? "Nome cliente *" : "Client name *"} placeholderTextColor={c.mutedForeground} style={s.input} />
+                <TextInput testID="client-alias" accessibilityLabel={it ? "Alias" : "Alias"} value={draft.alias ?? ""} onChangeText={(value) => setField("alias", value)} placeholder="Alias" placeholderTextColor={c.mutedForeground} style={s.input} />
+                <TextInput testID="client-vat-number" accessibilityLabel={it ? "Partita IVA" : "VAT number"} value={draft.vatNumber ?? ""} onChangeText={(value) => setField("vatNumber", value)} placeholder={it ? "Partita IVA" : "VAT number"} placeholderTextColor={c.mutedForeground} style={s.input} />
+              </>
+            )}
+            <TextInput testID="client-tax-code" accessibilityLabel={it ? "Codice fiscale" : "Tax code"} value={draft.taxCode ?? ""} onChangeText={(value) => setField("taxCode", value)} placeholder={it ? "Codice fiscale" : "Tax code"} placeholderTextColor={c.mutedForeground} style={s.input} />
+            <TextInput testID="client-address" accessibilityLabel={it ? "Indirizzo" : "Address"} value={draft.address ?? ""} onChangeText={(value) => setField("address", value)} placeholder={it ? "Indirizzo" : "Address"} placeholderTextColor={c.mutedForeground} style={s.input} />
+            {!isGym && <TextInput testID="client-pec" accessibilityLabel="PEC" value={draft.pec ?? ""} onChangeText={(value) => setField("pec", value)} placeholder="PEC" autoCapitalize="none" placeholderTextColor={c.mutedForeground} style={s.input} />}
+            {!isGym && <TextInput testID="client-contact-person" accessibilityLabel={it ? "Referente" : "Contact person"} value={draft.contactPerson ?? ""} onChangeText={(value) => setField("contactPerson", value)} placeholder={it ? "Referente" : "Contact person"} placeholderTextColor={c.mutedForeground} style={s.input} />}
+            <TextInput testID="client-email" accessibilityLabel="Email" value={draft.email ?? ""} onChangeText={(value) => setField("email", value)} placeholder="Email" keyboardType="email-address" autoCapitalize="none" placeholderTextColor={c.mutedForeground} style={s.input} />
+            <TextInput testID="client-phone" accessibilityLabel={it ? "Telefono" : "Phone"} value={draft.phone ?? ""} onChangeText={(value) => setField("phone", value)} placeholder={it ? (isGym ? "Cellulare" : "Telefono") : (isGym ? "Mobile phone" : "Phone")} keyboardType="phone-pad" placeholderTextColor={c.mutedForeground} style={s.input} />
+            {!isGym && <TextInput testID="client-notes" accessibilityLabel={it ? "Note cliente" : "Client notes"} value={draft.notes ?? ""} onChangeText={(value) => setField("notes", value)} placeholder={it ? "Note cliente" : "Client notes"} multiline numberOfLines={4} textAlignVertical="top" placeholderTextColor={c.mutedForeground} style={[s.input, s.notesInput]} />}
+          </KeyboardAwareScrollViewCompat>
+          <View style={s.actions}>
+            <Pressable testID="client-edit-cancel" onPress={() => setFormOpen(false)} style={s.cancel}><Text style={s.cancelText}>{it ? "Annulla" : "Cancel"}</Text></Pressable>
+            <Pressable testID="client-edit-save" onPress={() => void save()} disabled={saving || (isGym ? (!draft.firstName?.trim() || !draft.lastName?.trim()) : !draft.name.trim())} style={s.save}><Text style={s.saveText}>{saving ? "…" : (it ? "Salva" : "Save")}</Text></Pressable>
+          </View>
+        </View>
+      </View>
     </Modal>
   </View>;
 }
@@ -194,7 +288,8 @@ const styles = (c: ReturnType<typeof useColors>) => StyleSheet.create({
   main: { flex: 1, gap: 2, minWidth: 0 },
   name: { color: c.foreground, fontSize: 15, lineHeight: 20, fontFamily: "Inter_600SemiBold", flexShrink: 1 }, secondary: { color: c.mutedForeground, fontSize: 12, lineHeight: 16, flexShrink: 1 },
   edit: { width: 44, height: 44, alignItems: "center", justifyContent: "center" }, muted: { color: c.mutedForeground, fontSize: 13 },
-  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", padding: 20 }, modal: { backgroundColor: c.card, borderRadius: 18, padding: 18, gap: 12 },
-  modalTitle: { color: c.foreground, fontSize: 19, fontFamily: "Inter_700Bold" }, input: { borderWidth: 1, borderColor: c.border, backgroundColor: c.background, borderRadius: 10, color: c.foreground, paddingHorizontal: 12, paddingVertical: 11 },
+  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", padding: 20 }, modal: { backgroundColor: c.card, borderRadius: 18, padding: 18, gap: 12, maxHeight: "92%" },
+  modalTitle: { color: c.foreground, fontSize: 19, fontFamily: "Inter_700Bold" }, formScroll: { flexGrow: 1, flexShrink: 1 }, formFields: { gap: 12, paddingBottom: 4 }, input: { borderWidth: 1, borderColor: c.border, backgroundColor: c.background, borderRadius: 10, color: c.foreground, paddingHorizontal: 12, paddingVertical: 11 },
+  notesInput: { minHeight: 96 },
   actions: { flexDirection: "row", justifyContent: "flex-end", gap: 10 }, cancel: { padding: 12 }, cancelText: { color: c.foreground }, save: { backgroundColor: c.primary, borderRadius: 10, paddingHorizontal: 18, justifyContent: "center" }, saveText: { color: c.primaryForeground, fontFamily: "Inter_600SemiBold" },
 });

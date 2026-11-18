@@ -235,6 +235,10 @@ vi.mock("@workspace/api-client-react", () => ({
   }),
 }));
 vi.mock("@expo/vector-icons", () => ({ Feather: () => null }));
+vi.mock("@/components/KeyboardAwareScrollViewCompat", () => ({
+  KeyboardAwareScrollViewCompat: ({ children, ...props }: Record<string, any>) =>
+    React.createElement("div", props, children),
+}));
 vi.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));

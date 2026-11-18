@@ -13,7 +13,23 @@ const mocks = vi.hoisted(() => ({
   clientsError: false,
   language: "it" as "it" | "en",
   fontScale: 1,
-  clients: [] as Array<{ id: number; name: string; alias?: string | null; email?: string | null; phone?: string | null; address?: string | null }>,
+  clients: [] as Array<{
+    id: number;
+    name: string;
+    firstName?: string | null;
+    lastName?: string | null;
+    dateOfBirth?: string | null;
+    membershipNumber?: string | null;
+    alias?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    vatNumber?: string | null;
+    taxCode?: string | null;
+    address?: string | null;
+    pec?: string | null;
+    contactPerson?: string | null;
+    notes?: string | null;
+  }>,
   client: { id: 1, name: "Studio Alfa", email: "info@studioalfa.it", notes: undefined as string | undefined },
   clientNotes: [] as Array<Record<string, unknown>>,
   clientNoteDeclaratives: [] as Array<{ id: string; name: string; alias: string }>,
@@ -118,6 +134,10 @@ vi.mock("react-native", async () => {
 });
 
 vi.mock("@expo/vector-icons", () => ({ Feather: () => null }));
+vi.mock("@/components/KeyboardAwareScrollViewCompat", () => ({
+  KeyboardAwareScrollViewCompat: ({ children, ...props }: Record<string, any>) =>
+    React.createElement("div", props, children),
+}));
 vi.mock("expo-router", () => ({
   Stack: {
     Screen: ({ options }: { options?: { title?: string } }) => options?.title
@@ -485,26 +505,91 @@ describe("mobile clients screen", () => {
 
   it("opens the admin edit form with current values and saves changes", async () => {
     mocks.settings = { clientsEnabled: true, profession: null };
-    mocks.clients = [{ id: 1, name: "Studio Alfa", email: "info@studioalfa.it", phone: "0123456789" }];
+    mocks.clients = [{
+      id: 1,
+      name: "Studio Alfa",
+      alias: "Amministrazione",
+      email: "info@studioalfa.it",
+      phone: "0123456789",
+      vatNumber: "IT12345678901",
+      taxCode: "RSSMRA80A01H501U",
+      address: "Via Roma 1",
+      pec: "studio@pec.it",
+      contactPerson: "Mario Rossi",
+      notes: "Richiamare domani",
+    }];
 
     await renderScreen();
     const edit = host.querySelector<HTMLButtonElement>('[data-testid="client-edit-1"]');
     expect(edit?.getAttribute("accessibilitylabel")).toBe("Modifica Studio Alfa");
     await act(async () => edit?.click());
 
-    const name = host.querySelector<HTMLInputElement>('input[placeholder="Nome cliente *"]');
-    const email = host.querySelector<HTMLInputElement>('input[placeholder="Email"]');
+    const name = host.querySelector<HTMLInputElement>('[data-testid="client-name"]');
+    const email = host.querySelector<HTMLInputElement>('[data-testid="client-email"]');
     expect(name?.value).toBe("Studio Alfa");
     expect(email?.value).toBe("info@studioalfa.it");
+    expect(host.querySelector<HTMLInputElement>('[data-testid="client-alias"]')?.value).toBe("Amministrazione");
+    expect(host.querySelector<HTMLInputElement>('[data-testid="client-vat-number"]')?.value).toBe("IT12345678901");
+    expect(host.querySelector<HTMLInputElement>('[data-testid="client-tax-code"]')?.value).toBe("RSSMRA80A01H501U");
+    expect(host.querySelector<HTMLInputElement>('[data-testid="client-address"]')?.value).toBe("Via Roma 1");
+    expect(host.querySelector<HTMLInputElement>('[data-testid="client-pec"]')?.value).toBe("studio@pec.it");
+    expect(host.querySelector<HTMLInputElement>('[data-testid="client-contact-person"]')?.value).toBe("Mario Rossi");
+    expect(host.querySelector<HTMLInputElement>('[data-testid="client-notes"]')?.value).toBe("Richiamare domani");
 
     const save = Array.from(host.querySelectorAll("button")).find(button => button.textContent?.includes("Salva"));
     await act(async () => save?.click());
     expect(mocks.apiPatch).toHaveBeenCalledWith("/clients/1", {
       name: "Studio Alfa",
+      firstName: null,
+      lastName: null,
+      dateOfBirth: null,
+      membershipNumber: null,
+      alias: "Amministrazione",
       email: "info@studioalfa.it",
       phone: "0123456789",
+      vatNumber: "IT12345678901",
+      taxCode: "RSSMRA80A01H501U",
+      address: "Via Roma 1",
+      pec: "studio@pec.it",
+      contactPerson: "Mario Rossi",
+      notes: "Richiamare domani",
     });
     expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["mobile-clients", 7] });
+  });
+
+  it("uses member details when editing a gym client", async () => {
+    mocks.settings = { clientsEnabled: true, profession: "palestre" };
+    mocks.clients = [{
+      id: 1,
+      name: "Ada Lovelace",
+      dateOfBirth: "1990-12-10",
+      membershipNumber: "GYM-12",
+      email: "ada@example.com",
+      phone: "3331234567",
+      taxCode: "LVLDRA90T50F205X",
+      address: "Via Roma 2",
+    }];
+
+    await renderScreen();
+    await act(async () => host.querySelector<HTMLButtonElement>('[data-testid="client-edit-1"]')?.click());
+
+    expect(host.querySelector<HTMLInputElement>('[data-testid="client-first-name"]')?.value).toBe("Ada");
+    expect(host.querySelector<HTMLInputElement>('[data-testid="client-last-name"]')?.value).toBe("Lovelace");
+    expect(host.querySelector<HTMLInputElement>('[data-testid="client-date-of-birth"]')?.value).toBe("1990-12-10");
+    expect(host.querySelector<HTMLInputElement>('[data-testid="client-membership-number"]')?.value).toBe("GYM-12");
+    expect(host.querySelector('[data-testid="client-vat-number"]')).toBeNull();
+    expect(host.querySelector('[data-testid="client-pec"]')).toBeNull();
+
+    await act(async () => host.querySelector<HTMLButtonElement>('[data-testid="client-edit-save"]')?.click());
+    expect(mocks.apiPatch).toHaveBeenCalledWith("/clients/1", expect.objectContaining({
+      name: "Ada Lovelace",
+      firstName: "Ada",
+      lastName: "Lovelace",
+      dateOfBirth: "1990-12-10",
+      membershipNumber: "GYM-12",
+      taxCode: "LVLDRA90T50F205X",
+      address: "Via Roma 2",
+    }));
   });
 
   it.each([
@@ -567,8 +652,19 @@ describe("mobile clients screen", () => {
     expect(mocks.apiPatch).toHaveBeenCalledTimes(2);
     expect(mocks.apiPatch).toHaveBeenLastCalledWith("/clients/1", {
       name: "Studio Alfa aggiornato",
+      firstName: null,
+      lastName: null,
+      dateOfBirth: null,
+      membershipNumber: null,
+      alias: null,
       email: "nuovo@example.com",
       phone: "0987654321",
+      vatNumber: null,
+      taxCode: null,
+      address: null,
+      pec: null,
+      contactPerson: null,
+      notes: null,
     });
     expect(mocks.alert).toHaveBeenCalledTimes(1);
   });
