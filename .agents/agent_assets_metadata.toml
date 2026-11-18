@@ -156,3 +156,17 @@ mtime_ms = 1794988845474
 storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:4a1856fa-6903-4237-b73c-7ebbcebc75f6/1502ff6f-ee1e-43d2-be93-1857371791e6/6e91dc75-a29b-41f8-b7cd-226a723b6123"
 storage_version_token = "1794988860876235"
 content_type = "image/png"
+
+[[outputs]]
+id = "MELucXVl1xsvqws-WrD3d"
+uri = "file://attached_assets/generated_images/taskdesk-google-play-feature.jpg"
+type = "image"
+title = "TaskDesk — immagine in primo piano Google Play"
+description = "Grafica promozionale 1024 × 500 px in JPEG, pronta per la scheda dello Store. Include il marchio TaskDesk e un’illustrazione concettuale dell’organizzazione delle richieste."
+logical_id = "ae8ceae1-9f54-4a52-b5fe-098259b3d947"
+content_hash = "sha256:42963d888cca17bc3b8c440b6ff9180f50b232e827fb38414c88cc12041d7351"
+size = 133709
+mtime_ms = 1794996099852
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:4a1856fa-6903-4237-b73c-7ebbcebc75f6/ae8ceae1-9f54-4a52-b5fe-098259b3d947/3c7c0ece-2d2c-47b5-b1da-62ae29903b91"
+storage_version_token = "1794996119791793"
+content_type = "image/jpeg"
