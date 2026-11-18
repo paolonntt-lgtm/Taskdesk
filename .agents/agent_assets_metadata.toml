@@ -170,3 +170,59 @@ mtime_ms = 1794996099852
 storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:4a1856fa-6903-4237-b73c-7ebbcebc75f6/ae8ceae1-9f54-4a52-b5fe-098259b3d947/3c7c0ece-2d2c-47b5-b1da-62ae29903b91"
 storage_version_token = "1794996119791793"
 content_type = "image/jpeg"
+
+[[outputs]]
+id = "yk8rIVFiFQ8jtwdnsAQLB"
+uri = "file://attached_assets/generated_images/taskdesk-play-dashboard.jpg"
+type = "image"
+title = "TaskDesk Play — Dashboard"
+description = "Screenshot 1080 × 1920 JPEG; nomi e attività recenti anonimizzati."
+logical_id = "56df9e0d-2ce9-43ac-bfea-14935d2cdc20"
+content_hash = "sha256:e2fc6285850216248cff9e09c7eecd52cd6b610fd6b4b31f39e73e24809ee63f"
+size = 175855
+mtime_ms = 1794997683772
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:4a1856fa-6903-4237-b73c-7ebbcebc75f6/56df9e0d-2ce9-43ac-bfea-14935d2cdc20/bd1cdaf6-c7b1-4cac-86db-9ae5075feb87"
+storage_version_token = "1794997708559541"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "XEbUn4lcpvEbntCPnIqO7"
+uri = "file://attached_assets/generated_images/taskdesk-play-tickets.jpg"
+type = "image"
+title = "TaskDesk Play — Ticket"
+description = "Screenshot 1080 × 1920 JPEG; nomi di clienti e collaboratori oscurati."
+logical_id = "0d71243f-d9c2-49cb-aca0-6e820abe8841"
+content_hash = "sha256:aeec629f8bf6273fd894e8e7f66fda618b9c85e5ba5b3c0115371a2f04874d93"
+size = 144728
+mtime_ms = 1794997647812
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:4a1856fa-6903-4237-b73c-7ebbcebc75f6/0d71243f-d9c2-49cb-aca0-6e820abe8841/92628190-c60f-4e14-a3ea-b6de569f0da2"
+storage_version_token = "1794997709205169"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "n9VYFLMzbDmyrVTmTR_pT"
+uri = "file://attached_assets/generated_images/taskdesk-play-ticket-detail.jpg"
+type = "image"
+title = "TaskDesk Play — Dettaglio ticket"
+description = "Screenshot 1080 × 1920 JPEG; titolo cliente e commenti interni oscurati."
+logical_id = "cac6b428-6605-4a0b-ab55-15f25733fb62"
+content_hash = "sha256:7a1dffe067a3e60d0eb72b2df150583aca3ca1ad26f38a0cf15c53c625f99e7f"
+size = 195145
+mtime_ms = 1794997643648
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:4a1856fa-6903-4237-b73c-7ebbcebc75f6/cac6b428-6605-4a0b-ab55-15f25733fb62/b6446b76-1f7d-4f3e-9d86-118bee74a059"
+storage_version_token = "1794997709823227"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "IGWv8cUpJWjn72V0aPI_j"
+uri = "file://attached_assets/generated_images/taskdesk-play-calendar.jpg"
+type = "image"
+title = "TaskDesk Play — Calendario"
+description = "Screenshot 1080 × 1920 JPEG; schermata calendario autentica."
+logical_id = "00f7f1a6-b381-4368-aeb3-ce6ec90b94a2"
+content_hash = "sha256:dae2f0a9115284e551c26c022bdf4d92eeb9066ef093ea46ae6e1547b785fff6"
+size = 163537
+mtime_ms = 1794997641216
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:4a1856fa-6903-4237-b73c-7ebbcebc75f6/00f7f1a6-b381-4368-aeb3-ce6ec90b94a2/de62d1b3-c493-4563-830b-9293293e45ee"
+storage_version_token = "1794997710456554"
+content_type = "image/jpeg"
