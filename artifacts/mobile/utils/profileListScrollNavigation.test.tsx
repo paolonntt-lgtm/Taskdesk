@@ -86,12 +86,14 @@ vi.mock("react-native", async () => {
     FlatList: ({
       data,
       renderItem,
+      testID,
     }: {
       data: unknown[];
       renderItem: (args: { item: unknown }) => React.ReactNode;
+      testID?: string;
     }) => element(
       "div",
-      { "data-testid": "tickets-list", style: { maxHeight: 120, overflowY: "auto" } },
+      { "data-testid": testID ?? "tickets-list", style: { maxHeight: 120, overflowY: "auto" } },
       ...data.map((item, index) =>
         element(ReactModule.Fragment, { key: index }, renderItem({ item })),
       ),

@@ -72,7 +72,31 @@ vi.mock("react-native", async () => {
   return {
     ActivityIndicator: () => null,
     Alert: { alert: mocks.alert },
+    FlatList: (props: {
+      data: Array<{ id: number }>;
+      renderItem: (info: { item: { id: number }; index: number }) => React.ReactNode;
+      initialNumToRender?: number;
+      maxToRenderPerBatch?: number;
+      windowSize?: number;
+      ListHeaderComponent?: React.ReactNode;
+      ListEmptyComponent?: React.ReactNode;
+      testID?: string;
+    }) => element(
+      "div",
+      {
+        "data-testid": props.testID ?? "mobile-clients-flat-list",
+        "data-initial-num-to-render": props.initialNumToRender,
+        "data-max-to-render-per-batch": props.maxToRenderPerBatch,
+        "data-window-size": props.windowSize,
+        "data-item-count": props.data.length,
+      },
+      props.ListHeaderComponent,
+      ...props.data.slice(0, props.initialNumToRender ?? 10)
+        .map((item, index) => props.renderItem({ item, index })),
+      props.data.length === 0 ? props.ListEmptyComponent : null,
+    ),
     Modal: component("div"),
+    Platform: { OS: "ios" },
     Pressable: component("button"),
     ScrollView: component("div"),
     StyleSheet: { create: (styles: unknown) => styles },
@@ -749,5 +773,22 @@ describe("mobile clients screen", () => {
 
     expect(mocks.createClientNote).not.toHaveBeenCalled();
     expect(host.textContent).toContain("è disponibile solo per i consulenti del lavoro.");
+  });
+
+  it("virtualizes large client lists while retaining the full filtered data set", async () => {
+    mocks.settings = { clientsEnabled: true, profession: null };
+    mocks.clients = Array.from({ length: 1000 }, (_, index) => ({
+      id: index + 1,
+      name: `Client ${index + 1}`,
+      email: `client${index + 1}@example.com`,
+    }));
+    await renderScreen();
+
+    const list = host.querySelector('[data-testid="clients-list"]');
+    expect(list?.getAttribute("data-item-count")).toBe("1000");
+    expect(list?.getAttribute("data-initial-num-to-render")).toBe("10");
+    expect(list?.getAttribute("data-max-to-render-per-batch")).toBe("8");
+    expect(list?.getAttribute("data-window-size")).toBe("7");
+    expect(host.querySelectorAll('[data-testid^="client-row-"]')).toHaveLength(10);
   });
 });
