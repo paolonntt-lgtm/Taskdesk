@@ -9,6 +9,8 @@ Organizations with clients enabled can configure declaratives with a display nam
 
 Only the built-in yearly categories are restricted to organizations whose labor-consultant profession is recorded during registration/onboarding or explicitly selected later by an organization admin. Existing organizations are not inferred or automatically backfilled. Custom declaratives are available to any organization with client management enabled.
 
+For legacy notes saved with a bare `declarative:<id>` category, derive the display year from the note's creation date in Europe/Rome, resolve the ID case-insensitively against the organization's configured declaratives, and never show the raw ID.
+
 **Why:** The user requested yearly cards even for custom hashtags, current-year defaults when no year is written, and profession-specific default declaratives without losing existing CU/770 behavior.
 
-**How to apply:** Persist built-in normalized two-digit codes and custom `declarative:<id>:<yy>` values; validate IDs against the organization's settings; allow only admins to edit settings; prevent removal while referenced; keep category-only notes free of a month override; and continue parsing explicit month hashtags independently.
+**How to apply:** Persist built-in normalized two-digit codes and custom `declarative:<id>:<yy>` values; validate IDs against the organization's settings; allow only admins to edit settings; prevent removal while referenced; keep category-only notes free of a month override; continue parsing explicit month hashtags independently; and render legacy bare declaratives with their configured name and creation year.

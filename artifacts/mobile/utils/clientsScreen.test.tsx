@@ -464,6 +464,36 @@ describe("mobile clients screen", () => {
     expect(host.querySelector('[data-testid="client-note-month-2026-12"]')).toBeNull();
   });
 
+  it("shows the configured name for legacy declarative categories without a year", async () => {
+    mocks.settings = { clientsEnabled: true, profession: "commercialisti" };
+    const declarativeId = "85f12b88-0460-4933-a4d1-94c3a40290d6";
+    mocks.clientNoteDeclaratives = [{
+      id: declarativeId,
+      name: "Dichiarazione dei Redditi",
+      alias: "#REDDITI",
+    }];
+    mocks.clientNotes = [{
+      id: 32,
+      clientId: 1,
+      organizationId: 7,
+      authorId: 5,
+      authorName: "Ada Lovelace",
+      body: "Documenti fiscali",
+      checklist: null,
+      categories: [`Declarative:${declarativeId.toUpperCase()}`],
+      createdAt: "2026-11-04T13:35:00.000Z",
+      updatedAt: "2026-11-04T13:35:00.000Z",
+    }];
+    await renderDetailScreen();
+
+    const categoryCard = host.querySelector(
+      `[data-testid="client-note-category-declarative:${declarativeId}:26"]`,
+    );
+    expect(categoryCard?.textContent).toContain("Dichiarazione dei Redditi 2026");
+    expect(categoryCard?.textContent).toContain("Documenti fiscali");
+    expect(categoryCard?.textContent).not.toContain(declarativeId);
+  });
+
   it("does not save built-in category tags for other professions", async () => {
     mocks.settings = { clientsEnabled: true, profession: "commercialisti" };
     await renderDetailScreen();

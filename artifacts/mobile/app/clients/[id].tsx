@@ -123,9 +123,13 @@ export default function ClientDetailScreen() {
         monthGroups.set(monthKey, group);
       }
       for (const category of categories) {
-        const group = categoryGroups.get(category) ?? [];
+        const customCategory = /^declarative:([0-9a-f-]{36})(?::(\d{2}|\d{4}))?$/i.exec(category);
+        const normalizedCategory = customCategory
+          ? `declarative:${customCategory[1].toLowerCase()}:${customCategory[2] ?? getClientNoteMonthKey(null, note.createdAt).slice(2, 4)}`
+          : category;
+        const group = categoryGroups.get(normalizedCategory) ?? [];
         group.push(note);
-        categoryGroups.set(category, group);
+        categoryGroups.set(normalizedCategory, group);
       }
     }
 
@@ -143,14 +147,14 @@ export default function ClientDetailScreen() {
     const categories = [...categoryGroups.entries()]
       .map(([category, notes]) => {
         const builtIn = /^(CU|770)(\d{2})$/.exec(category);
-        const custom = /^declarative:([0-9a-f-]{36}):(\d{2})$/i.exec(category);
+        const custom = /^declarative:([0-9a-f-]{36}):(\d{2}|\d{4})$/i.exec(category);
         const customName = custom
-          ? declaratives.find((item) => item.id === custom[1])?.name
+          ? declaratives.find((item) => item.id.toLowerCase() === custom[1].toLowerCase())?.name
           : null;
         const label = builtIn
           ? `${builtIn[1]} ${2000 + Number(builtIn[2])}`
           : custom
-            ? `${customName ?? (it ? "Dichiarativo" : "Declaration")} ${2000 + Number(custom[2])}`
+            ? `${customName ?? (it ? "Dichiarativo" : "Declaration")} ${custom[2].length === 2 ? 2000 + Number(custom[2]) : custom[2]}`
             : category;
         return {
           type: "category" as const,
