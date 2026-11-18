@@ -6,9 +6,7 @@ defaults:
     pnpm: "10.26.1"
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch: {}
 
 jobs:
   build_android_production:
