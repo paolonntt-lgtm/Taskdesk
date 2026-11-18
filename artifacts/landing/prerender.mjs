@@ -234,7 +234,7 @@ async function writeRoute(routePath, isLandingPage = false, isProfessionPage = f
   // Start from the template with all dynamic head tags stripped.
   // The route component's <Helmet> output will be the single source of truth.
   const template = readTemplate();
-  const isLegalPage = /^\/it\/(privacy-policy|terms|dpa|cookie-policy)\/?$/.test(routePath);
+  const isLegalPage = /^\/(?:it|en)\/(privacy-policy|terms|dpa|cookie-policy|account-deletion)\/?$/.test(routePath);
   let html = stripDynamicHeadTags(template, isLandingPage || isProfessionPage || isLegalPage);
 
   const lang = languageOverride ?? (routePath.startsWith('/en') ? 'en' : 'it');
@@ -293,16 +293,18 @@ for (const profession of professionIds) {
 }
 
 const legalPages = [
-  { slug: 'privacy-policy' },
-  { slug: 'terms' },
-  { slug: 'dpa' },
-  { slug: 'cookie-policy' },
+  { lang: 'it', slug: 'privacy-policy' },
+  { lang: 'it', slug: 'terms' },
+  { lang: 'it', slug: 'dpa' },
+  { lang: 'it', slug: 'cookie-policy' },
+  { lang: 'it', slug: 'account-deletion' },
+  { lang: 'en', slug: 'account-deletion' },
 ];
 
-// Legal pages only exist in Italian. stripDynamicHeadTags removes the
-// template's head tags; the component's <Helmet> is the sole source of truth.
+// Legal pages are prerendered in their available languages. stripDynamicHeadTags
+// removes template head tags; each page's Helmet output is the source of truth.
 for (const page of legalPages) {
-  await writeRoute(`/it/${page.slug}`, false);
+  await writeRoute(`/${page.lang}/${page.slug}`, false, false, page.lang);
 }
 
 // Shared English error document, served with HTTP 404 for any unknown route.

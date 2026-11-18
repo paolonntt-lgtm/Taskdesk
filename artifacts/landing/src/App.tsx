@@ -15,6 +15,7 @@ import ProfessionLanding from "@/pages/ProfessionLanding";
 import { getProfessionPageProps } from "@/profession-routes";
 import { getProfessionalCampaign } from "@/lib/analytics";
 import { AndroidAppPrompt } from "@/components/AndroidAppPrompt";
+import AccountDeletion from "@/pages/AccountDeletion";
 
 const queryClient = new QueryClient();
 
@@ -68,6 +69,7 @@ function ItPageRoutes() {
       <Route path="/terms" component={TermsOfService} />
       <Route path="/dpa" component={DPA} />
       <Route path="/cookie-policy" component={CookiePolicy} />
+      <Route path="/account-deletion" component={AccountDeletion} />
       <Route path="/commercialista">
         <ProfessionalPage profession="commercialisti" />
       </Route>
@@ -125,6 +127,7 @@ function EnPageRoutes() {
       <Route path="/cookie-policy">
         <EnLegalRedirect suffix="/cookie-policy" />
       </Route>
+      <Route path="/account-deletion" component={AccountDeletion} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -153,6 +156,9 @@ function Router() {
       </Route>
       <Route path="/cookie-policy">
         <LangRedirect suffix="/cookie-policy" />
+      </Route>
+      <Route path="/account-deletion">
+        <LangRedirect suffix="/account-deletion" />
       </Route>
       <Route component={NotFound} />
     </Switch>

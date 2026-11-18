@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LanguageProvider } from "@/i18n";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { AndroidAppPrompt } from "@/components/AndroidAppPrompt";
+import AccountDeletion from "./AccountDeletion";
 import { PROFESSION_IDS, PROFESSION_SLUGS } from "../profession-routes";
 import Landing from "./Landing";
 
@@ -95,7 +96,7 @@ describe("public visitor controls", () => {
     expect(copy.classList.contains("text-gray-600")).toBe(true);
     expect(copy.classList.contains("text-gray-400")).toBe(false);
     const controls = [...footer.querySelectorAll("a, button")];
-    expect(controls).toHaveLength(5);
+    expect(controls).toHaveLength(6);
     for (const control of controls) {
       expect(control.textContent?.trim()).toBeTruthy();
       expect(control.classList.contains("text-gray-600")).toBe(true);
@@ -106,6 +107,8 @@ describe("public visitor controls", () => {
     const cookieButton = footer.querySelector("button")!;
     expect(cookieButton.textContent?.trim())
       .toBe(lang === "it" ? "Preferenze cookie" : "Cookie preferences");
+    expect(footer.querySelector('[data-testid="link-account-deletion"]')?.getAttribute("href"))
+      .toBe("/account-deletion");
     const openSettings = vi.fn();
     window.addEventListener("td-open-cookie-settings", openSettings);
     try {
@@ -199,5 +202,23 @@ describe("public visitor controls", () => {
     });
     await act(async () => vi.advanceTimersByTime(5000));
     expect(container.querySelector('[data-testid="android-app-prompt"]')).toBeNull();
+  });
+
+  it.each(["it", "en"] as const)("provides a public account deletion request path in %s", async (lang) => {
+    window.history.replaceState({}, "", `/${lang}/`);
+    await act(async () => {
+      root.render(createElement(LanguageProvider, null, createElement(AccountDeletion)));
+    });
+
+    expect(container.textContent).toContain(
+      lang === "it" ? "Eliminazione account e dati" : "Account and data deletion",
+    );
+    expect(container.querySelector('[data-testid="link-open-taskdesk-for-deletion"]')?.getAttribute("href"))
+      .toBe("/app/");
+    expect(container.querySelector('[data-testid="link-account-deletion-email"]')?.getAttribute("href"))
+      .toContain("mailto:privacy@taskdesk.it");
+    expect(container.textContent).toContain(
+      lang === "it" ? "fatture" : "invoices",
+    );
   });
 });

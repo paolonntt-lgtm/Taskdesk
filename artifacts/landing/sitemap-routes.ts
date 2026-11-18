@@ -44,6 +44,7 @@ export const SITEMAP_ROUTE_META: Record<string, SitemapRouteMeta> = {
   // would be false language targeting.
   "/terms": { exclude: true },
   "/privacy-policy": { exclude: true },
+  "/account-deletion": { exclude: true },
   "/cookie-policy": { exclude: true },
   "/dpa": { exclude: true },
 };

@@ -22,12 +22,19 @@ function verifySocialPreview(document, lang, routePath) {
   }
 }
 
-for (const slug of ["privacy-policy", "terms", "dpa", "cookie-policy"]) {
+for (const slug of ["privacy-policy", "terms", "dpa", "cookie-policy", "account-deletion"]) {
   const routePath = `/it/${slug}`;
   const document = new JSDOM(readFileSync(resolve(publicDir, "it", slug, "index.html"), "utf8")).window.document;
   verifySocialPreview(document, "it", routePath);
   console.log(`✓ ${routePath} Italian social preview`);
 }
+const englishDeletionPage = new JSDOM(
+  readFileSync(resolve(publicDir, "en/account-deletion/index.html"), "utf8"),
+).window.document;
+verifySocialPreview(englishDeletionPage, "en", "/en/account-deletion");
+assert.ok(englishDeletionPage.body.textContent.includes("Account and data deletion"));
+assert.equal(englishDeletionPage.querySelector('meta[name="robots"]')?.content, "noindex, follow");
+console.log("✓ /en/account-deletion English social preview and request instructions");
 const errorDocument = new JSDOM(readFileSync(resolve(publicDir, "404/index.html"), "utf8")).window.document;
 assert.equal(errorDocument.documentElement.lang, "en", "The shared English 404 must declare English");
 assert.ok(errorDocument.body.textContent.includes("404 Page Not Found"));

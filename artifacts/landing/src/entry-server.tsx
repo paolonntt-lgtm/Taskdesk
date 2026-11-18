@@ -8,6 +8,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import DPA from "./pages/DPA";
 import CookiePolicy from "./pages/CookiePolicy";
+import AccountDeletion from "./pages/AccountDeletion";
 import NotFound from "./pages/not-found";
 import ProfessionLanding from "./pages/ProfessionLanding";
 import { PROFESSION_IDS, PROFESSION_SLUGS, getProfessionPageProps } from "./profession-routes";
@@ -28,6 +29,7 @@ function ItPageRoutes() {
       <Route path="/terms" component={TermsOfService} />
       <Route path="/dpa" component={DPA} />
       <Route path="/cookie-policy" component={CookiePolicy} />
+      <Route path="/account-deletion" component={AccountDeletion} />
       {PROFESSION_IDS.map((profession) => (
         <Route key={profession} path={`/${PROFESSION_SLUGS.it[profession]}`}>
           <ProfessionLanding {...getProfessionPageProps(profession)} />
@@ -41,6 +43,7 @@ function EnPageRoutes() {
   return (
     <Switch>
       <Route path="/" component={Landing} />
+      <Route path="/account-deletion" component={AccountDeletion} />
       {PROFESSION_IDS.map((profession) => (
         <Route key={profession} path={`/${PROFESSION_SLUGS.en[profession]}`}>
           <ProfessionLanding {...getProfessionPageProps(profession)} />
