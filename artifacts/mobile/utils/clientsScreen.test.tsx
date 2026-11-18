@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
   apiGet: vi.fn(),
   apiPatch: vi.fn(),
   apiPost: vi.fn(),
+  alert: vi.fn(),
   useQuery: vi.fn(),
   refetchSettings: vi.fn(),
   createClientNote: vi.fn(),
@@ -70,7 +71,7 @@ vi.mock("react-native", async () => {
     };
   return {
     ActivityIndicator: () => null,
-    Alert: { alert: vi.fn() },
+    Alert: { alert: mocks.alert },
     Modal: component("div"),
     Pressable: component("button"),
     ScrollView: component("div"),
@@ -168,6 +169,7 @@ describe("mobile clients screen", () => {
     mocks.apiGet.mockReset().mockResolvedValue([]);
     mocks.apiPatch.mockReset().mockResolvedValue({});
     mocks.apiPost.mockReset().mockResolvedValue({});
+    mocks.alert.mockReset();
     mocks.createClientNote.mockReset().mockResolvedValue({});
     mocks.updateClientNote.mockReset().mockResolvedValue({});
     mocks.deleteClientNote.mockReset().mockResolvedValue(undefined);
@@ -391,6 +393,72 @@ describe("mobile clients screen", () => {
       phone: "0123456789",
     });
     expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["mobile-clients", 7] });
+  });
+
+  it.each([
+    {
+      language: "it" as const,
+      title: "Errore",
+      message: "Impossibile salvare il cliente.",
+      namePlaceholder: "Nome cliente *",
+      phonePlaceholder: "Telefono",
+      saveLabel: "Salva",
+    },
+    {
+      language: "en" as const,
+      title: "Error",
+      message: "Could not save client.",
+      namePlaceholder: "Client name *",
+      phonePlaceholder: "Phone",
+      saveLabel: "Save",
+    },
+  ])("keeps edited client values and allows retry after a failed save ($language)", async ({
+    language,
+    title,
+    message,
+    namePlaceholder,
+    phonePlaceholder,
+    saveLabel,
+  }) => {
+    mocks.settings = { clientsEnabled: true, profession: null };
+    mocks.language = language;
+    mocks.clients = [{ id: 1, name: "Studio Alfa", email: "info@studioalfa.it", phone: "0123456789" }];
+    mocks.apiPatch.mockRejectedValueOnce(new Error("save failed"));
+
+    await renderScreen();
+    await act(async () => host.querySelector<HTMLButtonElement>('[data-testid="client-edit-1"]')?.click());
+
+    const name = host.querySelector<HTMLInputElement>(`input[placeholder="${namePlaceholder}"]`)!;
+    const email = host.querySelector<HTMLInputElement>('input[placeholder="Email"]')!;
+    const phone = host.querySelector<HTMLInputElement>(`input[placeholder="${phonePlaceholder}"]`)!;
+    const setInputValue = (input: HTMLInputElement, value: string) => {
+      const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      setValue?.call(input, value);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    };
+    await act(async () => {
+      setInputValue(name, "Studio Alfa aggiornato");
+      setInputValue(email, "nuovo@example.com");
+      setInputValue(phone, "0987654321");
+    });
+
+    const findSaveButton = () => Array.from(host.querySelectorAll("button"))
+      .find(button => button.textContent?.includes(saveLabel));
+    await act(async () => findSaveButton()?.click());
+
+    expect(mocks.alert).toHaveBeenCalledWith(title, message);
+    expect(name.value).toBe("Studio Alfa aggiornato");
+    expect(email.value).toBe("nuovo@example.com");
+    expect(phone.value).toBe("0987654321");
+
+    await act(async () => findSaveButton()?.click());
+    expect(mocks.apiPatch).toHaveBeenCalledTimes(2);
+    expect(mocks.apiPatch).toHaveBeenLastCalledWith("/clients/1", {
+      name: "Studio Alfa aggiornato",
+      email: "nuovo@example.com",
+      phone: "0987654321",
+    });
+    expect(mocks.alert).toHaveBeenCalledTimes(1);
   });
 
   it("shows the inactive-module message without requesting client details", async () => {
