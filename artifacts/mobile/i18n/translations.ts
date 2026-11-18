@@ -48,6 +48,13 @@ const it = {
     hoursReport: 'Rendiconto',
     profile: 'Profilo',
   },
+  clientList: {
+    title: 'Clienti',
+    addClient: 'Aggiungi cliente',
+    search: 'Cerca cliente',
+    editClient: 'Modifica',
+    openDetails: 'Apri dettagli',
+  },
   notifications: {
     title: 'Notifiche',
     markAllRead: 'Segna tutte lette',
@@ -615,6 +622,13 @@ const en: typeof it = {
     clients: 'Clients',
     hoursReport: 'Hours',
     profile: 'Profile',
+  },
+  clientList: {
+    title: 'Clients',
+    addClient: 'Add client',
+    search: 'Search clients',
+    editClient: 'Edit',
+    openDetails: 'Open details',
   },
   notifications: {
     title: 'Notifications',

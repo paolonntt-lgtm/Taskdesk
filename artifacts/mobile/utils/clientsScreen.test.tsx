@@ -2,6 +2,7 @@
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { router } from "expo-router";
 import ClientsScreen from "../app/clients";
 import ClientDetailScreen from "../app/clients/[id]";
 
@@ -9,12 +10,16 @@ const mocks = vi.hoisted(() => ({
   settings: { clientsEnabled: false, profession: null as string | null },
   settingsError: false,
   settingsRefetchError: false,
-  clients: [{ id: 1, name: "Studio Alfa", email: "info@studioalfa.it" }],
+  clientsError: false,
+  language: "it" as "it" | "en",
+  clients: [] as Array<{ id: number; name: string; alias?: string | null; email?: string | null; phone?: string | null; address?: string | null }>,
   client: { id: 1, name: "Studio Alfa", email: "info@studioalfa.it", notes: undefined as string | undefined },
   clientNotes: [] as Array<Record<string, unknown>>,
   clientNoteDeclaratives: [] as Array<{ id: string; name: string; alias: string }>,
   routeParams: { id: "1" },
   apiGet: vi.fn(),
+  apiPatch: vi.fn(),
+  apiPost: vi.fn(),
   useQuery: vi.fn(),
   refetchSettings: vi.fn(),
   createClientNote: vi.fn(),
@@ -87,12 +92,26 @@ vi.mock("@/hooks/useColors", () => ({
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({ user: { role: "admin", organizationId: 7 } }),
 }));
-vi.mock("@/contexts/LanguageContext", () => ({ useLanguage: () => ({ lang: "it" }) }));
+vi.mock("@/contexts/LanguageContext", () => ({
+  useLanguage: () => ({
+    lang: mocks.language,
+    t: {
+      tabs: { clients: mocks.language === "it" ? "Clienti" : "Clients" },
+      clientList: {
+        title: mocks.language === "it" ? "Clienti" : "Clients",
+        addClient: mocks.language === "it" ? "Aggiungi cliente" : "Add client",
+        search: mocks.language === "it" ? "Cerca cliente" : "Search clients",
+        editClient: mocks.language === "it" ? "Modifica" : "Edit",
+        openDetails: mocks.language === "it" ? "Apri dettagli" : "Open details",
+      },
+    },
+  }),
+}));
 vi.mock("@/utils/api", () => ({
   apiGet: mocks.apiGet,
   apiDelete: vi.fn(),
-  apiPatch: vi.fn(),
-  apiPost: vi.fn(),
+  apiPatch: mocks.apiPatch,
+  apiPost: mocks.apiPost,
 }));
 vi.mock("@tanstack/react-query", () => ({
   useQuery: mocks.useQuery,
@@ -120,12 +139,17 @@ describe("mobile clients screen", () => {
     mocks.settings.profession = null;
     mocks.settingsError = false;
     mocks.settingsRefetchError = false;
+    mocks.clientsError = false;
+    mocks.language = "it";
     mocks.refetchSettings.mockReset();
+    mocks.clients = [{ id: 1, name: "Studio Alfa", email: "info@studioalfa.it" }];
     mocks.client = { id: 1, name: "Studio Alfa", email: "info@studioalfa.it", notes: undefined };
     mocks.clientNotes = [];
     mocks.clientNoteDeclaratives = [];
     mocks.routeParams = { id: "1" };
     mocks.apiGet.mockReset().mockResolvedValue([]);
+    mocks.apiPatch.mockReset().mockResolvedValue({});
+    mocks.apiPost.mockReset().mockResolvedValue({});
     mocks.createClientNote.mockReset().mockResolvedValue({});
     mocks.updateClientNote.mockReset().mockResolvedValue({});
     mocks.deleteClientNote.mockReset().mockResolvedValue(undefined);
@@ -149,7 +173,7 @@ describe("mobile clients screen", () => {
         isError: key === "mobile-organization-settings" && mocks.settingsError,
         isRefetchError: key === "mobile-organization-settings" && mocks.settingsRefetchError,
         isLoading: false,
-        error: null,
+        error: key === "mobile-clients" && mocks.clientsError ? new Error("load failed") : null,
         refetch: key === "mobile-organization-settings" ? mocks.refetchSettings : vi.fn(),
       };
     });
@@ -220,6 +244,98 @@ describe("mobile clients screen", () => {
     ]);
     expect(host.textContent).toContain("Studio Alfa");
     expect(host.textContent).not.toContain("La gestione clienti non è attiva");
+  });
+
+  it("shows clear empty and load-error states", async () => {
+    mocks.settings = { clientsEnabled: true, profession: null };
+    mocks.clients = [];
+
+    await renderScreen();
+    expect(host.textContent).toContain("Nessun cliente trovato.");
+
+    mocks.clientsError = true;
+    await renderScreen();
+    expect(host.textContent).toContain("Impossibile caricare i clienti.");
+    expect(host.textContent).not.toContain("Nessun cliente trovato.");
+  });
+
+  it("uses English labels for the client list actions and search", async () => {
+    mocks.settings = { clientsEnabled: true, profession: null };
+    mocks.language = "en";
+
+    await renderScreen();
+
+    expect(host.textContent).toContain("Clients");
+    expect(host.querySelector<HTMLInputElement>('[data-testid="clients-search"]')?.placeholder).toBe("Search clients");
+    expect(host.querySelector('[data-testid="clients-add"]')?.getAttribute("accessibilitylabel")).toBe("Add client");
+  });
+
+  it("shows one useful secondary field and supports long names", async () => {
+    mocks.settings = { clientsEnabled: true, profession: null };
+    mocks.clients = [
+      { id: 1, name: "Studio Alfa", alias: "Amministrazione", email: "info@studioalfa.it", phone: "0123456789" },
+      { id: 2, name: "Studio con una denominazione professionale molto lunga senza alias", alias: null, email: null, phone: null, address: null },
+      { id: 3, name: "Studio Beta", alias: null, email: null, phone: "0123456789", address: "Via Roma 1" },
+    ];
+
+    await renderScreen();
+
+    expect(host.querySelector('[data-testid="client-secondary-1"]')?.textContent).toBe("Amministrazione");
+    expect(host.querySelector('[data-testid="client-secondary-1"]')?.textContent).not.toContain("info@studioalfa.it");
+    expect(host.querySelector('[data-testid="client-secondary-2"]')).toBeNull();
+    expect(host.querySelector('[data-testid="client-secondary-3"]')?.textContent).toBe("0123456789");
+    expect(host.querySelector('[data-testid="client-row-2"]')?.textContent).toContain(
+      "Studio con una denominazione professionale molto lunga senza alias",
+    );
+  });
+
+  it("filters clients and opens the selected detail", async () => {
+    mocks.settings = { clientsEnabled: true, profession: null };
+    mocks.clients = [
+      { id: 1, name: "Studio Alfa", email: "info@studioalfa.it" },
+      { id: 2, name: "Studio Beta", email: "info@studiobeta.it" },
+    ];
+    vi.mocked(router.push).mockClear();
+
+    await renderScreen();
+    const search = host.querySelector<HTMLInputElement>('[data-testid="clients-search"]');
+    expect(search).not.toBeNull();
+    await act(async () => {
+      const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      setValue?.call(search, "beta");
+      search!.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    expect(host.textContent).toContain("Studio Beta");
+    expect(host.textContent).not.toContain("Studio Alfa");
+
+    const row = host.querySelector<HTMLButtonElement>('[data-testid="client-row-2"]');
+    await act(async () => row?.click());
+    expect(router.push).toHaveBeenCalledWith("/clients/2");
+  });
+
+  it("opens the admin edit form with current values and saves changes", async () => {
+    mocks.settings = { clientsEnabled: true, profession: null };
+    mocks.clients = [{ id: 1, name: "Studio Alfa", email: "info@studioalfa.it", phone: "0123456789" }];
+
+    await renderScreen();
+    const edit = host.querySelector<HTMLButtonElement>('[data-testid="client-edit-1"]');
+    expect(edit?.getAttribute("accessibilitylabel")).toBe("Modifica Studio Alfa");
+    await act(async () => edit?.click());
+
+    const name = host.querySelector<HTMLInputElement>('input[placeholder="Nome cliente *"]');
+    const email = host.querySelector<HTMLInputElement>('input[placeholder="Email"]');
+    expect(name?.value).toBe("Studio Alfa");
+    expect(email?.value).toBe("info@studioalfa.it");
+
+    const save = Array.from(host.querySelectorAll("button")).find(button => button.textContent?.includes("Salva"));
+    await act(async () => save?.click());
+    expect(mocks.apiPatch).toHaveBeenCalledWith("/clients/1", {
+      name: "Studio Alfa",
+      email: "info@studioalfa.it",
+      phone: "0123456789",
+    });
+    expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["mobile-clients", 7] });
   });
 
   it("shows the inactive-module message without requesting client details", async () => {

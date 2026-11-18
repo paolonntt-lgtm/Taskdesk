@@ -274,6 +274,13 @@ vi.mock("@/contexts/LanguageContext", () => ({
         profile: "Profile",
         reports: "Reports",
       },
+      clientList: {
+        title: "Clients",
+        addClient: "Add client",
+        search: "Search clients",
+        editClient: "Edit",
+        openDetails: "Open details",
+      },
       profile: {
         settings: "Settings",
         languageLabel: "App language",
