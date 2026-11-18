@@ -105,8 +105,8 @@ export default function ClientsScreen() {
         onPress={() => router.push(`/clients/${client.id}`)}
       >
         <View style={s.main}>
-          <Text style={s.name} numberOfLines={2}>{client.name}</Text>
-          {secondary ? <Text testID={`client-secondary-${client.id}`} style={s.secondary} numberOfLines={1}>{secondary}</Text> : null}
+          <Text style={s.name} allowFontScaling>{client.name}</Text>
+          {secondary ? <Text testID={`client-secondary-${client.id}`} style={s.secondary} allowFontScaling>{secondary}</Text> : null}
         </View>
         {user?.role === "admin" && (
           <Pressable
@@ -142,8 +142,8 @@ const styles = (c: ReturnType<typeof useColors>) => StyleSheet.create({
   state: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 18, paddingHorizontal: 12 },
   searchInput: { flex: 1, color: c.foreground, paddingVertical: 8 }, card: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 64, paddingHorizontal: 12, paddingVertical: 9, backgroundColor: c.card, borderColor: c.border, borderWidth: 1, borderRadius: 12 },
   main: { flex: 1, gap: 2, minWidth: 0 },
-  name: { color: c.foreground, fontSize: 15, lineHeight: 20, fontFamily: "Inter_600SemiBold" }, secondary: { color: c.mutedForeground, fontSize: 12, lineHeight: 16 },
-  edit: { width: 36, height: 36, alignItems: "center", justifyContent: "center" }, muted: { color: c.mutedForeground, fontSize: 13 },
+  name: { color: c.foreground, fontSize: 15, lineHeight: 20, fontFamily: "Inter_600SemiBold", flexShrink: 1 }, secondary: { color: c.mutedForeground, fontSize: 12, lineHeight: 16, flexShrink: 1 },
+  edit: { width: 44, height: 44, alignItems: "center", justifyContent: "center" }, muted: { color: c.mutedForeground, fontSize: 13 },
   overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", padding: 20 }, modal: { backgroundColor: c.card, borderRadius: 18, padding: 18, gap: 12 },
   modalTitle: { color: c.foreground, fontSize: 19, fontFamily: "Inter_700Bold" }, input: { borderWidth: 1, borderColor: c.border, backgroundColor: c.background, borderRadius: 10, color: c.foreground, paddingHorizontal: 12, paddingVertical: 11 },
   actions: { flexDirection: "row", justifyContent: "flex-end", gap: 10 }, cancel: { padding: 12 }, cancelText: { color: c.foreground }, save: { backgroundColor: c.primary, borderRadius: 10, paddingHorizontal: 18, justifyContent: "center" }, saveText: { color: c.primaryForeground, fontFamily: "Inter_600SemiBold" },

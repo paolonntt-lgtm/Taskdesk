@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   settingsRefetchError: false,
   clientsError: false,
   language: "it" as "it" | "en",
+  fontScale: 1,
   clients: [] as Array<{ id: number; name: string; alias?: string | null; email?: string | null; phone?: string | null; address?: string | null }>,
   client: { id: 1, name: "Studio Alfa", email: "info@studioalfa.it", notes: undefined as string | undefined },
   clientNotes: [] as Array<Record<string, unknown>>,
@@ -31,20 +32,36 @@ const mocks = vi.hoisted(() => ({
 vi.mock("react-native", async () => {
   const ReactModule = await import("react");
   const element = ReactModule.createElement;
-  const component = (tag: string) =>
+  const component = (tag: string, scalesText = false) =>
     (props: Record<string, any>) => {
       const {
         testID,
         accessibilityRole,
         onPress,
         onChangeText,
-        style: _style,
+        style,
+        numberOfLines,
+        allowFontScaling,
         ...rest
       } = props;
+      const normalizedStyle = Array.isArray(style)
+        ? Object.assign({}, ...style.flat(Infinity).filter(Boolean))
+        : style;
+      const scale = scalesText && allowFontScaling !== false ? mocks.fontScale : 1;
+      const scaledStyle = scalesText && normalizedStyle && scale !== 1
+        ? {
+            ...normalizedStyle,
+            ...(typeof normalizedStyle.fontSize === "number" ? { fontSize: normalizedStyle.fontSize * scale } : {}),
+            ...(typeof normalizedStyle.lineHeight === "number" ? { lineHeight: normalizedStyle.lineHeight * scale } : {}),
+          }
+        : normalizedStyle;
       return element(tag, {
         ...rest,
         ...(testID ? { "data-testid": testID } : {}),
         ...(accessibilityRole ? { role: accessibilityRole } : {}),
+        ...(normalizedStyle ? { "data-rn-style": JSON.stringify(normalizedStyle) } : {}),
+        ...(numberOfLines ? { "data-number-of-lines": numberOfLines } : {}),
+        ...(scalesText ? { "data-font-scale": scale, style: scaledStyle } : normalizedStyle ? { style: normalizedStyle } : {}),
         ...(onPress ? { onClick: onPress } : {}),
         ...(onChangeText
           ? { onChange: (event: React.ChangeEvent<HTMLInputElement>) => onChangeText(event.target.value) }
@@ -58,7 +75,7 @@ vi.mock("react-native", async () => {
     Pressable: component("button"),
     ScrollView: component("div"),
     StyleSheet: { create: (styles: unknown) => styles },
-    Text: component("span"),
+    Text: component("span", true),
     TextInput: component("input"),
     View: component("div"),
   };
@@ -141,6 +158,7 @@ describe("mobile clients screen", () => {
     mocks.settingsRefetchError = false;
     mocks.clientsError = false;
     mocks.language = "it";
+    mocks.fontScale = 1;
     mocks.refetchSettings.mockReset();
     mocks.clients = [{ id: 1, name: "Studio Alfa", email: "info@studioalfa.it" }];
     mocks.client = { id: 1, name: "Studio Alfa", email: "info@studioalfa.it", notes: undefined };
@@ -286,6 +304,43 @@ describe("mobile clients screen", () => {
     expect(host.querySelector('[data-testid="client-secondary-3"]')?.textContent).toBe("0123456789");
     expect(host.querySelector('[data-testid="client-row-2"]')?.textContent).toContain(
       "Studio con una denominazione professionale molto lunga senza alias",
+    );
+  });
+
+  it("keeps client labels and the edit action readable at large text size on a narrow screen", async () => {
+    mocks.settings = { clientsEnabled: true, profession: null };
+    mocks.fontScale = 2;
+    mocks.clients = [{
+      id: 1,
+      name: "Studio con una denominazione professionale molto lunga senza alias",
+      email: "amministrazione.clienti@example.com",
+    }];
+    host.style.width = "320px";
+
+    await renderScreen();
+
+    const row = host.querySelector<HTMLElement>('[data-testid="client-row-1"]');
+    const name = row?.querySelector<HTMLElement>("span");
+    const secondary = host.querySelector<HTMLElement>('[data-testid="client-secondary-1"]');
+    const edit = host.querySelector<HTMLElement>('[data-testid="client-edit-1"]');
+    const rowStyle = JSON.parse(row?.getAttribute("data-rn-style") ?? "{}");
+    const editStyle = JSON.parse(edit?.getAttribute("data-rn-style") ?? "{}");
+
+    expect(host.style.width).toBe("320px");
+    expect(name?.textContent).toBe("Studio con una denominazione professionale molto lunga senza alias");
+    expect(name?.dataset.fontScale).toBe("2");
+    expect(name?.style.fontSize).toBe("30px");
+    expect(name?.hasAttribute("data-number-of-lines")).toBe(false);
+    expect(secondary?.textContent).toBe("amministrazione.clienti@example.com");
+    expect(secondary?.dataset.fontScale).toBe("2");
+    expect(secondary?.style.fontSize).toBe("24px");
+    expect(secondary?.hasAttribute("data-number-of-lines")).toBe(false);
+    expect(rowStyle.height).toBeUndefined();
+    expect(rowStyle.minHeight).toBe(64);
+    expect(editStyle.width).toBe(44);
+    expect(editStyle.height).toBe(44);
+    expect(edit?.getAttribute("accessibilitylabel")).toBe(
+      "Modifica Studio con una denominazione professionale molto lunga senza alias",
     );
   });
 
