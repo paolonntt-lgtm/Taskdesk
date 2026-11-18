@@ -381,6 +381,31 @@ vi.mock("@/utils/api", () => ({
     ["/api/users", teamScopeId, userId, "avatar"],
 }));
 vi.mock("@tanstack/react-query", () => ({
+  useInfiniteQuery: ({
+    queryKey,
+  }: {
+    queryKey: (string | number | boolean | undefined)[];
+  }) => {
+    if (queryKey[0] === "mobile-clients") {
+      return {
+        data: {
+          pages: [Array.from({ length: 30 }, (_, index) => ({
+            id: index + 1,
+            name: `Client ${index + 1}`,
+          }))],
+          pageParams: [0],
+        },
+        isLoading: false,
+        isRefetching: false,
+        isFetchingNextPage: false,
+        hasNextPage: false,
+        fetchNextPage: vi.fn(),
+        refetch: vi.fn(),
+        error: null,
+      };
+    }
+    return { data: { pages: [], pageParams: [] }, isLoading: false };
+  },
   useQuery: ({
     queryKey,
     queryFn,
