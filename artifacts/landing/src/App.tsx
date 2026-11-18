@@ -14,6 +14,7 @@ import { LanguageProvider } from "@/i18n";
 import ProfessionLanding from "@/pages/ProfessionLanding";
 import { getProfessionPageProps } from "@/profession-routes";
 import { getProfessionalCampaign } from "@/lib/analytics";
+import { AndroidAppPrompt } from "@/components/AndroidAppPrompt";
 
 const queryClient = new QueryClient();
 
@@ -166,6 +167,7 @@ function App() {
           <LanguageProvider>
             <Router />
             <CookieConsentBanner />
+            <AndroidAppPrompt />
           </LanguageProvider>
         </WouterRouter>
         <Toaster />

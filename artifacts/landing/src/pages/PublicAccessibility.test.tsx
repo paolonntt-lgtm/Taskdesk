@@ -3,6 +3,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LanguageProvider } from "@/i18n";
 import { InstallPrompt } from "@/components/InstallPrompt";
+import { AndroidAppPrompt } from "@/components/AndroidAppPrompt";
 import { PROFESSION_IDS, PROFESSION_SLUGS } from "../profession-routes";
 import Landing from "./Landing";
 
@@ -31,6 +32,18 @@ describe("public visitor controls", () => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
   });
+
+  const useUserAgent = (userAgent: string) => {
+    const mockNavigator = Object.create(window.navigator);
+    Object.defineProperty(mockNavigator, "userAgent", {
+      value: userAgent,
+      configurable: true,
+    });
+    vi.stubGlobal("navigator", mockNavigator);
+  };
+  const useAndroidPhone = () => useUserAgent(
+    "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit Mobile Safari",
+  );
 
   it.each(["it", "en"])("exposes the active billing cycle and updates prices in %s", async (lang) => {
     window.history.replaceState({}, "", `/${lang}/`);
@@ -141,5 +154,50 @@ describe("public visitor controls", () => {
     await act(async () => close.click());
     expect(container.querySelector("button[aria-label]")).toBeNull();
     expect(sessionStorage.getItem("taskdesk-install-dismissed")).toBe("1");
+  });
+
+  it("offers the Play Store app to Android phones when a store link is configured", async () => {
+    vi.useFakeTimers();
+    useAndroidPhone();
+    window.history.replaceState({}, "", "/it/");
+    await act(async () => {
+      root.render(createElement(LanguageProvider, null, createElement(AndroidAppPrompt, {
+        storeUrl: "https://play.google.com/store/apps/details?id=com.taskdesk.mobile",
+      })));
+    });
+    expect(container.querySelector('[data-testid="android-app-prompt"]')).toBeNull();
+
+    await act(async () => vi.advanceTimersByTime(3000));
+    const link = container.querySelector<HTMLAnchorElement>('[data-testid="link-download-android-app"]');
+    expect(link?.href).toBe("https://play.google.com/store/apps/details?id=com.taskdesk.mobile");
+    expect(link?.textContent).toContain("Scarica dal Play Store");
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="button-dismiss-android-app-prompt"]')?.click();
+    });
+    expect(container.querySelector('[data-testid="android-app-prompt"]')).toBeNull();
+    expect(sessionStorage.getItem("taskdesk-android-app-dismissed")).toBe("1");
+  });
+
+  it("does not show the Android app prompt without a published store link", async () => {
+    vi.useFakeTimers();
+    useAndroidPhone();
+    await act(async () => {
+      root.render(createElement(LanguageProvider, null, createElement(AndroidAppPrompt, { storeUrl: "" })));
+    });
+    await act(async () => vi.advanceTimersByTime(5000));
+    expect(container.querySelector('[data-testid="android-app-prompt"]')).toBeNull();
+  });
+
+  it("does not show the Android app prompt on iPhones", async () => {
+    vi.useFakeTimers();
+    useUserAgent("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Mobile Safari");
+    await act(async () => {
+      root.render(createElement(LanguageProvider, null, createElement(AndroidAppPrompt, {
+        storeUrl: "https://play.google.com/store/apps/details?id=com.taskdesk.mobile",
+      })));
+    });
+    await act(async () => vi.advanceTimersByTime(5000));
+    expect(container.querySelector('[data-testid="android-app-prompt"]')).toBeNull();
   });
 });

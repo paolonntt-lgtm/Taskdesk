@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { X, Share, Plus } from "lucide-react";
 import { useLanguage } from "@/i18n";
+import { ANDROID_PLAY_STORE_URL, isAndroidPhone } from "@/lib/android-app";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -35,6 +36,7 @@ export function InstallPrompt() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
+    if (ANDROID_PLAY_STORE_URL && isAndroidPhone()) return;
     if (isInStandaloneMode()) return;
     if (isDismissedThisSession()) return;
 
