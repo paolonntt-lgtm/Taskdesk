@@ -142,3 +142,17 @@ mtime_ms = 1793694406151
 storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:4a1856fa-6903-4237-b73c-7ebbcebc75f6/1f07fd0e-29f4-4325-98a2-641f2d336b80/722a15e2-9231-4d44-b90e-e7dba20a6686"
 storage_version_token = "1793694406355288"
 content_type = "text/html;profile=replit-chart"
+
+[[outputs]]
+id = "qrsjN8TD22y_ErGvRyTZs"
+uri = "file://attached_assets/taskdesk-android-home-icon-preview.png"
+type = "image"
+title = "Anteprima nuova icona Android"
+description = "Logo ingrandito della versione 1.0.8, con una maschera arrotondata di anteprima."
+logical_id = "1502ff6f-ee1e-43d2-be93-1857371791e6"
+content_hash = "sha256:b33cc0781edc5e08111f63c00e52550e9b7e706000fd64b8bdf209a27b4edae4"
+size = 131087
+mtime_ms = 1794988845474
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:4a1856fa-6903-4237-b73c-7ebbcebc75f6/1502ff6f-ee1e-43d2-be93-1857371791e6/6e91dc75-a29b-41f8-b7cd-226a723b6123"
+storage_version_token = "1794988860876235"
+content_type = "image/png"
