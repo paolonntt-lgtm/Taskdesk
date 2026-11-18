@@ -10,6 +10,7 @@ import TicketsScreen from "../app/(tabs)/tickets";
 const mocks = vi.hoisted(() => ({
   initialRoute: "tickets",
   clientsEnabled: true,
+  timeTrackingModuleEnabled: false,
   routeFromProfile: undefined as string | undefined,
   routeSearch: undefined as string | undefined,
   routeStatus: undefined as string | undefined,
@@ -385,6 +386,15 @@ vi.mock("@tanstack/react-query", () => ({
         isLoading: false,
       };
     }
+    if (queryKey[0] === "mobile-profile-organization-settings") {
+      return {
+        data: {
+          clientsEnabled: mocks.clientsEnabled,
+          timeTrackingModuleEnabled: mocks.timeTrackingModuleEnabled,
+        },
+        isSuccess: true,
+      };
+    }
     if (queryKey[0] === "mobile-notifications") {
       return { data: [] };
     }
@@ -442,6 +452,7 @@ describe("mobile list position after returning from Profile", () => {
     root = createRoot(host);
     mocks.initialRoute = "tickets";
     mocks.clientsEnabled = true;
+    mocks.timeTrackingModuleEnabled = false;
     mocks.routeFromProfile = undefined;
     mocks.routeSearch = undefined;
     mocks.routeStatus = undefined;
@@ -487,6 +498,22 @@ describe("mobile list position after returning from Profile", () => {
     expect(
       host.querySelector('[data-testid="profile-tool-reports"]')?.parentElement,
     ).toBe(host.querySelector('[data-testid="profile-admin-users"]')?.parentElement);
+  });
+
+  it("opens Hours report from Profile for an admin with TaskTrack enabled", async () => {
+    mocks.timeTrackingModuleEnabled = true;
+    await act(async () => root.render(React.createElement(ProfileScreen)));
+
+    const hoursReport = host.querySelector<HTMLButtonElement>(
+      '[data-testid="profile-tool-tabs-hours-report-tab"]',
+    );
+    expect(hoursReport?.getAttribute("aria-label")).toBe("Hours report");
+
+    await act(async () => hoursReport?.click());
+    expect(mocks.routerPush).toHaveBeenCalledWith({
+      pathname: "/(tabs)/hours-report-tab",
+      params: { fromProfile: "1" },
+    });
   });
 
   it("shows the active workspace and offers only available workspace choices", async () => {

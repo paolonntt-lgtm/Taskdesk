@@ -1529,8 +1529,8 @@ describe("mobile ticket creation navigation", () => {
       },
       {
         section: "calendar",
-        role: "member",
-        settings: { clientsEnabled: false, timeTrackingModuleEnabled: false },
+        role: "admin",
+        settings: { clientsEnabled: true, timeTrackingModuleEnabled: true },
       },
       {
         section: "clients-tab",
@@ -1574,11 +1574,6 @@ describe("mobile ticket creation navigation", () => {
 
   it.each([
     {
-      section: "calendar",
-      role: "member",
-      settings: { clientsEnabled: true, timeTrackingModuleEnabled: true },
-    },
-    {
       section: "clients-tab",
       role: "member",
       settings: { clientsEnabled: false, timeTrackingModuleEnabled: false },
@@ -1602,19 +1597,51 @@ describe("mobile ticket creation navigation", () => {
 
       await render(TabLayout);
 
-      if (section === "calendar") {
-        expect(host.querySelector('button[aria-label="Calendar"]')).toBeNull();
-      } else {
-        expect(
-          registeredRoutes().find((route) => route.dataset.route === section)?.dataset.href,
-        ).toBe("hidden");
-      }
+      expect(
+        registeredRoutes().find((route) => route.dataset.route === section)?.dataset.href,
+      ).toBe("hidden");
       expect(
         host.querySelector('[data-header-route="profile"] [data-testid="profile-back-button"]'),
       ).toBeNull();
       expect(mocks.navigate).not.toHaveBeenCalled();
     },
   );
+
+  it("keeps Calendar and Clients selectable around centered New on a compact screen", async () => {
+    mocks.user = { ...mocks.user, role: "admin" };
+    mocks.platformOS = "ios";
+    mocks.screenWidth = 320;
+    mocks.organizationSettings = {
+      clientsEnabled: true,
+      timeTrackingModuleEnabled: true,
+    };
+
+    await render(TabLayout);
+
+    for (const label of ["Dashboard", "Tickets", "New", "Calendar", "Clients"]) {
+      const button = host.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
+      expect(button).not.toBeNull();
+      expect(Number.parseFloat(button!.dataset.touchWidth ?? "0") * 320 / 100)
+        .toBeGreaterThanOrEqual(56);
+    }
+
+    const newButton = host.querySelector<HTMLButtonElement>('button[aria-label="New"]');
+    expect(newButton?.dataset.touchLeft).toBe("40%");
+    expect(host.querySelector('button[aria-label="Hours report"]')).toBeNull();
+    expect(
+      registeredRoutes().find((route) => route.dataset.route === "hours-report-tab")?.dataset.href,
+    ).toBe("visible");
+
+    for (const [label, route] of [
+      ["New", "new"],
+      ["Calendar", "calendar"],
+      ["Clients", "clients-tab"],
+    ]) {
+      const button = host.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
+      await act(async () => button!.click());
+      expect(mocks.navigate).toHaveBeenLastCalledWith(route, undefined);
+    }
+  });
 
   it.each([
     { language: "en", returnLabel: "Back to Reports" },

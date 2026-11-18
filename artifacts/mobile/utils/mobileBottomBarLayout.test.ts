@@ -50,14 +50,34 @@ describe("mobile bottom bar layout", () => {
     expect(layout.find(({ routeName }) => routeName === "new")?.left).toBe(40);
   });
 
-  it("uses the full row for navigation when both optional products are enabled", () => {
+  it("keeps Calendar and Clients around a centered New action when both products are enabled", () => {
     const layout = getMobileBottomBarLayout(
-      ["index", "tickets", "calendar", "hours-report-tab", "clients-tab"],
-      false,
+      ["index", "tickets", "calendar", "clients-tab"],
+      true,
     );
 
-    expect(layout).toHaveLength(5);
-    expect(layout.some(({ routeName }) => routeName === "new")).toBe(false);
-    expect(layout.every(({ width }) => width === 20)).toBe(true);
+    expect(layout.map(({ routeName }) => routeName)).toEqual([
+      "index",
+      "tickets",
+      "new",
+      "calendar",
+      "clients-tab",
+    ]);
+    expect(layout.find(({ routeName }) => routeName === "new")).toEqual({
+      routeName: "new",
+      left: 40,
+      width: 20,
+    });
+    expect(layout.some(({ routeName }) => routeName === "hours-report-tab")).toBe(false);
+  });
+
+  it("keeps every destination tappable on a compact 320 pt screen", () => {
+    const layout = getMobileBottomBarLayout(
+      ["index", "tickets", "calendar", "clients-tab"],
+      true,
+    );
+
+    expect(layout.every(({ width }) => (width * 320) / 100 >= 56)).toBe(true);
+    expect(layout.find(({ routeName }) => routeName === "new")?.left).toBe(40);
   });
 });

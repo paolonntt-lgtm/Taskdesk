@@ -60,20 +60,3 @@ export function getMobileOptionalTabAccess({
       settings?.timeTrackingModuleEnabled === true,
   };
 }
-
-export function shouldHideCalendarTab({
-  settings,
-  hasOrganization,
-  settingsLoaded,
-}: {
-  settings: MobileOptionalTabSettings | undefined;
-  hasOrganization: boolean;
-  settingsLoaded: boolean;
-}): boolean {
-  return (
-    hasOrganization &&
-    settingsLoaded &&
-    settings?.clientsEnabled === true &&
-    settings.timeTrackingModuleEnabled === true
-  );
-}

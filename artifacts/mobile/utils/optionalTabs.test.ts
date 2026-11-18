@@ -5,7 +5,6 @@ import {
   getMobileOrganizationSettingsRefetchInterval,
   getMobileOrganizationSettingsQueryKey,
   getMobileOptionalTabAccess,
-  shouldHideCalendarTab,
 } from "./optionalTabs";
 import { getMobileBottomBarLayout } from "./mobileBottomBarLayout";
 
@@ -107,32 +106,46 @@ describe("optional mobile navigation tabs", () => {
     ).toEqual({ clients: false, hoursReport: false });
   });
 
-  it("hides Calendar only when both organization products are enabled", () => {
-    expect(shouldHideCalendarTab({
-      settings: { clientsEnabled: true, timeTrackingModuleEnabled: true },
-      hasOrganization: true,
-      settingsLoaded: true,
-    })).toBe(true);
-    expect(shouldHideCalendarTab({
-      settings: { clientsEnabled: false, timeTrackingModuleEnabled: true },
-      hasOrganization: true,
-      settingsLoaded: true,
-    })).toBe(false);
-    expect(shouldHideCalendarTab({
-      settings: { clientsEnabled: true, timeTrackingModuleEnabled: false },
-      hasOrganization: true,
-      settingsLoaded: true,
-    })).toBe(false);
-    expect(shouldHideCalendarTab({
-      settings: undefined,
-      hasOrganization: true,
-      settingsLoaded: false,
-    })).toBe(false);
-    expect(shouldHideCalendarTab({
-      settings: { clientsEnabled: true, timeTrackingModuleEnabled: true },
-      hasOrganization: false,
-      settingsLoaded: true,
-    })).toBe(false);
+  it("keeps Calendar visible and places only enabled Clients beside New for every module combination", () => {
+    const scenarios = [
+      {
+        settings: { clientsEnabled: false, timeTrackingModuleEnabled: false },
+        expectedRoutes: ["index", "tickets", "new", "calendar"],
+      },
+      {
+        settings: { clientsEnabled: true, timeTrackingModuleEnabled: false },
+        expectedRoutes: ["index", "tickets", "new", "calendar", "clients-tab"],
+      },
+      {
+        settings: { clientsEnabled: false, timeTrackingModuleEnabled: true },
+        expectedRoutes: ["index", "tickets", "new", "calendar"],
+      },
+      {
+        settings: { clientsEnabled: true, timeTrackingModuleEnabled: true },
+        expectedRoutes: ["index", "tickets", "new", "calendar", "clients-tab"],
+      },
+    ] as const;
+
+    for (const { settings, expectedRoutes } of scenarios) {
+      const access = getMobileOptionalTabAccess({
+        settings,
+        settingsLoaded: true,
+        hasOrganization: true,
+        isOrganizationAdmin: true,
+      });
+      const routes = [
+        "index",
+        "tickets",
+        "calendar",
+        ...(access.clients ? ["clients-tab"] : []),
+      ];
+      const layout = getMobileBottomBarLayout(routes, true);
+
+      expect(layout.map(({ routeName }) => routeName)).toEqual(expectedRoutes);
+      expect(layout.find(({ routeName }) => routeName === "new")?.left).toBe(40);
+      expect(layout.some(({ routeName }) => routeName === "hours-report-tab")).toBe(false);
+      expect(layout.every(({ width }) => (width * 320) / 100 >= 56)).toBe(true);
+    }
   });
 
   it("updates the subscribed menu as products change without changing the current screen", () => {
@@ -155,16 +168,10 @@ describe("optional mobile navigation tabs", () => {
         hasOrganization: true,
         isOrganizationAdmin: true,
       });
-      const hideCalendar = shouldHideCalendarTab({
-        settings,
-        hasOrganization: true,
-        settingsLoaded: settings !== undefined,
-      });
       const routes = [
         "index",
         "tickets",
-        ...(!hideCalendar ? ["calendar"] : []),
-        ...(access.hoursReport ? ["hours-report-tab"] : []),
+        "calendar",
         ...(access.clients ? ["clients-tab"] : []),
       ];
 
@@ -202,7 +209,7 @@ describe("optional mobile navigation tabs", () => {
       clientsEnabled: false,
       timeTrackingModuleEnabled: true,
     });
-    expect(getMenu().routes).toContain("hours-report-tab");
+    expect(getMenu().routes).not.toContain("hours-report-tab");
     expect(getMenu().routes).toContain("calendar");
 
     cacheMobileOrganizationSettings(queryClient, organizationId, {
@@ -217,16 +224,16 @@ describe("optional mobile navigation tabs", () => {
     });
     const enabledMenu = getMenu();
     expect(enabledMenu.routes).toContain("clients-tab");
-    expect(enabledMenu.routes).toContain("hours-report-tab");
-    expect(enabledMenu.routes).not.toContain("calendar");
+    expect(enabledMenu.routes).toContain("calendar");
+    expect(enabledMenu.routes).not.toContain("hours-report-tab");
     expect(enabledMenu.layout.find((item) => item.routeName === "new")?.left).toBe(40);
     expect(currentRoute).toBe("tickets");
     expect(menuSnapshots).toHaveLength(6);
     expect(menuSnapshots[1]).toContain("clients-tab");
     expect(menuSnapshots[2]).not.toContain("clients-tab");
-    expect(menuSnapshots[3]).toContain("hours-report-tab");
+    expect(menuSnapshots[3]).not.toContain("hours-report-tab");
     expect(menuSnapshots[4]).not.toContain("hours-report-tab");
-    expect(menuSnapshots[5]).not.toContain("calendar");
+    expect(menuSnapshots[5]).toContain("calendar");
 
     unsubscribe();
     expect(currentRoute).toBe("tickets");

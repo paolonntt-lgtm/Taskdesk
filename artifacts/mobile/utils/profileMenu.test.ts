@@ -57,6 +57,7 @@ describe("optional mobile profile menu items", () => {
     expect(adminWithTaskTrack.map((item) => item.label)).toEqual([
       lang === "it" ? "Rendiconto ore" : "Hours report",
     ]);
+    expect(adminWithTaskTrack[0]?.path).toBe("/(tabs)/hours-report-tab");
     expect(adminWithoutTaskTrack).toEqual([]);
     expect(nonAdminWithTaskTrack).toEqual([]);
   });

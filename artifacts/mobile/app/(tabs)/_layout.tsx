@@ -29,7 +29,6 @@ import {
   getMobileOrganizationSettingsRefetchInterval,
   getMobileOrganizationSettingsQueryKey,
   getMobileOptionalTabAccess,
-  shouldHideCalendarTab,
 } from "@/utils/optionalTabs";
 import { getMobileBottomBarLayout } from "@/utils/mobileBottomBarLayout";
 
@@ -389,7 +388,6 @@ type DashboardTicket = {
 function getProfileReturnRoute(
   value: unknown,
   optionalTabAccess: ReturnType<typeof getMobileOptionalTabAccess>,
-  hideCalendarTab: boolean,
 ): ProfileReturnRoute | undefined {
   if (
     typeof value !== "string" ||
@@ -400,7 +398,6 @@ function getProfileReturnRoute(
 
   if (value === "clients-tab" && !optionalTabAccess.clients) return undefined;
   if (value === "hours-report-tab" && !optionalTabAccess.hoursReport) return undefined;
-  if (value === "calendar" && hideCalendarTab) return undefined;
 
   return value as ProfileReturnRoute;
 }
@@ -481,23 +478,14 @@ function TabContent() {
   });
   const clientsEnabled = optionalTabAccess.clients;
   const hoursReportEnabled = optionalTabAccess.hoursReport;
-  const hideCalendarTab = shouldHideCalendarTab({
-    settings: organizationSettings.data,
-    hasOrganization: user?.organizationId != null,
-    settingsLoaded:
-      organizationSettings.isSuccess &&
-      !organizationSettings.isError &&
-      !organizationSettings.isRefetchError,
-  });
   const showOrganizationSettingsError =
     user?.organizationId != null &&
     (organizationSettings.isError || organizationSettings.isRefetchError);
   const showNewTicketTab = true;
   const hiddenRoutes = [
     "reports",
-    ...(hideCalendarTab ? ["calendar"] : []),
+    "hours-report-tab",
     ...(!clientsEnabled ? ["clients-tab"] : []),
-    ...(!hoursReportEnabled ? ["hours-report-tab"] : []),
   ];
 
   return (
@@ -524,7 +512,6 @@ function TabContent() {
             ? getProfileReturnRoute(
                 (route.params as { returnTo?: unknown } | undefined)?.returnTo,
                 optionalTabAccess,
-                hideCalendarTab,
               )
             : undefined;
         const returnLabel = returnTo
@@ -738,7 +725,6 @@ function BottomTabBar({
     "index",
     "tickets",
     "calendar",
-    "hours-report-tab",
     "clients-tab",
   ];
   const visibleMenuRoutes = menuRouteNames.filter(
