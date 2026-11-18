@@ -3127,6 +3127,14 @@ paths:
             type: integer
             minimum: 1
             maximum: 100
+        - name: offset
+          in: query
+          required: false
+          description: Number of matching organization clients to skip when loading a page.
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 1000000
         - name: hasUnbilledWorkedTime
           in: query
           required: false

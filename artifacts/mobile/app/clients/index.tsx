@@ -1,8 +1,9 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Alert, FlatList, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
+import { listClients } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -10,8 +11,11 @@ import { apiGet, apiPatch, apiPost } from "@/utils/api";
 import { getMobileOrganizationSettingsQueryKey } from "@/utils/optionalTabs";
 
 type Client = { id: number; name: string; alias?: string | null; email?: string | null; phone?: string | null; address?: string | null };
+const CLIENT_PAGE_SIZE = 100;
+const CLIENT_SEARCH_DEBOUNCE_MS = 250;
 export default function ClientsScreen() {
   const c = useColors(); const { lang, t } = useLanguage(); const it = lang === "it"; const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const { user } = useAuth(); const qc = useQueryClient();
   const [formOpen, setFormOpen] = useState(false); const [editing, setEditing] = useState<Client | null>(null);
   const [name, setName] = useState(""); const [email, setEmail] = useState(""); const [phone, setPhone] = useState(""); const [saving, setSaving] = useState(false);
@@ -25,12 +29,35 @@ export default function ClientsScreen() {
     organizationSettings.isSuccess &&
     !settingsUnavailable &&
     organizationSettings.data?.clientsEnabled === true;
-  const { data = [], isLoading, error } = useQuery({
-    queryKey: ["mobile-clients", user?.organizationId],
-    queryFn: () => apiGet<Client[]>("/clients"),
+  useEffect(() => {
+    const timeout = setTimeout(
+      () => setDebouncedSearch(search.trim()),
+      CLIENT_SEARCH_DEBOUNCE_MS,
+    );
+    return () => clearTimeout(timeout);
+  }, [search]);
+  const {
+    data: clientPages,
+    isLoading,
+    isRefetching,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+    refetch,
+    error,
+  } = useInfiniteQuery({
+    queryKey: ["mobile-clients", user?.organizationId, debouncedSearch],
+    queryFn: ({ pageParam, signal }) => listClients({
+      limit: CLIENT_PAGE_SIZE,
+      offset: pageParam,
+      ...(debouncedSearch ? { search: debouncedSearch } : {}),
+    }, { signal }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, pages) =>
+      lastPage.length === CLIENT_PAGE_SIZE ? pages.length * CLIENT_PAGE_SIZE : undefined,
     enabled: clientsEnabled,
   });
-  const clients = useMemo(() => data.filter(x => `${x.name} ${x.alias ?? ""} ${x.email ?? ""}`.toLowerCase().includes(search.toLowerCase())), [data, search]);
+  const clients = useMemo(() => clientPages?.pages.flat() ?? [], [clientPages]);
   const secondaryFor = (client: Client) => client.alias || client.email || client.phone || client.address || null;
   const openForm = (client?: Client) => { setEditing(client ?? null); setName(client?.name ?? ""); setEmail(client?.email ?? ""); setPhone(client?.phone ?? ""); setFormOpen(true); };
   const save = async () => {
@@ -59,6 +86,13 @@ export default function ClientsScreen() {
     <FlatList
       testID="clients-list"
       data={clients}
+      onEndReached={() => {
+        if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
+      }}
+      onEndReachedThreshold={0.4}
+      refreshing={isRefetching && !isFetchingNextPage}
+      onRefresh={() => void refetch()}
+      ListFooterComponent={isFetchingNextPage ? <ActivityIndicator color={c.primary} /> : null}
       keyExtractor={(client) => String(client.id)}
       renderItem={({ item: client }) => {
         const secondary = secondaryFor(client);

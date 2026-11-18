@@ -183,6 +183,7 @@ const ClientBody = z.object({
 const ClientsQuerySchema = z.object({
   search: z.string().optional(),
   limit: z.coerce.number().int().positive().max(100).optional(),
+  offset: z.coerce.number().int().nonnegative().max(1_000_000).optional(),
   hasUnbilledWorkedTime: z.enum(["true", "false"]).optional(),
   sort: z.enum(["name", "createdAt"]).optional().default("name"),
   order: z.enum(["asc", "desc"]).optional().default("asc"),
@@ -420,7 +421,7 @@ router.get("/clients", requireClientFeature, async (req, res): Promise<void> => 
     res.status(400).json({ error: "Invalid query parameters" });
     return;
   }
-  const { search, limit, sort, order, hasUnbilledWorkedTime } = parsed.data;
+  const { search, limit, offset, sort, order, hasUnbilledWorkedTime } = parsed.data;
 
   if (hasUnbilledWorkedTime === "true") {
     const canViewWorkedHours = await hasGroupPermission(
@@ -484,10 +485,10 @@ router.get("/clients", requireClientFeature, async (req, res): Promise<void> => 
     .select()
     .from(clientsTable)
     .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .orderBy(orderFn(sortCol));
-  const clients = limit == null
+    .orderBy(orderFn(sortCol), orderFn(clientsTable.id));
+  const clients = limit == null && offset == null
     ? await clientsQuery
-    : await clientsQuery.limit(limit);
+    : await clientsQuery.limit(limit ?? 100).offset(offset ?? 0);
 
   res.json(clients);
 });

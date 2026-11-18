@@ -4087,11 +4087,15 @@ export const DeleteKnowledgeArticleResponse = zod.object({
  */
 export const listClientsQueryLimitMax = 100;
 
+export const listClientsQueryOffsetMin = 0;
+export const listClientsQueryOffsetMax = 1000000;
+
 
 
 export const ListClientsQueryParams = zod.object({
   "search": zod.coerce.string().optional().describe('Search client name, alias, email, phone, address, VAT number, tax code, and membership number within the current organization.'),
   "limit": zod.coerce.number().int().min(1).max(listClientsQueryLimitMax).optional().describe('Maximum number of clients to return; capped at 100.'),
+  "offset": zod.coerce.number().int().min(listClientsQueryOffsetMin).max(listClientsQueryOffsetMax).optional().describe('Number of matching organization clients to skip when loading a page.'),
   "hasUnbilledWorkedTime": zod.coerce.boolean().optional().describe('Return only clients with at least one closed ticket that has worked time still marked as unbilled.')
 })
 

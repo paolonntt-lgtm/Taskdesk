@@ -18,6 +18,12 @@ search?: string;
  */
 limit?: number;
 /**
+ * Number of matching organization clients to skip when loading a page.
+ * @minimum 0
+ * @maximum 1000000
+ */
+offset?: number;
+/**
  * Return only clients with at least one closed ticket that has worked time still marked as unbilled.
  */
 hasUnbilledWorkedTime?: boolean;

@@ -1,6 +1,6 @@
 import { createServer, type Server } from "node:http";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { db, clientsTable, organizationsTable, pool, sessionsTable, usersTable } from "@workspace/db";
+import { db, clientsTable, organizationsTable, pool, sessionsTable, ticketStatusesTable, usersTable } from "@workspace/db";
 import { and, eq } from "drizzle-orm";
 import app from "../app";
 import { createSession } from "../lib/session";
@@ -18,9 +18,15 @@ async function request(path: string, init: RequestInit = {}, sessionId = adminSe
   const headers = new Headers(init.headers);
   headers.set("Cookie", `session_id=${sessionId}`);
   if (init.body !== undefined) headers.set("Content-Type", "application/json");
+  const startedAt = performance.now();
   const response = await fetch(`${baseUrl}${path}`, { ...init, headers });
   const text = await response.text();
-  return { status: response.status, body: text ? JSON.parse(text) : null };
+  return {
+    status: response.status,
+    body: text ? JSON.parse(text) : null,
+    responseBytes: Buffer.byteLength(text),
+    durationMs: performance.now() - startedAt,
+  };
 }
 
 describe("client import route", () => {
@@ -79,6 +85,9 @@ describe("client import route", () => {
     }
     if (adminId) await db.delete(usersTable).where(eq(usersTable.id, adminId));
     if (collaboratorId) await db.delete(usersTable).where(eq(usersTable.id, collaboratorId));
+    if (organizationId) {
+      await db.delete(ticketStatusesTable).where(eq(ticketStatusesTable.organizationId, organizationId));
+    }
     if (organizationId) await db.delete(organizationsTable).where(eq(organizationsTable.id, organizationId));
     await pool.end();
   });
@@ -212,4 +221,44 @@ describe("client import route", () => {
       ));
     expect(createdClients).toHaveLength(0);
   });
+
+  it("measures a 1,000-client list response and server-side search", async () => {
+    await db.delete(clientsTable).where(eq(clientsTable.organizationId, organizationId));
+    await db.insert(clientsTable).values(Array.from({ length: 1_000 }, (_, index) => ({
+      organizationId,
+      name: index === 987 ? "Benchmark Search Target" : `Benchmark Client ${String(index + 1).padStart(4, "0")}`,
+      alias: index === 987 ? "unique-search-needle" : `Contact ${index + 1}`,
+      email: `client-${index + 1}-${runId}@example.test`,
+      phone: `+390000${String(index).padStart(6, "0")}`,
+      address: `Via Benchmark ${index + 1}, Milano`,
+      notes: `Synthetic performance-test record ${index + 1}`,
+    })));
+
+    const fullList = await request("/api/clients");
+    expect(fullList.status).toBe(200);
+    expect(fullList.body).toHaveLength(1_000);
+
+    const searchResult = await request("/api/clients?search=unique-search-needle");
+    expect(searchResult.status).toBe(200);
+    expect(searchResult.body).toHaveLength(1);
+    expect(searchResult.body[0].name).toBe("Benchmark Search Target");
+
+    const firstPage = await request("/api/clients?limit=100&offset=0");
+    const secondPage = await request("/api/clients?limit=100&offset=100");
+    const collaboratorPage = await request("/api/clients?limit=100&offset=0", {}, collaboratorSessionId);
+    const searchedPage = await request("/api/clients?search=unique-search-needle&limit=100&offset=0");
+    expect(firstPage.body).toHaveLength(100);
+    expect(secondPage.body).toHaveLength(100);
+    expect(firstPage.body[0].id).not.toBe(secondPage.body[0].id);
+    expect(collaboratorPage.body).toHaveLength(100);
+    expect(searchedPage.body).toHaveLength(1);
+    expect(searchedPage.body[0].name).toBe("Benchmark Search Target");
+
+    console.info(
+      `[clients benchmark] rows=${fullList.body.length} response=${fullList.responseBytes}B ` +
+      `request=${fullList.durationMs.toFixed(1)}ms search=${searchResult.durationMs.toFixed(1)}ms ` +
+      `searchResponse=${searchResult.responseBytes}B page100=${firstPage.responseBytes}B ` +
+      `pageRequest=${firstPage.durationMs.toFixed(1)}ms`,
+    );
+  }, 30_000);
 });

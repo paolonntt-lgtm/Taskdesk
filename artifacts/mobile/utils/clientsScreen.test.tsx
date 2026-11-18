@@ -28,6 +28,10 @@ const mocks = vi.hoisted(() => ({
   updateClientNote: vi.fn(),
   deleteClientNote: vi.fn(),
   invalidateQueries: vi.fn(),
+  listClients: vi.fn(),
+  useInfiniteQuery: vi.fn(),
+  hasNextPage: false,
+  fetchNextPage: vi.fn(),
 }));
 
 vi.mock("react-native", async () => {
@@ -79,8 +83,11 @@ vi.mock("react-native", async () => {
       maxToRenderPerBatch?: number;
       windowSize?: number;
       ListHeaderComponent?: React.ReactNode;
+      ListFooterComponent?: React.ReactNode;
       ListEmptyComponent?: React.ReactNode;
       testID?: string;
+        onEndReached?: () => void;
+      onRefresh?: () => void;
     }) => element(
       "div",
       {
@@ -93,6 +100,10 @@ vi.mock("react-native", async () => {
       props.ListHeaderComponent,
       ...props.data.slice(0, props.initialNumToRender ?? 10)
         .map((item, index) => props.renderItem({ item, index })),
+      props.onEndReached
+        ? element("button", { "data-testid": "clients-load-more", onClick: props.onEndReached }, "Load more")
+        : null,
+      props.ListFooterComponent,
       props.data.length === 0 ? props.ListEmptyComponent : null,
     ),
     Modal: component("div"),
@@ -127,6 +138,7 @@ vi.mock("@workspace/api-client-react", () => ({
   useCreateClientNote: () => ({ mutateAsync: mocks.createClientNote, isPending: false }),
   useUpdateClientNote: () => ({ mutateAsync: mocks.updateClientNote, isPending: false }),
   useDeleteClientNote: () => ({ mutateAsync: mocks.deleteClientNote, isPending: false }),
+  listClients: mocks.listClients,
 }));
 vi.mock("@/hooks/useColors", () => ({
   useColors: () => new Proxy({}, { get: () => "#222222" }),
@@ -157,6 +169,7 @@ vi.mock("@/utils/api", () => ({
 }));
 vi.mock("@tanstack/react-query", () => ({
   useQuery: mocks.useQuery,
+  useInfiniteQuery: mocks.useInfiniteQuery,
   useQueryClient: () => ({ invalidateQueries: mocks.invalidateQueries }),
 }));
 
@@ -198,6 +211,18 @@ describe("mobile clients screen", () => {
     mocks.updateClientNote.mockReset().mockResolvedValue({});
     mocks.deleteClientNote.mockReset().mockResolvedValue(undefined);
     mocks.invalidateQueries.mockReset().mockResolvedValue(undefined);
+    mocks.listClients.mockReset().mockImplementation(async ({ limit = 100, offset = 0, search }: {
+      limit?: number;
+      offset?: number;
+      search?: string;
+    }) => {
+      const matching = mocks.clients.filter((client) =>
+        `${client.name} ${client.alias ?? ""} ${client.email ?? ""}`.toLowerCase().includes(search?.toLowerCase() ?? ""),
+      );
+      return matching.slice(offset, offset + limit);
+    });
+    mocks.hasNextPage = false;
+    mocks.fetchNextPage.mockReset();
     mocks.useQuery.mockReset().mockImplementation((options: {
       queryKey: unknown[];
       queryFn: () => Promise<unknown>;
@@ -221,6 +246,27 @@ describe("mobile clients screen", () => {
         refetch: key === "mobile-organization-settings" ? mocks.refetchSettings : vi.fn(),
       };
     });
+    mocks.useInfiniteQuery.mockReset().mockImplementation((options: {
+      queryKey: unknown[];
+      queryFn: (params: { pageParam: number }) => Promise<unknown>;
+      enabled?: boolean;
+    }) => {
+      const search = String(options.queryKey[2] ?? "");
+      const matching = mocks.clients.filter((client) =>
+        `${client.name} ${client.alias ?? ""} ${client.email ?? ""}`.toLowerCase().includes(search.toLowerCase()),
+      );
+      if (options.enabled) void options.queryFn({ pageParam: 0 });
+      return {
+        data: { pages: [matching.slice(0, 100)] },
+        isLoading: false,
+        isRefetching: false,
+        isFetchingNextPage: false,
+        hasNextPage: mocks.hasNextPage || matching.length > 100,
+        fetchNextPage: mocks.fetchNextPage,
+        refetch: vi.fn(),
+        error: mocks.clientsError ? new Error("load failed") : null,
+      };
+    });
   });
 
   afterEach(async () => {
@@ -234,7 +280,7 @@ describe("mobile clients screen", () => {
     expect(host.textContent).toContain("La gestione clienti non è attiva");
     expect(mocks.apiGet.mock.calls.map(([path]) => path)).toEqual(["/settings/organization"]);
 
-    const clientsQuery = mocks.useQuery.mock.calls
+    const clientsQuery = mocks.useInfiniteQuery.mock.calls
       .map(([options]) => options)
       .find(({ queryKey }: { queryKey: unknown[] }) => queryKey[0] === "mobile-clients");
     expect(clientsQuery?.enabled).toBe(false);
@@ -250,7 +296,7 @@ describe("mobile clients screen", () => {
     expect(host.textContent).not.toContain("La gestione clienti non è attiva");
     expect(mocks.apiGet.mock.calls.map(([path]) => path)).toEqual(["/settings/organization"]);
 
-    const clientsQuery = mocks.useQuery.mock.calls
+    const clientsQuery = mocks.useInfiniteQuery.mock.calls
       .map(([options]) => options)
       .find(({ queryKey }: { queryKey: unknown[] }) => queryKey[0] === "mobile-clients");
     expect(clientsQuery?.enabled).toBe(false);
@@ -271,7 +317,7 @@ describe("mobile clients screen", () => {
     expect(host.textContent).toContain("Impossibile verificare se la gestione clienti è attiva.");
     expect(host.textContent).not.toContain("Studio Alfa");
     expect(mocks.apiGet.mock.calls.map(([path]) => path)).toEqual(["/settings/organization"]);
-    const clientsQuery = mocks.useQuery.mock.calls
+    const clientsQuery = mocks.useInfiniteQuery.mock.calls
       .map(([options]) => options)
       .find(({ queryKey }: { queryKey: unknown[] }) => queryKey[0] === "mobile-clients");
     expect(clientsQuery?.enabled).toBe(false);
@@ -282,10 +328,8 @@ describe("mobile clients screen", () => {
 
     await renderScreen();
 
-    expect(mocks.apiGet.mock.calls.map(([path]) => path)).toEqual([
-      "/settings/organization",
-      "/clients",
-    ]);
+    expect(mocks.apiGet.mock.calls.map(([path]) => path)).toEqual(["/settings/organization"]);
+    expect(mocks.listClients.mock.calls[0]?.[0]).toEqual({ limit: 100, offset: 0 });
     expect(host.textContent).toContain("Studio Alfa");
     expect(host.textContent).not.toContain("La gestione clienti non è attiva");
   });
@@ -386,6 +430,7 @@ describe("mobile clients screen", () => {
       setValue?.call(search, "beta");
       search!.dispatchEvent(new Event("input", { bubbles: true }));
     });
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 300)));
 
     expect(host.textContent).toContain("Studio Beta");
     expect(host.textContent).not.toContain("Studio Alfa");
@@ -393,6 +438,49 @@ describe("mobile clients screen", () => {
     const row = host.querySelector<HTMLButtonElement>('[data-testid="client-row-2"]');
     await act(async () => row?.click());
     expect(router.push).toHaveBeenCalledWith("/clients/2");
+  });
+
+  it("searches server-side across 1,000 clients while keeping the mobile list virtualized", async () => {
+    mocks.settings = { clientsEnabled: true, profession: null };
+    mocks.clients = Array.from({ length: 1_000 }, (_, index) => ({
+      id: index + 1,
+      name: index === 987 ? "Cliente ricerca speciale" : `Cliente ${String(index + 1).padStart(4, "0")}`,
+      alias: index === 987 ? "needle-cliente" : null,
+      email: `cliente-${index + 1}@example.test`,
+    }));
+    host.style.width = "360px";
+
+    const loadStartedAt = performance.now();
+    await renderScreen();
+    const loadMs = performance.now() - loadStartedAt;
+
+    const list = host.querySelector<HTMLElement>('[data-testid="clients-list"]');
+    expect(list?.getAttribute("data-item-count")).toBe("100");
+    expect(host.querySelectorAll('[data-testid^="client-row-"]')).toHaveLength(10);
+    expect(mocks.listClients.mock.calls[0]?.[0]).toEqual({ limit: 100, offset: 0 });
+    expect(list?.getAttribute("data-max-to-render-per-batch")).toBe("8");
+    await act(async () => host.querySelector<HTMLButtonElement>('[data-testid="clients-load-more"]')?.click());
+    expect(mocks.fetchNextPage).toHaveBeenCalledTimes(1);
+
+    const search = host.querySelector<HTMLInputElement>('[data-testid="clients-search"]');
+    const searchStartedAt = performance.now();
+    await act(async () => {
+      const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      setValue?.call(search, "needle-cliente");
+      search!.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 300)));
+    const searchMs = performance.now() - searchStartedAt;
+
+    expect(host.querySelector('[data-testid="clients-list"]')?.getAttribute("data-item-count")).toBe("1");
+    expect(host.querySelector('[data-testid="client-row-988"]')?.textContent).toContain("Cliente ricerca speciale");
+    expect(mocks.listClients.mock.calls.at(-1)?.[0]).toEqual({
+      limit: 100,
+      offset: 0,
+      search: "needle-cliente",
+    });
+    expect(host.style.width).toBe("360px");
+    console.info(`[mobile clients benchmark] firstPage=100 of 1000 loadAndRender=${loadMs.toFixed(1)}ms searchAndRender=${searchMs.toFixed(1)}ms`);
   });
 
   it("opens the admin edit form with current values and saves changes", async () => {
@@ -775,7 +863,7 @@ describe("mobile clients screen", () => {
     expect(host.textContent).toContain("è disponibile solo per i consulenti del lavoro.");
   });
 
-  it("virtualizes large client lists while retaining the full filtered data set", async () => {
+  it("renders a virtualized first page from a large client directory", async () => {
     mocks.settings = { clientsEnabled: true, profession: null };
     mocks.clients = Array.from({ length: 1000 }, (_, index) => ({
       id: index + 1,
@@ -785,7 +873,7 @@ describe("mobile clients screen", () => {
     await renderScreen();
 
     const list = host.querySelector('[data-testid="clients-list"]');
-    expect(list?.getAttribute("data-item-count")).toBe("1000");
+    expect(list?.getAttribute("data-item-count")).toBe("100");
     expect(list?.getAttribute("data-initial-num-to-render")).toBe("10");
     expect(list?.getAttribute("data-max-to-render-per-batch")).toBe("8");
     expect(list?.getAttribute("data-window-size")).toBe("7");
