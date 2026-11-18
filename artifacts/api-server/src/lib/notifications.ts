@@ -60,8 +60,44 @@ async function sendExpoPushNotifications(
       body: JSON.stringify(messages),
       signal: AbortSignal.timeout(8000),
     });
+    const responseBody = await res.json().catch(() => null) as {
+      data?: { status?: string; message?: string; details?: { error?: string } } |
+        Array<{ status?: string; message?: string; details?: { error?: string } }>;
+      errors?: Array<{ code?: string; message?: string }>;
+    } | null;
     if (!res.ok) {
-      logger.warn({ status: res.status }, "expo push send failed");
+      logger.warn({
+        status: res.status,
+        messageCount: messages.length,
+        errors: responseBody?.errors?.map(({ code, message }) => ({
+          code: code ?? "unknown",
+          message: message?.slice(0, 200),
+        })),
+      }, "expo push send failed");
+      return;
+    }
+
+    const tickets = Array.isArray(responseBody?.data)
+      ? responseBody.data
+      : responseBody?.data
+        ? [responseBody.data]
+        : [];
+    const failures = tickets.flatMap((ticket, index) => ticket.status === "ok"
+      ? []
+      : [{
+          index,
+          status: ticket.status ?? "unknown",
+          code: ticket.details?.error ?? "unknown",
+          message: ticket.message?.slice(0, 200),
+        }]);
+
+    if (failures.length > 0 || tickets.length !== messages.length) {
+      logger.warn({
+        messageCount: messages.length,
+        ticketCount: tickets.length,
+        acceptedCount: tickets.filter((ticket) => ticket.status === "ok").length,
+        failures,
+      }, "expo push tickets not accepted");
     }
   } catch (err) {
     logger.warn({ err }, "expo push send error");

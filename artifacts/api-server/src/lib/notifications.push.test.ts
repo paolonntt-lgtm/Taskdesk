@@ -32,6 +32,7 @@ const mocks = vi.hoisted(() => {
     ticketsTable: { visibility: "tickets.visibility", id: "tickets.id" },
     insertedNotifications: [] as Array<Array<Record<string, unknown>>>,
     fetch: vi.fn(),
+    loggerWarn: vi.fn(),
   };
 });
 
@@ -60,6 +61,10 @@ vi.mock("./email", () => ({
 
 vi.mock("./appUrl", () => ({
   appBaseUrl: () => "https://taskdesk.example",
+}));
+
+vi.mock("./logger", () => ({
+  logger: { warn: mocks.loggerWarn, info: vi.fn() },
 }));
 
 import { createNotificationsForOrg } from "./notifications";
@@ -114,7 +119,12 @@ describe("push notification localization", () => {
     }));
 
     vi.stubGlobal("fetch", mocks.fetch);
-    mocks.fetch.mockResolvedValue({ ok: true });
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: [{ status: "ok" }, { status: "ok" }],
+      }),
+    });
   });
 
   it("renders a custom status in each recipient language for push and in-app notifications", async () => {
@@ -167,5 +177,91 @@ describe("push notification localization", () => {
     );
     expect(inAppTextByUser.get(11)).toBe(pushMessages[0].body);
     expect(inAppTextByUser.get(22)).toBe(pushMessages[1].body);
+  });
+
+  it("logs per-ticket Expo errors without logging push tokens or message text", async () => {
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: [
+          { status: "ok" },
+          {
+            status: "error",
+            message: "The recipient device is not registered",
+            details: { error: "DeviceNotRegistered" },
+          },
+        ],
+      }),
+    });
+
+    await createNotificationsForOrg(
+      5,
+      99,
+      {
+        key: "ticket_status_changed",
+        actorName: "Alex",
+        ticketNumber: 42,
+        status: "Open",
+        ticketTitle: "Confidential title",
+      },
+      "ticket_status_changed",
+      42,
+    );
+
+    await vi.waitFor(() => {
+      expect(mocks.loggerWarn).toHaveBeenCalledWith(
+        {
+          messageCount: 2,
+          ticketCount: 2,
+          acceptedCount: 1,
+          failures: [{
+            index: 1,
+            status: "error",
+            code: "DeviceNotRegistered",
+            message: "The recipient device is not registered",
+          }],
+        },
+        "expo push tickets not accepted",
+      );
+    });
+    const loggedText = JSON.stringify(mocks.loggerWarn.mock.calls);
+    expect(loggedText).not.toContain("expo-token-it");
+    expect(loggedText).not.toContain("expo-token-en");
+    expect(loggedText).not.toContain("Open");
+  });
+
+  it("logs HTTP-level Expo failures with the response error", async () => {
+    mocks.fetch.mockResolvedValue({
+      ok: false,
+      status: 503,
+      json: async () => ({
+        errors: [{ code: "SERVICE_UNAVAILABLE", message: "Push service unavailable" }],
+      }),
+    });
+
+    await createNotificationsForOrg(
+      5,
+      99,
+      {
+        key: "ticket_status_changed",
+        actorName: "Alex",
+        ticketNumber: 42,
+        status: "Open",
+        ticketTitle: "Confidential title",
+      },
+      "ticket_status_changed",
+      42,
+    );
+
+    await vi.waitFor(() => {
+      expect(mocks.loggerWarn).toHaveBeenCalledWith(
+        {
+          status: 503,
+          messageCount: 2,
+          errors: [{ code: "SERVICE_UNAVAILABLE", message: "Push service unavailable" }],
+        },
+        "expo push send failed",
+      );
+    });
   });
 });
