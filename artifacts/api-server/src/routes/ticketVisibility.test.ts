@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   db,
   clientsTable,
+  commentReactionsTable,
   groupMembersTable,
   groupsTable,
   notificationsTable,
@@ -1085,6 +1086,41 @@ describe("manual ticket visibility", () => {
     const ticketId = created.body.id as number;
     createdTicketIds.push(ticketId);
 
+    const benchmarkComments = await db.insert(ticketCommentsTable).values(Array.from({ length: 12 }, (_, index) => ({
+      ticketId,
+      authorId: index % 2 === 0 ? adminId : userId,
+      commentText: `Mobile benchmark comment ${index + 1}: ${"Ticket details and follow-up information. ".repeat(3)}`,
+    }))).returning({ id: ticketCommentsTable.id });
+    await db.insert(commentReactionsTable).values({
+      commentId: benchmarkComments[0]!.id,
+      userId: adminId,
+      emoji: "👍",
+    });
+    await db.insert(ticketActivityLogsTable).values(Array.from({ length: 18 }, (_, index) => ({
+      ticketId,
+      userId: index % 2 === 0 ? adminId : userId,
+      actionType: "ticket_field_title_changed",
+      actionDescription: `Activity entry ${index + 1}: title updated with representative ticket history.`,
+    })));
+    const benchmarkChecklists = await db.insert(ticketChecklistsTable).values(
+      Array.from({ length: 3 }, (_, index) => ({
+        ticketId,
+        orgId: organizationId,
+        title: `Mobile benchmark checklist ${index + 1}`,
+        position: index,
+      })),
+    ).returning({ id: ticketChecklistsTable.id });
+    await db.insert(ticketChecklistItemsTable).values(benchmarkChecklists.flatMap((checklist, checklistIndex) =>
+      Array.from({ length: 8 }, (_, itemIndex) => ({
+        checklistId: checklist.id,
+        orgId: organizationId,
+        text: `Checklist ${checklistIndex + 1}, step ${itemIndex + 1}: confirm the recorded task.`,
+        position: itemIndex,
+        checked: itemIndex % 3 === 0,
+        checkedById: itemIndex % 3 === 0 ? adminId : null,
+      })),
+    ));
+
     await db.update(organizationsTable)
       .set({ clientsEnabled: false })
       .where(eq(organizationsTable.id, organizationId));
@@ -1094,6 +1130,15 @@ describe("manual ticket visibility", () => {
         const response = await request(path, adminSessionId);
         return { ...response, durationMs: performance.now() - startedAt };
       };
+      const measureMobile = async (path: string) => {
+        const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+        const startedAt = performance.now();
+        await delay(50);
+        const response = await request(path, adminSessionId);
+        const responseBytes = Buffer.byteLength(JSON.stringify(response.body ?? ""));
+        await delay(50 + (responseBytes * 8 / 5_000_000) * 1_000);
+        return { ...response, responseBytes, durationMs: performance.now() - startedAt };
+      };
       const detailPath = `/api/tickets/${ticketId}`;
       await measure(detailPath);
       const detailSamples = [];
@@ -1101,17 +1146,48 @@ describe("manual ticket visibility", () => {
         detailSamples.push(await measure(detailPath));
       }
       const detail = detailSamples.at(-1)!;
-      const comments = await measure(`/api/tickets/${ticketId}/comments`);
-      const activity = await measure(`/api/tickets/${ticketId}/activity`);
-      const checklists = await measure(`/api/tickets/${ticketId}/checklists`);
       const detailMedian = [...detailSamples]
         .sort((a, b) => a.durationMs - b.durationMs)[1]!.durationMs;
+      const secondaryPaths = {
+        comments: `/api/tickets/${ticketId}/comments`,
+        activity: `/api/tickets/${ticketId}/activity`,
+        checklists: `/api/tickets/${ticketId}/checklists`,
+      };
+      await Promise.all(Object.values(secondaryPaths).map(measureMobile));
+      const secondarySamples = await Promise.all(Array.from({ length: 3 }, () =>
+        Promise.all(Object.values(secondaryPaths).map(measureMobile)),
+      ));
+      const secondaryStats = Object.entries(secondaryPaths).map(([name], index) => {
+        const samples = secondarySamples.map((batch) => batch[index]!);
+        const sortedDurations = samples.map((sample) => sample.durationMs).sort((a, b) => a - b);
+        return {
+          name,
+          medianMs: sortedDurations[1]!,
+          responseBytes: samples.at(-1)!.responseBytes,
+          status: samples.at(-1)!.status,
+        };
+      });
 
       expect(detail.status).toBe(200);
       expect(detail.body.client ?? null).toBeNull();
-      expect(comments.status).toBe(200);
-      expect(activity.status).toBe(200);
-      expect(checklists.status).toBe(200);
+      expect(secondaryStats).toEqual(expect.arrayContaining([
+        expect.objectContaining({ name: "comments", status: 200 }),
+        expect.objectContaining({ name: "activity", status: 200 }),
+        expect.objectContaining({ name: "checklists", status: 200 }),
+      ]));
+      const commentsResponse = secondarySamples.at(-1)![0]!;
+      expect(commentsResponse.body).toHaveLength(12);
+      expect(commentsResponse.body.find((comment: any) =>
+        comment.commentText.startsWith("Mobile benchmark comment 1:")
+      )).toMatchObject({
+        author: { id: adminId, name: "Visibility Test Admin" },
+        reactions: [{
+          emoji: "👍",
+          count: 1,
+          userReacted: true,
+          users: ["Visibility Test Admin"],
+        }],
+      });
 
       await db.update(organizationsTable)
         .set({ clientsEnabled: true })
@@ -1134,8 +1210,9 @@ describe("manual ticket visibility", () => {
       console.info(
         `[ticket detail benchmark] clients=off mainSamples=${detailSamples.map((sample) => sample.durationMs.toFixed(1)).join(",")}ms ` +
         `mainMedian=${detailMedian.toFixed(1)}ms ` +
-        `comments=${comments.durationMs.toFixed(1)}ms activity=${activity.durationMs.toFixed(1)}ms ` +
-        `checklists=${checklists.durationMs.toFixed(1)}ms clients=on+linkedClient=${detailWithClient.durationMs.toFixed(1)}ms`,
+        `mobileRtt=100ms bandwidth=5Mbps ` +
+        `${secondaryStats.map((sample) => `${sample.name}=${sample.medianMs.toFixed(1)}ms/${sample.responseBytes}B`).join(" ")} ` +
+        `clients=on+linkedClient=${detailWithClient.durationMs.toFixed(1)}ms`,
       );
     } finally {
       await db.update(organizationsTable)

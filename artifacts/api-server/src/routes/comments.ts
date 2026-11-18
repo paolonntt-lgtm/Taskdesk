@@ -111,16 +111,17 @@ router.get("/tickets/:id/comments", requireAuth, async (req, res): Promise<void>
     .orderBy(ticketCommentsTable.createdAt);
 
   const authorIds = [...new Set(comments.map((c) => c.authorId))];
-  const usersResult = authorIds.length > 0
-    ? await db
+  const commentIds = comments.map((c) => c.id);
+  const [usersResult, reactionsMap] = await Promise.all([
+    authorIds.length > 0
+      ? db
         .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, role: usersTable.role, mainLocation: usersTable.mainLocation, createdAt: usersTable.createdAt, avatarUrl: usersTable.avatarUrl })
         .from(usersTable)
         .where(inArray(usersTable.id, authorIds))
-    : [];
+      : Promise.resolve([]),
+    getReactionsForComments(commentIds, currentUser.id),
+  ]);
   const userMap = new Map(usersResult.map((u) => [u.id, u]));
-
-  const commentIds = comments.map((c) => c.id);
-  const reactionsMap = await getReactionsForComments(commentIds, currentUser.id);
 
   res.json(comments.map((c) => ({
     ...c,
