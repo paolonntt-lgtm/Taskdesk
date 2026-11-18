@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url";
 const workspaceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const masterPath = path.join(workspaceRoot, "artifacts/landing/public/favicon.svg");
 const manifestPath = path.join(workspaceRoot, "scripts/taskdesk-icons.manifest.json");
-const foregroundSize = 510;
+const foregroundSize = 650;
 const faviconArtworkSize = 900;
 const mobileIconZoom = 1.18;
 const splashHorizontalScale = 1.05;

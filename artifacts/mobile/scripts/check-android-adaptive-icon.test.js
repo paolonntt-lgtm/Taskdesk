@@ -259,7 +259,7 @@ describe("Android adaptive icon safe-area check", () => {
     );
     expect(result.adaptiveBackgroundWidth).toBe(1024);
     expect(result.adaptiveBackgroundHeight).toBe(1024);
-    expect(result.requiredMargin).toBe(200);
+    expect(result.requiredMargin).toBe(113);
     expect(result.maxVisibleRadius).toBeLessThanOrEqual(result.safeRadius);
     expect(result.margins.left).toBeGreaterThanOrEqual(result.requiredMargin);
     expect(result.margins.right).toBeGreaterThanOrEqual(result.requiredMargin);

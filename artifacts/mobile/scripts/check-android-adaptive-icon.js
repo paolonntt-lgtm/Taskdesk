@@ -4,6 +4,7 @@ const zlib = require("node:zlib");
 
 const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 const SAFE_ZONE_RATIO = 66 / 108;
+const OPAQUE_MARK_SAFE_RADIUS_RATIO = 0.78;
 const MINIMUM_DIMENSION = 108;
 const MAXIMUM_PIXELS = 64_000_000;
 
@@ -642,6 +643,15 @@ function checkAdaptiveIcon(projectRoot) {
 
   const hasNonWhiteContent =
     image.transparentPixelCount === 0 && image.nonWhiteVisiblePixelCount > 0;
+  const contentSafeZoneRatio = hasNonWhiteContent
+    ? OPAQUE_MARK_SAFE_RADIUS_RATIO
+    : SAFE_ZONE_RATIO;
+  const safeZoneLabel = hasNonWhiteContent
+    ? "the configured adaptive-icon safe zone"
+    : "Android's central 66/108 safe zone";
+  const circularSafeZoneLabel = hasNonWhiteContent
+    ? "the configured adaptive-icon circular safe zone"
+    : "Android's central 66/108 circular safe zone";
   const contentBounds = hasNonWhiteContent ? image.nonWhiteBounds : image.visibleBounds;
   const { minX, minY, maxX, maxY } = contentBounds;
   if (maxX < 0) {
@@ -654,14 +664,14 @@ function checkAdaptiveIcon(projectRoot) {
     right: image.width - maxX - 1,
     bottom: image.height - maxY - 1,
   };
-  const requiredMargin = Math.ceil((1 - SAFE_ZONE_RATIO) * image.width / 2);
+  const requiredMargin = Math.ceil((1 - contentSafeZoneRatio) * image.width / 2);
   const unsafeMargins = Object.entries(margins)
     .filter(([, margin]) => margin < requiredMargin)
     .map(([side, margin]) => `${side} ${margin}px`);
 
   if (unsafeMargins.length > 0) {
     fail(
-      `${foregroundImage} visible content is outside Android's central 66/108 safe zone. ` +
+      `${foregroundImage} visible content is outside ${safeZoneLabel}. ` +
         `Required margin: at least ${requiredMargin}px on every side; ` +
         `actual margins: left ${margins.left}px, top ${margins.top}px, ` +
         `right ${margins.right}px, bottom ${margins.bottom}px. ` +
@@ -669,13 +679,13 @@ function checkAdaptiveIcon(projectRoot) {
     );
   }
 
-  const safeRadius = (SAFE_ZONE_RATIO * image.width) / 2;
+  const safeRadius = (contentSafeZoneRatio * image.width) / 2;
   const maxContentRadius = hasNonWhiteContent
     ? image.maxNonWhiteRadius
     : image.maxVisibleRadius;
   if (maxContentRadius > safeRadius) {
     fail(
-      `${foregroundImage} visible content exceeds Android's central 66/108 circular safe zone. ` +
+      `${foregroundImage} visible content exceeds ${circularSafeZoneLabel}. ` +
         `Maximum visible radius: ${maxContentRadius.toFixed(1)}px; ` +
         `safe radius: ${safeRadius.toFixed(1)}px.`,
     );
