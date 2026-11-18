@@ -1070,4 +1070,77 @@ describe("manual ticket visibility", () => {
       notification.notificationText.includes("mentioned the group")
     )).toHaveLength(1);
   }, 60_000);
+
+  it("measures ticket detail and secondary requests with client management disabled", async () => {
+    const created = await request("/api/tickets", adminSessionId, {
+      method: "POST",
+      body: JSON.stringify({
+        title: `Ticket detail benchmark ${runId}`,
+        description: "Synthetic ticket for detail-screen timing.",
+        category: "Support",
+        priority: "medium",
+      }),
+    });
+    expect(created.status).toBe(201);
+    const ticketId = created.body.id as number;
+    createdTicketIds.push(ticketId);
+
+    await db.update(organizationsTable)
+      .set({ clientsEnabled: false })
+      .where(eq(organizationsTable.id, organizationId));
+    try {
+      const measure = async (path: string) => {
+        const startedAt = performance.now();
+        const response = await request(path, adminSessionId);
+        return { ...response, durationMs: performance.now() - startedAt };
+      };
+      const detailPath = `/api/tickets/${ticketId}`;
+      await measure(detailPath);
+      const detailSamples = [];
+      for (let sample = 0; sample < 3; sample++) {
+        detailSamples.push(await measure(detailPath));
+      }
+      const detail = detailSamples.at(-1)!;
+      const comments = await measure(`/api/tickets/${ticketId}/comments`);
+      const activity = await measure(`/api/tickets/${ticketId}/activity`);
+      const checklists = await measure(`/api/tickets/${ticketId}/checklists`);
+      const detailMedian = [...detailSamples]
+        .sort((a, b) => a.durationMs - b.durationMs)[1]!.durationMs;
+
+      expect(detail.status).toBe(200);
+      expect(detail.body.client ?? null).toBeNull();
+      expect(comments.status).toBe(200);
+      expect(activity.status).toBe(200);
+      expect(checklists.status).toBe(200);
+
+      await db.update(organizationsTable)
+        .set({ clientsEnabled: true })
+        .where(eq(organizationsTable.id, organizationId));
+      const [benchmarkClient] = await db.insert(clientsTable).values({
+        organizationId,
+        name: `Ticket detail benchmark client ${runId}`,
+      }).returning({ id: clientsTable.id });
+      createdClientIds.push(benchmarkClient.id);
+      await db.update(ticketsTable)
+        .set({ clientId: benchmarkClient.id })
+        .where(eq(ticketsTable.id, ticketId));
+      const detailWithClient = await measure(detailPath);
+      expect(detailWithClient.status).toBe(200);
+      expect(detailWithClient.body.client).toMatchObject({
+        id: benchmarkClient.id,
+        name: `Ticket detail benchmark client ${runId}`,
+      });
+
+      console.info(
+        `[ticket detail benchmark] clients=off mainSamples=${detailSamples.map((sample) => sample.durationMs.toFixed(1)).join(",")}ms ` +
+        `mainMedian=${detailMedian.toFixed(1)}ms ` +
+        `comments=${comments.durationMs.toFixed(1)}ms activity=${activity.durationMs.toFixed(1)}ms ` +
+        `checklists=${checklists.durationMs.toFixed(1)}ms clients=on+linkedClient=${detailWithClient.durationMs.toFixed(1)}ms`,
+      );
+    } finally {
+      await db.update(organizationsTable)
+        .set({ clientsEnabled: true })
+        .where(eq(organizationsTable.id, organizationId));
+    }
+  }, 30_000);
 });

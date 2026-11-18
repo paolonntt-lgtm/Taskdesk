@@ -20,6 +20,14 @@ const mocks = vi.hoisted(() => ({
   },
 }));
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
+
 vi.mock("react-native", async () => {
   const ReactModule = await import("react");
   const element = ReactModule.createElement;
@@ -210,6 +218,63 @@ describe("mobile ticket detail client and assignee", () => {
     expect(mocks.apiGet).toHaveBeenCalledWith("/tickets/9");
     expect(host.textContent).toContain("Studio Paolo");
     expect(host.textContent).toContain("Mario Rossi");
+  });
+
+  it("renders useful ticket details before secondary requests finish without clients", async () => {
+    mocks.user.clientsEnabled = false;
+    const ticketRequest = deferred<any>();
+    const commentsRequest = deferred<unknown[]>();
+    const checklistsRequest = deferred<unknown[]>();
+    const settingsRequest = deferred<{ workedTimeEnabled: boolean; timeTrackingModuleEnabled: boolean }>();
+    const statusesRequest = deferred<unknown[]>();
+    let ticketRequestStartedAt = 0;
+    mocks.apiGet.mockImplementation((path: string) => {
+      if (path === "/tickets/9") {
+        ticketRequestStartedAt = performance.now();
+        return ticketRequest.promise;
+      }
+      if (path === "/tickets/9/comments") return commentsRequest.promise;
+      if (path === "/tickets/9/checklists") return checklistsRequest.promise;
+      if (path === "/settings/organization") return settingsRequest.promise;
+      if (path === "/settings/ticket-statuses") return statusesRequest.promise;
+      return Promise.resolve([]);
+    });
+
+    const mountedAt = performance.now();
+    await renderScreen();
+    expect(host.textContent).not.toContain("Review the service contract");
+    expect(ticketRequestStartedAt).toBeGreaterThanOrEqual(mountedAt);
+
+    const ticketWithoutClient = {
+      ...ticketResponse(),
+      clientId: null,
+      client: null,
+    };
+    const ticketResolvedAt = performance.now();
+    await act(async () => {
+      ticketRequest.resolve(ticketWithoutClient);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    await renderScreen();
+    const firstUsefulRenderAt = performance.now();
+
+    expect(host.textContent).toContain("Review the service contract");
+    expect(host.textContent).toContain("Review the latest service contract.");
+    expect(mocks.apiGet).toHaveBeenCalledWith("/tickets/9/comments");
+    expect(mocks.apiGet).toHaveBeenCalledWith("/tickets/9/checklists");
+    expect(mocks.apiGet).toHaveBeenCalledWith("/settings/organization");
+    expect(mocks.apiGet).toHaveBeenCalledWith("/settings/ticket-statuses");
+    console.info(
+      `[ticket detail render] clients=off mount-to-ticket-request=${(ticketRequestStartedAt - mountedAt).toFixed(1)}ms ` +
+      `ticket-response-to-useful-render=${(firstUsefulRenderAt - ticketResolvedAt).toFixed(1)}ms`,
+    );
+
+    await act(async () => {
+      commentsRequest.resolve([]);
+      checklistsRequest.resolve([]);
+      settingsRequest.resolve({ workedTimeEnabled: false, timeTrackingModuleEnabled: false });
+      statusesRequest.resolve([]);
+    });
   });
 
   it("keeps key metadata near the title and comments beside the description", async () => {

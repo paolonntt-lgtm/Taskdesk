@@ -1564,20 +1564,22 @@ router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   const orgId = currentUser.organizationId;
 
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
-  const clientsEnabled = await isClientFeatureEnabled(orgId);
-
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid ticket ID" });
     return;
   }
 
-  const [ticket] = await db.select().from(ticketsTable).where(
-    and(
-      eq(ticketsTable.id, id),
-      eq(ticketsTable.organizationId, orgId),
-      isNull(ticketsTable.deletedAt)
-    )
-  );
+  const [clientsEnabled, ticketRows] = await Promise.all([
+    isClientFeatureEnabled(orgId),
+    db.select().from(ticketsTable).where(
+      and(
+        eq(ticketsTable.id, id),
+        eq(ticketsTable.organizationId, orgId),
+        isNull(ticketsTable.deletedAt)
+      )
+    ),
+  ]);
+  const ticket = ticketRows[0];
   if (!ticket) {
     res.status(404).json({ error: "Ticket not found" });
     return;
@@ -1588,62 +1590,89 @@ router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
-  const creator = await getTicketUserDetails(ticket.createdBy);
-  let assignee = null;
-  if (ticket.assignedTo) {
-    assignee = await getTicketUserDetails(ticket.assignedTo);
-  }
-
-  const [{ count: cc }] = await db.select({ count: sql<number>`count(*)` }).from(ticketCommentsTable).where(eq(ticketCommentsTable.ticketId, id));
-  const [{ count: nc }] = await db.select({ count: sql<number>`count(*)` }).from(ticketInternalNotesTable).where(eq(ticketInternalNotesTable.ticketId, id));
-
-  let inboundChannelName: string | null = null;
-  if (ticket.inboundChannelId) {
-    const [ch] = await db.select({ label: inboundEmailChannelsTable.label })
-      .from(inboundEmailChannelsTable)
-      .where(eq(inboundEmailChannelsTable.id, ticket.inboundChannelId));
-    inboundChannelName = ch?.label ?? null;
-  }
-
-  let ticketClient = null;
-  if (clientsEnabled && ticket.clientId) {
-    const [c] = await db.select({ id: clientsTable.id, name: clientsTable.name, alias: clientsTable.alias })
-      .from(clientsTable)
-      .where(eq(clientsTable.id, ticket.clientId));
-    ticketClient = c ?? null;
-  }
-  let clientAssociationIssue: ReturnType<typeof resolveEmailClientAssociation>["clientAssociationIssue"];
-  if (
+  const [
+    creator,
+    assignee,
+    commentCountResult,
+    noteCountResult,
+    inboundChannelName,
+    ticketClient,
+    initialClientAssociationIssue,
+    canViewWorkedHours,
+    groupCanChangeStatus,
+    trackingSettingsResult,
+  ] = await Promise.all([
+    getTicketUserDetails(ticket.createdBy),
+    ticket.assignedTo ? getTicketUserDetails(ticket.assignedTo) : Promise.resolve(null),
+    db.select({ count: sql<number>`count(*)` })
+      .from(ticketCommentsTable)
+      .where(eq(ticketCommentsTable.ticketId, id)),
+    db.select({ count: sql<number>`count(*)` })
+      .from(ticketInternalNotesTable)
+      .where(eq(ticketInternalNotesTable.ticketId, id)),
+    ticket.inboundChannelId
+      ? db.select({ label: inboundEmailChannelsTable.label })
+          .from(inboundEmailChannelsTable)
+          .where(eq(inboundEmailChannelsTable.id, ticket.inboundChannelId))
+          .then(([channel]) => channel?.label ?? null)
+      : Promise.resolve(null),
+    clientsEnabled && ticket.clientId
+      ? db.select({ id: clientsTable.id, name: clientsTable.name, alias: clientsTable.alias })
+          .from(clientsTable)
+          .where(eq(clientsTable.id, ticket.clientId))
+          .then(([client]) => client ?? null)
+      : Promise.resolve(null),
     clientsEnabled &&
     !ticket.clientId &&
     (ticket.inboundChannelId || ticket.emailMessageId || ticket.emailConversationId)
+      ? (async () => {
+          const senderEmail = normalizeSenderEmail(ticket.resource ?? "");
+          if (!senderEmail) return undefined;
+          const clients = await db.select({
+            id: clientsTable.id,
+            name: clientsTable.name,
+            alias: clientsTable.alias,
+            email: clientsTable.email,
+            pec: clientsTable.pec,
+          }).from(clientsTable).where(eq(clientsTable.organizationId, orgId));
+          return resolveEmailClientAssociation({
+            organizationId: orgId,
+            senderEmail,
+            clients: clients.map((client) => ({ ...client, organizationId: orgId })),
+          }).clientAssociationIssue;
+        })()
+      : Promise.resolve(undefined),
+    hasGroupPermission(
+      currentUser.id,
+      orgId,
+      VIEW_WORKED_HOURS_PERMISSION,
+      currentUser.role === "admin",
+      req,
+    ),
+    hasGroupPermission(
+      currentUser.id,
+      orgId,
+      "change_status",
+      currentUser.role === "admin",
+      req,
+    ),
+    db.select({
+      enabled: organizationsTable.timeTrackingModuleEnabled,
+    }).from(organizationsTable).where(eq(organizationsTable.id, orgId)),
+  ]);
+  const cc = commentCountResult[0]?.count ?? 0;
+  const nc = noteCountResult[0]?.count ?? 0;
+  const trackingSettings = trackingSettingsResult[0];
+  let clientAssociationIssue = initialClientAssociationIssue;
+  if (
+    clientsEnabled &&
+    !ticket.clientId &&
+    (ticket.inboundChannelId || ticket.emailMessageId || ticket.emailConversationId) &&
+    ticket.emailClientAssociationReason === "conflict"
   ) {
-    const senderEmail = normalizeSenderEmail(ticket.resource ?? "");
-    if (senderEmail) {
-      const clients = await db.select({
-          id: clientsTable.id,
-          name: clientsTable.name,
-          alias: clientsTable.alias,
-          email: clientsTable.email,
-          pec: clientsTable.pec,
-        }).from(clientsTable).where(eq(clientsTable.organizationId, orgId));
-      clientAssociationIssue = resolveEmailClientAssociation({
-        organizationId: orgId,
-        senderEmail,
-        clients: clients.map((client) => ({ ...client, organizationId: orgId })),
-      }).clientAssociationIssue;
-    }
-    if (ticket.emailClientAssociationReason === "conflict") {
-      clientAssociationIssue = "conflicting_exact_matches";
-    }
+    clientAssociationIssue = "conflicting_exact_matches";
   }
-  const canViewWorkedHours = await hasGroupPermission(
-    currentUser.id,
-    orgId,
-    VIEW_WORKED_HOURS_PERMISSION,
-    currentUser.role === "admin",
-    req,
-  );
+
   const detail = buildTicketWithDetails(
     ticket,
     creator,
@@ -1670,18 +1699,9 @@ router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     // association-source details remain restricted to admins.
     (detail as any).clientAssociationIssue = clientAssociationIssue;
   }
-  const groupCanChangeStatus = await hasGroupPermission(
-    currentUser.id,
-    orgId,
-    "change_status",
-    currentUser.role === "admin",
-  );
   detail.canChangeStatus = ticket.timeTrackingEnabled
     ? currentUser.role === "admin" || ticket.assignedTo === currentUser.id
     : currentUser.role === "admin" || groupCanChangeStatus || ticket.assignedTo === currentUser.id;
-  const [trackingSettings] = await db.select({
-    enabled: organizationsTable.timeTrackingModuleEnabled,
-  }).from(organizationsTable).where(eq(organizationsTable.id, orgId));
   const isTimeTrackingParticipant = currentUser.role === "admin" || (await db
     .select({ id: ticketTimeSessionsTable.id })
     .from(ticketTimeSessionsTable)
