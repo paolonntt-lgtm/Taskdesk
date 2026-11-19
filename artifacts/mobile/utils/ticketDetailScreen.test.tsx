@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   activity: [] as Array<Record<string, any>>,
   lang: "it" as "it" | "en",
   apiGet: vi.fn(),
+  apiPost: vi.fn(),
   user: {
     id: 1,
     role: "admin",
@@ -103,6 +104,10 @@ vi.mock("@/contexts/LanguageContext", () => ({
 }));
 vi.mock("@workspace/api-client-react", () => ({
   getListTicketActivityQueryKey: (id: number) => [`/api/tickets/${id}/activity`],
+  useListUsers: (_params: unknown, options: { query?: { enabled?: boolean } }) => ({
+    data: options.query?.enabled ? mocks.responses["/users"] : undefined,
+    isLoading: false,
+  }),
   useListTicketActivity: () => ({
     data: mocks.activity,
     isLoading: false,
@@ -113,7 +118,7 @@ vi.mock("@workspace/api-client-react", () => ({
 vi.mock("@/utils/api", () => ({
   apiGet: mocks.apiGet,
   apiPatch: vi.fn(),
-  apiPost: vi.fn(),
+  apiPost: mocks.apiPost,
   apiDelete: vi.fn(),
   PRIORITY_COLORS: {},
 }));
@@ -197,12 +202,15 @@ describe("mobile ticket detail client and assignee", () => {
       "/tickets/9": ticketResponse(),
       "/tickets/9/comments": [],
       "/tickets/9/checklists": [],
+      "/users": [{ id: 2, name: "Mario Rossi", isActive: true }],
+      "/settings/groups": { value: ["Support", "Back office"] },
       "/settings/organization": { workedTimeEnabled: false, timeTrackingModuleEnabled: false },
       "/settings/ticket-statuses": [],
     };
     mocks.activity = [];
     mocks.lang = "it";
     mocks.apiGet.mockReset().mockImplementation(async (path: string) => mocks.responses[path]);
+    mocks.apiPost.mockReset().mockResolvedValue({});
   });
 
   afterEach(async () => {
@@ -218,6 +226,34 @@ describe("mobile ticket detail client and assignee", () => {
     expect(mocks.apiGet).toHaveBeenCalledWith("/tickets/9");
     expect(host.textContent).toContain("Studio Paolo");
     expect(host.textContent).toContain("Mario Rossi");
+  });
+
+  it.each([
+    { query: "mario", option: "ticket-mention-user-Mario Rossi", expected: "Ciao @[Mario Rossi]" },
+    { query: "support", option: "ticket-mention-group-Support", expected: "Ciao @[Support]" },
+  ])("lets a mobile comment mention a user or group", async ({ query, option, expected }) => {
+    await renderScreen();
+
+    const input = host.querySelector<HTMLInputElement>('[data-testid="ticket-comment-input"]');
+    expect(input).not.toBeNull();
+    await act(async () => {
+      const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      setValue?.call(input, `Ciao @${query}`);
+      input!.dispatchEvent(new Event("input", { bubbles: true }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    const mention = host.querySelector<HTMLButtonElement>(`[data-testid="${option}"]`);
+    expect(mention).not.toBeNull();
+    await act(async () => mention?.click());
+    expect(input?.value).toBe(`${expected} `);
+
+    await act(async () => {
+      await host.querySelector<HTMLButtonElement>('[aria-label="Aggiungi un commento..."]')?.click();
+    });
+    expect(mocks.apiPost).toHaveBeenCalledWith("/tickets/9/comments", {
+      commentText: expected,
+    });
   });
 
   it("renders useful ticket details before secondary requests finish without clients", async () => {

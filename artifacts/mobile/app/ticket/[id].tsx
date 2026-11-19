@@ -28,6 +28,7 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { TicketEditModal } from "@/components/TicketEditModal";
 import {
   getListTicketActivityQueryKey,
+  useListUsers,
   useListTicketActivity,
 } from "@workspace/api-client-react";
 import {
@@ -69,6 +70,8 @@ interface Comment {
   id: number; commentText: string; isInternal: boolean;
   author: { name: string }; createdAt: string;
 }
+interface MentionUser { id: number; name: string; isActive?: boolean; }
+type MentionOption = { kind: "user"; id: number; name: string } | { kind: "group"; name: string };
 interface TicketAttachment {
   fileName: string;
   fileSize: number;
@@ -162,6 +165,9 @@ export default function TicketDetailScreen() {
   const timeTrackingModuleEnabled = organizationSettingsQuery.data?.timeTrackingModuleEnabled === true;
 
   const [comment, setComment] = useState("");
+  const [commentCursor, setCommentCursor] = useState(0);
+  const [mentionStart, setMentionStart] = useState<number | null>(null);
+  const [mentionQuery, setMentionQuery] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [showAdditionalDetails, setShowAdditionalDetails] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState<PendingTicketAttachment[]>([]);
@@ -244,6 +250,55 @@ export default function TicketDetailScreen() {
     queryFn: () => apiGet<Comment[]>(`/tickets/${id}/comments`),
     enabled: !!id,
   });
+  const mentionUsersQuery = useListUsers<MentionUser[]>(undefined, {
+    query: {
+      queryKey: ["ticket-mention-users", user?.organizationId],
+      enabled: mentionStart !== null && user?.organizationId != null,
+    },
+  });
+  const mentionGroupsQuery = useQuery({
+    queryKey: ["ticket-mention-groups", user?.organizationId],
+    queryFn: () => apiGet<{ value: string[] }>("/settings/groups"),
+    enabled: mentionStart !== null && user?.organizationId != null,
+  });
+  const mentionOptions = React.useMemo<MentionOption[]>(() => {
+    const query = mentionQuery.trim().toLocaleLowerCase();
+    const users: MentionOption[] = (mentionUsersQuery.data ?? [])
+      .filter((mentionUser) => mentionUser.isActive !== false)
+      .filter((mentionUser) => mentionUser.name.toLocaleLowerCase().includes(query))
+      .map((mentionUser) => ({ kind: "user", id: mentionUser.id, name: mentionUser.name }));
+    const groups: MentionOption[] = (mentionGroupsQuery.data?.value ?? [])
+      .filter((name) => name.toLocaleLowerCase().includes(query))
+      .map((name) => ({ kind: "group", name }));
+    return [...users, ...groups].slice(0, 6);
+  }, [mentionUsersQuery.data, mentionGroupsQuery.data, mentionQuery]);
+  const mentionLoading = mentionUsersQuery.isLoading || mentionGroupsQuery.isLoading;
+  const updateMentionQuery = (value: string, cursor: number) => {
+    const match = value.slice(0, cursor).match(/@([^\s@#]*)$/);
+    if (!match) {
+      setMentionStart(null);
+      setMentionQuery("");
+      return;
+    }
+    setMentionStart(cursor - match[0].length);
+    setMentionQuery(match[1]);
+  };
+  const changeComment = (value: string) => {
+    const cursor = commentCursor >= comment.length ? value.length : Math.min(commentCursor, value.length);
+    setComment(value);
+    setCommentCursor(cursor);
+    updateMentionQuery(value, cursor);
+  };
+  const selectMention = (option: MentionOption) => {
+    if (mentionStart === null) return;
+    const tag = `@[${option.name}] `;
+    const nextComment = `${comment.slice(0, mentionStart)}${tag}${comment.slice(commentCursor)}`;
+    const nextCursor = mentionStart + tag.length;
+    setComment(nextComment);
+    setCommentCursor(nextCursor);
+    setMentionStart(null);
+    setMentionQuery("");
+  };
 
   interface ChecklistItemType { id: number; text: string; checked: boolean; position: number; }
   interface ChecklistType { id: number; title: string; items: ChecklistItemType[]; position: number; }
@@ -511,6 +566,9 @@ export default function TicketDetailScreen() {
     try {
       await apiPost(`/tickets/${id}/comments`, { commentText: comment.trim() });
       setComment("");
+      setCommentCursor(0);
+      setMentionStart(null);
+      setMentionQuery("");
       refetchComments();
       qc.invalidateQueries({ queryKey: ["ticket", id] });
     } catch (e: any) {
@@ -791,9 +849,16 @@ export default function TicketDetailScreen() {
 
           <View style={s.commentInputWrap}>
             <TextInput
+              testID="ticket-comment-input"
               style={s.commentInput}
               value={comment}
-              onChangeText={setComment}
+              selection={{ start: commentCursor, end: commentCursor }}
+              onChangeText={changeComment}
+              onSelectionChange={(event) => {
+                const cursor = event.nativeEvent.selection.start;
+                setCommentCursor(cursor);
+                updateMentionQuery(comment, cursor);
+              }}
               placeholder={t.ticketDetail.addComment}
               placeholderTextColor={colors.mutedForeground}
               multiline
@@ -813,6 +878,31 @@ export default function TicketDetailScreen() {
               )}
             </TouchableOpacity>
           </View>
+          <Text style={s.mentionHint}>{t.ticketDetail.mentionHint}</Text>
+          {mentionStart !== null && (
+            <View style={s.mentionList} testID="ticket-mention-options">
+              {mentionLoading ? (
+                <Text style={s.mentionEmpty}>{t.ticketDetail.mentionLoading}</Text>
+              ) : mentionOptions.length === 0 ? (
+                <Text style={s.mentionEmpty}>{t.ticketDetail.mentionNoResults}</Text>
+              ) : mentionOptions.map((option) => (
+                <TouchableOpacity
+                  key={option.kind === "user" ? `user-${option.id}` : `group-${option.name}`}
+                  testID={`ticket-mention-${option.kind}-${option.name}`}
+                  accessibilityRole="button"
+                  accessibilityLabel={option.kind === "group" ? `${option.name}, ${t.ticketDetail.groupLabel}` : option.name}
+                  onPress={() => selectMention(option)}
+                  style={s.mentionOption}
+                >
+                  <View style={[s.mentionAvatar, option.kind === "group" && s.mentionGroupAvatar]}>
+                    <Feather name={option.kind === "group" ? "users" : "user"} size={14} color={colors.primaryForeground} />
+                  </View>
+                  <Text style={s.mentionName}>{option.name}</Text>
+                  {option.kind === "group" && <Text style={s.mentionGroupLabel}>{t.ticketDetail.groupLabel}</Text>}
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </View>
 
         <View style={s.additionalDetailsSection}>
@@ -1688,6 +1778,14 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10,
       fontSize: 14, color: colors.foreground, minHeight: 48, maxHeight: 120, fontFamily: "Inter_400Regular",
     },
+    mentionHint: { fontSize: 11, color: colors.mutedForeground, marginTop: 2 },
+    mentionList: { maxHeight: 300, borderWidth: 1, borderColor: colors.border, borderRadius: 12, overflow: "hidden", backgroundColor: colors.card },
+    mentionOption: { minHeight: 48, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
+    mentionAvatar: { width: 30, height: 30, borderRadius: 15, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary },
+    mentionGroupAvatar: { backgroundColor: colors.accent },
+    mentionName: { flex: 1, fontSize: 14, color: colors.foreground, fontFamily: "Inter_500Medium" },
+    mentionGroupLabel: { fontSize: 11, color: colors.mutedForeground },
+    mentionEmpty: { padding: 12, fontSize: 12, color: colors.mutedForeground },
     sendBtn: { backgroundColor: colors.primary, width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
     sendBtnDisabled: { opacity: 0.5 },
     modalRoot: { flex: 1, backgroundColor: colors.background },
