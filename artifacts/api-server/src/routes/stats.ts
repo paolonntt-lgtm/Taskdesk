@@ -57,6 +57,49 @@ function statsChartTicketFilter(orgId: number, currentUser: any) {
   );
 }
 
+async function getResolverLeaderboard(orgId: number, currentUser: any) {
+  const configuredStatuses = await db.select({
+    key: ticketStatusesTable.key,
+    isClosed: ticketStatusesTable.isClosed,
+  })
+    .from(ticketStatusesTable)
+    .where(eq(ticketStatusesTable.organizationId, orgId));
+  const closedStatusKeys = getClosedTicketStatusKeys(configuredStatuses);
+  const latestStatusChanges = db.selectDistinctOn([ticketActivityLogsTable.ticketId], {
+    ticketId: ticketActivityLogsTable.ticketId,
+    userId: ticketActivityLogsTable.userId,
+  })
+    .from(ticketActivityLogsTable)
+    .innerJoin(ticketsTable, eq(ticketActivityLogsTable.ticketId, ticketsTable.id))
+    .where(and(
+      eq(ticketActivityLogsTable.actionType, "status_changed"),
+      statsTicketFilter(orgId, currentUser),
+      inArray(ticketsTable.status, closedStatusKeys),
+    ))
+    .orderBy(
+      ticketActivityLogsTable.ticketId,
+      desc(ticketActivityLogsTable.createdAt),
+      desc(ticketActivityLogsTable.id),
+    )
+    .as("latest_ticket_status_changes");
+  const userOrgFilter = and(
+    inArray(usersTable.id, currentUser.workspaceMemberIds ?? []),
+    eq(usersTable.isSystem, false),
+  );
+
+  return db.select({
+    id: usersTable.id,
+    name: usersTable.name,
+    count: sql<number>`count(${latestStatusChanges.ticketId})`,
+  })
+    .from(usersTable)
+    .innerJoin(latestStatusChanges, eq(latestStatusChanges.userId, usersTable.id))
+    .where(userOrgFilter)
+    .groupBy(usersTable.id, usersTable.name)
+    .orderBy(sql`count(${latestStatusChanges.ticketId}) desc`)
+    .limit(5);
+}
+
 const TICKET_LIST_COLS = {
   id: ticketsTable.id,
   organizationId: ticketsTable.organizationId,
@@ -632,22 +675,7 @@ router.get("/stats/reports-all", requireAuth, async (req, res): Promise<void> =>
       .groupBy(usersTable.id, usersTable.name)
       .orderBy(sql`count(${ticketCommentsTable.id}) desc`).limit(5),
 
-    db.select({ id: usersTable.id, name: usersTable.name, count: sql<number>`count(${ticketCommentsTable.id})` })
-      .from(usersTable)
-      .innerJoin(
-        ticketCommentsTable,
-        and(eq(ticketCommentsTable.authorId, usersTable.id), eq(ticketCommentsTable.isSolution, true))
-      )
-      .innerJoin(
-        ticketsTable,
-        and(
-          eq(ticketCommentsTable.ticketId, ticketsTable.id),
-          statsTicketFilter(orgId, currentUser),
-        )
-      )
-      .where(userOrgFilter)
-      .groupBy(usersTable.id, usersTable.name)
-      .orderBy(sql`count(${ticketCommentsTable.id}) desc`).limit(5),
+    getResolverLeaderboard(orgId, currentUser),
   ]);
 
   const statusLabels: Record<string, string> = {
@@ -738,7 +766,6 @@ router.get("/stats/leaderboard", requireAuth, async (req, res): Promise<void> =>
   const orgId = currentUser.organizationId;
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
   const userOrgFilter = and(inArray(usersTable.id, currentUser.workspaceMemberIds ?? []), eq(usersTable.isSystem, false));
-
   const [openers, commenters, resolvers] = await Promise.all([
     db.select({
       id: usersTable.id,
@@ -777,27 +804,7 @@ router.get("/stats/leaderboard", requireAuth, async (req, res): Promise<void> =>
       .orderBy(sql`count(${ticketCommentsTable.id}) desc`)
       .limit(5),
 
-    db.select({
-      id: usersTable.id,
-      name: usersTable.name,
-      count: sql<number>`count(${ticketCommentsTable.id})`,
-    })
-      .from(usersTable)
-      .innerJoin(
-        ticketCommentsTable,
-        and(eq(ticketCommentsTable.authorId, usersTable.id), eq(ticketCommentsTable.isSolution, true))
-      )
-      .innerJoin(
-        ticketsTable,
-        and(
-          eq(ticketCommentsTable.ticketId, ticketsTable.id),
-          statsTicketFilter(orgId, currentUser),
-        )
-      )
-      .where(userOrgFilter)
-      .groupBy(usersTable.id, usersTable.name)
-      .orderBy(sql`count(${ticketCommentsTable.id}) desc`)
-      .limit(5),
+    getResolverLeaderboard(orgId, currentUser),
   ]);
 
   res.json({

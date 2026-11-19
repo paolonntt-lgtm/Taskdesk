@@ -5,6 +5,7 @@ import {
   organizationsTable,
   pool,
   sessionsTable,
+  ticketActivityLogsTable,
   ticketStatusesTable,
   ticketsTable,
   usersTable,
@@ -226,6 +227,7 @@ describe("external tickets count in statistics but stay out of charts", () => {
     expect(leaderboard.body.openers).toEqual([
       { id: adminId, name: "Stats Source Exclusions Admin", count: 1 },
     ]);
+    expect(leaderboard.body.resolvers).toEqual([]);
 
     expect(resolutionByAssignee.body.overall.count).toBe(1);
     expect(resolutionByAssignee.body.byAssignee).toEqual([]);
@@ -241,5 +243,72 @@ describe("external tickets count in statistics but stay out of charts", () => {
       title: ticketsTable.title,
     }).from(ticketsTable).where(inArray(ticketsTable.id, createdTicketIds));
     expect(stillStoredTickets).toHaveLength(4);
+  });
+
+  it("ranks closers once per currently closed ticket, including custom closed statuses", async () => {
+    await db.insert(ticketStatusesTable).values({
+      organizationId,
+      key: "custom_done",
+      label: "Completato",
+      isClosed: true,
+    });
+
+    const tickets = await db.insert(ticketsTable).values([
+      {
+        organizationId,
+        title: `Custom closed one ${runId}`,
+        description: "Closed in a custom status",
+        category: "Support",
+        location: "Office",
+        priority: "medium",
+        status: "custom_done",
+        createdBy: adminId,
+        assignedTo: systemUserId,
+        closedAt: new Date(),
+      },
+      {
+        organizationId,
+        title: `Custom closed two ${runId}`,
+        description: "Closed after an earlier status transition",
+        category: "Support",
+        location: "Office",
+        priority: "medium",
+        status: "custom_done",
+        createdBy: adminId,
+        closedAt: new Date(),
+      },
+      {
+        organizationId,
+        title: `Reopened ${runId}`,
+        description: "Currently open after a previous closure",
+        category: "Support",
+        location: "Office",
+        priority: "medium",
+        status: "open",
+        createdBy: adminId,
+      },
+    ]).returning({ id: ticketsTable.id });
+    createdTicketIds.push(...tickets.map(({ id }) => id));
+
+    await db.insert(ticketActivityLogsTable).values([
+      { ticketId: tickets[0].id, userId: systemUserId, actionType: "status_changed", actionDescription: "Earlier close" },
+      { ticketId: tickets[0].id, userId: adminId, actionType: "status_changed", actionDescription: "Final close" },
+      { ticketId: tickets[1].id, userId: adminId, actionType: "status_changed", actionDescription: "Close" },
+      { ticketId: tickets[1].id, userId: adminId, actionType: "status_changed", actionDescription: "Close again" },
+      { ticketId: tickets[2].id, userId: adminId, actionType: "status_changed", actionDescription: "Previously closed" },
+      { ticketId: tickets[2].id, userId: adminId, actionType: "status_changed", actionDescription: "Reopened" },
+    ]);
+
+    const [leaderboard, reportsAll] = await Promise.all([
+      request("/api/stats/leaderboard", adminSessionId),
+      request("/api/stats/reports-all", adminSessionId),
+    ]);
+
+    expect(leaderboard.status).toBe(200);
+    expect(reportsAll.status).toBe(200);
+    expect(leaderboard.body.resolvers).toEqual([
+      { id: adminId, name: "Stats Source Exclusions Admin", count: 2 },
+    ]);
+    expect(reportsAll.body.leaderboard.resolvers).toEqual(leaderboard.body.resolvers);
   });
 });
