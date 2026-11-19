@@ -167,6 +167,7 @@ describe("external tickets count in statistics but stay out of charts", () => {
       resolutionByAssignee,
       resolutionByCategory,
       resolutionByPriority,
+      widgetSummary,
     ] = await Promise.all([
       request("/api/stats/dashboard", adminSessionId),
       request("/api/stats/trend?days=30", adminSessionId),
@@ -181,11 +182,13 @@ describe("external tickets count in statistics but stay out of charts", () => {
       request("/api/stats/resolution-by-assignee", adminSessionId),
       request("/api/stats/resolution-by-category", adminSessionId),
       request("/api/stats/resolution-by-priority", adminSessionId),
+      request("/api/stats/mobile-widget", adminSessionId),
     ]);
 
     for (const result of [
       dashboard, trend, byStatus, byCategory, byLocation, byPriority, byAssignee,
       recentTickets, reportsAll, leaderboard, resolutionByAssignee, resolutionByCategory, resolutionByPriority,
+      widgetSummary,
     ]) {
       expect(result.status).toBe(200);
     }
@@ -237,6 +240,10 @@ describe("external tickets count in statistics but stay out of charts", () => {
     )).toBe(0);
     expect(resolutionByCategory.body).toEqual([]);
     expect(resolutionByPriority.body).toEqual([]);
+    expect(widgetSummary.body.openCount).toBe(2);
+    expect(widgetSummary.body.assignedCount).toBe(0);
+    expect(widgetSummary.body.openTickets).toHaveLength(2);
+    expect(widgetSummary.body.assignedTickets).toEqual([]);
 
     const stillStoredTickets = await db.select({
       id: ticketsTable.id,

@@ -18,6 +18,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { WorkspaceAccessRevokedAlert } from "@/components/WorkspaceAccessRevokedAlert";
+import { TicketsWidgetSync } from "@/components/TicketsWidgetSync";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -180,6 +181,7 @@ export default function RootLayout() {
               <LanguageProvider>
                 <AuthProvider>
                   <WorkspaceAccessRevokedAlert />
+                  <TicketsWidgetSync />
                   <RootLayoutNav />
                 </AuthProvider>
               </LanguageProvider>

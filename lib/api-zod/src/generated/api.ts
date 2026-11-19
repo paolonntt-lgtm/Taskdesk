@@ -3428,6 +3428,25 @@ export const GetDashboardStatsResponse = zod.object({
 
 
 /**
+ * @summary Get open and assigned tickets for the mobile widget
+ */
+export const GetMobileWidgetSummaryResponse = zod.object({
+  "openCount": zod.int(),
+  "assignedCount": zod.int(),
+  "openTickets": zod.array(zod.object({
+  "id": zod.int(),
+  "ticketNumber": zod.int().nullish(),
+  "title": zod.string()
+})),
+  "assignedTickets": zod.array(zod.object({
+  "id": zod.int(),
+  "ticketNumber": zod.int().nullish(),
+  "title": zod.string()
+}))
+})
+
+
+/**
  * @summary Get ticket counts grouped by status
  */
 export const GetStatsByStatusResponseItem = zod.object({

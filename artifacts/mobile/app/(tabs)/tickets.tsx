@@ -35,7 +35,7 @@ export default function TicketsScreen() {
   const { t } = useLanguage();
   const { statuses: orgStatuses, getLabelForKey } = useTicketStatuses();
   const s = styles(colors);
-  const params = useLocalSearchParams<{ status?: string; priority?: string; search?: string }>();
+  const params = useLocalSearchParams<{ status?: string; priority?: string; search?: string; assignedTo?: string }>();
 
   const [search, setSearch] = useState(params.search ?? "");
   const [statusFilter, setStatusFilter] = useState(params.status ?? "");
@@ -56,13 +56,14 @@ export default function TicketsScreen() {
     const parts: string[] = [];
     if (statusFilter) parts.push(`status=${statusFilter}`);
     if (priorityFilter) parts.push(`priority=${priorityFilter}`);
+    if (params.assignedTo === "me" && user?.id) parts.push(`assignedTo=${user.id}&nonClosed=true`);
     if (recurringFilter) parts.push(`recurring=true`);
     if (search.trim()) parts.push(`search=${encodeURIComponent(search.trim())}`);
     return parts.length > 0 ? `?${parts.join("&")}` : "";
   };
 
   const { data: tickets = [], isLoading, refetch } = useQuery({
-    queryKey: ["tickets", statusFilter, priorityFilter, recurringFilter, search.trim()],
+    queryKey: ["tickets", statusFilter, priorityFilter, recurringFilter, search.trim(), params.assignedTo, user?.id],
     queryFn: () => apiGet<Ticket[]>(`/tickets${buildQuery()}`),
     enabled: !!user,
   });

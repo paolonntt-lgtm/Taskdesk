@@ -2821,6 +2821,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/DashboardStats"
 
+  /stats/mobile-widget:
+    get:
+      operationId: getMobileWidgetSummary
+      tags: [stats]
+      summary: Get open and assigned tickets for the mobile widget
+      responses:
+        "200":
+          description: Ticket counts and latest visible ticket titles
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MobileWidgetSummary"
+
   /stats/by-status:
     get:
       operationId: getStatsByStatus
@@ -5593,6 +5606,34 @@ components:
         - last30Days
         - createdToday
         - closedToday
+
+    MobileWidgetTicket:
+      type: object
+      properties:
+        id:
+          type: integer
+        ticketNumber:
+          type: integer
+          nullable: true
+        title:
+          type: string
+      required: [id, title]
+    MobileWidgetSummary:
+      type: object
+      properties:
+        openCount:
+          type: integer
+        assignedCount:
+          type: integer
+        openTickets:
+          type: array
+          items:
+            $ref: "#/components/schemas/MobileWidgetTicket"
+        assignedTickets:
+          type: array
+          items:
+            $ref: "#/components/schemas/MobileWidgetTicket"
+      required: [openCount, assignedCount, openTickets, assignedTickets]
 
     StatGroup:
       type: object

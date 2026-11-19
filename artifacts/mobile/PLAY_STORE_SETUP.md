@@ -143,6 +143,24 @@ This produces an `.apk` you can sideload for testing push notifications end-to-e
 
 ---
 
+## Verify the Android home-screen widget
+
+TaskDesk's ticket widget is native Android code. Changes to its provider, layout,
+or app configuration require a new Android binary; an over-the-air JavaScript
+update alone cannot add or repair the widget.
+
+Before uploading a production bundle:
+
+1. Install the preview APK on an Android device and sign in.
+2. Add **TaskDesk · Ticket** from the launcher's widget picker.
+3. Confirm the open and assigned counts and ticket titles match the active workspace.
+4. Tap each section and confirm it opens the matching ticket list.
+5. Sign out and switch workspaces to confirm the previous workspace's ticket data
+   is no longer shown.
+6. After the preview passes, build the production `.aab` for Play Console.
+
+---
+
 ## Step 4 — Create a Google Play Developer account
 
 1. Go to [play.google.com/console](https://play.google.com/console) and sign in with your Google account.

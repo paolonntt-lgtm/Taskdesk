@@ -1016,6 +1016,19 @@ export interface DashboardStats {
   avgResolutionHours?: number | null;
 }
 
+export interface MobileWidgetTicket {
+  id: number;
+  ticketNumber?: number | null;
+  title: string;
+}
+
+export interface MobileWidgetSummary {
+  openCount: number;
+  assignedCount: number;
+  openTickets: MobileWidgetTicket[];
+  assignedTickets: MobileWidgetTicket[];
+}
+
 export interface StatGroup {
   name: string;
   count: number;

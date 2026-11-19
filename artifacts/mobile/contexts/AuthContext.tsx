@@ -8,6 +8,7 @@ import {
   startAuthRefreshPolling,
 } from "@workspace/api-client-react";
 import { apiFetch, apiPost, setActiveWorkspaceContext } from "@/utils/api";
+import { clearTicketsWidget } from "@/utils/ticketsWidget";
 
 type WorkspaceRole = "admin" | "user";
 
@@ -330,6 +331,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     setWorkspaceAccessRevoked(false);
     await apiFetch("/auth/logout", { method: "POST" });
+    await clearTicketsWidget().catch(() => {});
     setActiveWorkspaceContext(null, null);
     setUser(null);
     userRef.current = null;
@@ -354,6 +356,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       currentUser.workspaces?.some((workspace) => workspace.id === workspaceId);
     if (!Number.isInteger(workspaceId) || !isAvailable) throw new Error("Workspace access denied");
 
+    await clearTicketsWidget().catch(() => {});
     setActiveWorkspaceContext(workspaceId, homeWorkspaceId);
     queryClient.clear();
     try {

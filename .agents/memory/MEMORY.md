@@ -47,6 +47,7 @@
 - [Dependency remediation policy](dependency-remediation-policy.md) — Preserve audit visibility for locally patched, unmaintained dependencies; verify consumer behavior, not just version numbers.
 - [Expo SDK alignment in this workspace](expo-sdk-pnpm-alignment.md) — If Expo CLI's pnpm child rejects workspace patches, preserve patches and use Expo's printed versions with a scoped pnpm override.
 - [EAS mobile build and OTA compatibility](eas-mobile-api-host.md) — Keep EAS API hosts, update channels, and native runtime versions aligned.
+- [Android home-screen widget builds](android-home-widget-builds.md) — Keep widget-native imports out of Expo Go; validate native widget changes in a fresh Android binary.
 - [Android push credentials](android-push-credentials.md) — Keep the bundled Firebase client config separate from Expo’s private FCM V1 sender key.
 - [Expo web export base path](expo-web-export-base-path.md) — Static web exports need the artifact prefix, and Expo dev previews must be opened at that prefix too.
 - [Android adaptive icon background](android-icon-negative-space.md) — Keep the foreground opaque white and use the user’s preferred enlarged mark despite slight mask clipping.

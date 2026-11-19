@@ -88,6 +88,7 @@ import type {
   ListUsersParams,
   LoginRequest,
   LoginResponse,
+  MobileWidgetSummary,
   NoteWithAuthor,
   Notification,
   OnboardingCompleteInput,
@@ -7994,6 +7995,83 @@ export function useGetDashboardStats<TData = Awaited<ReturnType<typeof getDashbo
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetDashboardStatsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetMobileWidgetSummaryUrl = () => {
+
+
+
+
+  return `/api/stats/mobile-widget`
+}
+
+/**
+ * @summary Get open and assigned tickets for the mobile widget
+ */
+export const getMobileWidgetSummary = async ( options?: Parameters<typeof customFetch>[1]): Promise<MobileWidgetSummary> => {
+
+  return customFetch<MobileWidgetSummary>(getGetMobileWidgetSummaryUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMobileWidgetSummaryQueryKey = () => {
+    return [
+    `/api/stats/mobile-widget`
+    ] as const;
+    }
+
+
+export const getGetMobileWidgetSummaryQueryOptions = <TData = Awaited<ReturnType<typeof getMobileWidgetSummary>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMobileWidgetSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMobileWidgetSummaryQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMobileWidgetSummary>>> = ({ signal }) => getMobileWidgetSummary({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMobileWidgetSummary>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMobileWidgetSummaryQueryResult = NonNullable<Awaited<ReturnType<typeof getMobileWidgetSummary>>>
+export type GetMobileWidgetSummaryQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get open and assigned tickets for the mobile widget
+ */
+
+export function useGetMobileWidgetSummary<TData = Awaited<ReturnType<typeof getMobileWidgetSummary>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMobileWidgetSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMobileWidgetSummaryQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

@@ -183,6 +183,55 @@ router.get("/stats/dashboard", requireAuth, async (req, res): Promise<void> => {
   });
 });
 
+router.get("/stats/mobile-widget", requireAuth, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
+  if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
+
+  const configuredStatuses = await db.select({
+    key: ticketStatusesTable.key,
+    isClosed: ticketStatusesTable.isClosed,
+  }).from(ticketStatusesTable).where(eq(ticketStatusesTable.organizationId, orgId));
+  const closedStatusKeys = getClosedTicketStatusKeys(configuredStatuses);
+  const visibleFilter = and(
+    isNull(ticketsTable.deletedAt),
+    eq(ticketsTable.organizationId, orgId),
+    currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
+  );
+  const nonClosedFilter = closedStatusKeys.length > 0
+    ? notInArray(ticketsTable.status, closedStatusKeys)
+    : sql`true`;
+
+  const [openCountRows, assignedCountRows, openTickets, assignedTickets] = await Promise.all([
+    db.select({ count: sql<number>`count(*)` }).from(ticketsTable)
+      .where(and(visibleFilter, eq(ticketsTable.status, "open"))),
+    db.select({ count: sql<number>`count(*)` }).from(ticketsTable)
+      .where(and(visibleFilter, eq(ticketsTable.assignedTo, currentUser.id), nonClosedFilter)),
+    db.select({
+      id: ticketsTable.id,
+      ticketNumber: ticketsTable.ticketNumber,
+      title: ticketsTable.title,
+    }).from(ticketsTable)
+      .where(and(visibleFilter, eq(ticketsTable.status, "open")))
+      .orderBy(desc(ticketsTable.updatedAt)).limit(3),
+    db.select({
+      id: ticketsTable.id,
+      ticketNumber: ticketsTable.ticketNumber,
+      title: ticketsTable.title,
+    }).from(ticketsTable)
+      .where(and(visibleFilter, eq(ticketsTable.assignedTo, currentUser.id), nonClosedFilter))
+      .orderBy(desc(ticketsTable.updatedAt)).limit(3),
+  ]);
+
+  res.setHeader("Cache-Control", "no-store");
+  res.json({
+    openCount: Number(openCountRows[0].count),
+    assignedCount: Number(assignedCountRows[0].count),
+    openTickets,
+    assignedTickets,
+  });
+});
+
 function parseValidDays(raw: unknown): 7 | 30 | 90 | null {
   const n = parseInt(String(raw));
   if (n === 7 || n === 30 || n === 90) return n;

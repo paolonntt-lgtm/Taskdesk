@@ -106,6 +106,8 @@ export * from './listTicketsParams';
 export * from './listUsersParams';
 export * from './loginRequest';
 export * from './loginResponse';
+export * from './mobileWidgetSummary';
+export * from './mobileWidgetTicket';
 export * from './noteWithAuthor';
 export * from './notification';
 export * from './onboardingCompleteInput';
