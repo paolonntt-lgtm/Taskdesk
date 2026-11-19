@@ -22,6 +22,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useColors } from "@/hooks/useColors";
+import { radii } from "@/constants/colors";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiGet } from "@/utils/api";
@@ -987,7 +988,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 7,
     borderWidth: 1,
-    borderRadius: 18,
+    borderRadius: radii.pill,
     paddingHorizontal: 10,
   },
   dashboardSearchInput: {
@@ -1005,7 +1006,7 @@ const styles = StyleSheet.create({
     zIndex: 20,
     elevation: 12,
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: radii.card,
     paddingHorizontal: 10,
     paddingTop: 8,
     shadowOffset: { width: 0, height: 4 },
@@ -1057,7 +1058,7 @@ const styles = StyleSheet.create({
     height: 30,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 9,
+    borderRadius: radii.control,
   },
   dashboardClientText: {
     flex: 1,
@@ -1090,7 +1091,7 @@ const styles = StyleSheet.create({
   tabIconContainer: {
     width: 38,
     height: 30,
-    borderRadius: 12,
+    borderRadius: radii.control,
     alignItems: "center",
     justifyContent: "center",
   },

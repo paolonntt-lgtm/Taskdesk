@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useColors } from "@/hooks/useColors";
+import { radii } from "@/constants/colors";
 import { apiGet, PRIORITY_COLORS } from "@/utils/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -211,14 +212,15 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     root: { flex: 1, backgroundColor: colors.background },
     searchBar: {
       flexDirection: "row", alignItems: "center",
-      margin: 16, paddingHorizontal: 14, paddingVertical: 10,
-      backgroundColor: colors.card, borderRadius: 10,
+      minHeight: 48, margin: 16, paddingHorizontal: 14, paddingVertical: 8,
+      backgroundColor: colors.card, borderRadius: radii.control,
       borderWidth: 1, borderColor: colors.border,
     },
     searchInput: { flex: 1, fontSize: 14, color: colors.foreground, fontFamily: "Inter_400Regular" },
     filtersRow: { flexDirection: "row", paddingHorizontal: 16, gap: 8, marginBottom: 8, flexWrap: "wrap" },
     filterBtn: {
-      paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
+      minHeight: 40, justifyContent: "center",
+      paddingHorizontal: 12, paddingVertical: 8, borderRadius: radii.pill,
       backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
     },
     filterBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
@@ -228,13 +230,13 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     filterTextUrgent: { color: "#fff" },
     list: { padding: 16, paddingTop: 8 },
     card: {
-      backgroundColor: colors.card, borderRadius: colors.radius + 2, padding: 16,
+      backgroundColor: colors.card, borderRadius: radii.card, padding: 16,
       marginBottom: 10, borderWidth: 1, borderColor: colors.border, gap: 8,
       shadowColor: colors.primary, shadowOffset: { width: 0, height: 3 },
       shadowOpacity: 0.05, shadowRadius: 8, elevation: 1,
     },
     cardTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-    priorityBadge: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
+    priorityBadge: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 9, paddingVertical: 4, borderRadius: radii.pill },
     priorityDot: { width: 6, height: 6, borderRadius: 3 },
     priorityText: { fontSize: 11, fontWeight: "600" as const, fontFamily: "Inter_600SemiBold" },
     ticketId: { fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
@@ -245,12 +247,12 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     cardResolved: { borderLeftWidth: 3, borderLeftColor: colors.success },
     cardBottom: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
     cardBottomRight: { flexDirection: "column", alignItems: "flex-end", gap: 4 },
-    statusBadge: { paddingHorizontal: 8, paddingVertical: 3, backgroundColor: colors.muted, borderRadius: 6 },
+    statusBadge: { paddingHorizontal: 9, paddingVertical: 4, backgroundColor: colors.muted, borderRadius: radii.compact },
     statusText: { fontSize: 11, color: colors.mutedForeground, fontFamily: "Inter_500Medium" },
     noteChip: {
       flexDirection: "row", alignItems: "center", gap: 4,
       backgroundColor: colors.success + "18",
-      paddingHorizontal: 7, paddingVertical: 3, borderRadius: 10,
+      paddingHorizontal: 8, paddingVertical: 4, borderRadius: radii.compact,
     },
     noteChipText: { fontSize: 10, color: colors.success, fontFamily: "Inter_600SemiBold" },
     assignee: { fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },

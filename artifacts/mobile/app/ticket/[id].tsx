@@ -8,6 +8,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useColors } from "@/hooks/useColors";
+import { radii } from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { apiGet, apiPatch, apiPost, apiDelete, PRIORITY_COLORS } from "@/utils/api";
@@ -1274,7 +1275,7 @@ export default function TicketDetailScreen() {
             const progressPct = total === 0 ? 0 : done / total;
 
             return (
-              <View key={cl.id} style={{ backgroundColor: colors.card, borderRadius: 12, borderWidth: 1, borderColor: colors.border, marginBottom: 10, overflow: "hidden" }}>
+              <View key={cl.id} style={{ backgroundColor: colors.card, borderRadius: radii.card, borderWidth: 1, borderColor: colors.border, marginBottom: 10, overflow: "hidden" }}>
                 {/* Checklist header */}
                 <Pressable
                   style={{ flexDirection: "row", alignItems: "center", padding: 12, gap: 8 }}
@@ -1690,23 +1691,23 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     content: { padding: 14, gap: 12 },
     center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
     errorText: { fontSize: 16, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
-    backBtn: { backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 },
+    backBtn: { minHeight: 44, backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: radii.control },
     backBtnText: { color: colors.primaryForeground, fontFamily: "Inter_600SemiBold" },
     titleRow: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
     priorityBar: { width: 5, borderRadius: 3, alignSelf: "stretch", minHeight: 42 },
-    ticketId: { alignSelf: "flex-start", marginBottom: 5, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, borderWidth: 1, backgroundColor: colors.secondary, fontSize: 11, color: colors.secondaryForeground, fontFamily: "Inter_600SemiBold" },
+    ticketId: { alignSelf: "flex-start", marginBottom: 5, paddingHorizontal: 9, paddingVertical: 4, borderRadius: radii.compact, borderWidth: 1, backgroundColor: colors.secondary, fontSize: 11, color: colors.secondaryForeground, fontFamily: "Inter_600SemiBold" },
     title: { fontSize: 18, fontWeight: "700" as const, color: colors.foreground, fontFamily: "Inter_700Bold", lineHeight: 23 },
     ticketOpenedAt: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 5 },
     ticketOpenedAtText: { fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_500Medium" },
-    metaCard: { backgroundColor: colors.card, borderRadius: 12, borderWidth: 1, borderColor: colors.border, overflow: "hidden" },
+    metaCard: { backgroundColor: colors.card, borderRadius: radii.card, borderWidth: 1, borderColor: colors.border, overflow: "hidden" },
     descriptionSection: { gap: 8 },
     descriptionHeading: { flexDirection: "row", alignItems: "center", gap: 8 },
-    descriptionIconWrap: { width: 28, height: 28, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary + "18" },
+    descriptionIconWrap: { width: 30, height: 30, borderRadius: radii.compact + 2, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary + "18" },
     headingAccent: { flex: 1, height: 1, marginLeft: 4, backgroundColor: colors.primary + "33" },
     descriptionTitle: { fontSize: 16, color: colors.foreground, fontFamily: "Inter_600SemiBold" },
-    primaryMetaCard: { backgroundColor: colors.card, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: "hidden" },
+    primaryMetaCard: { backgroundColor: colors.card, borderRadius: radii.card, borderWidth: 1, borderColor: colors.border, overflow: "hidden" },
     metaGrid: { flexDirection: "row", flexWrap: "wrap", gap: 7, padding: 9 },
-    metaTile: { width: "48%", paddingVertical: 8, paddingHorizontal: 9, gap: 3, borderLeftWidth: 3, borderRadius: 8, backgroundColor: colors.secondary + "55" },
+    metaTile: { width: "48%", paddingVertical: 9, paddingHorizontal: 10, gap: 3, borderLeftWidth: 3, borderRadius: radii.compact, backgroundColor: colors.secondary + "55" },
     metaTileLabel: { fontSize: 11, color: colors.mutedForeground, fontFamily: "Inter_500Medium" },
     metaTileValue: { fontSize: 13, color: colors.foreground, fontFamily: "Inter_600SemiBold" },
     additionalDetailsSection: { gap: 4 },
@@ -1721,20 +1722,20 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     timeEditsMuted: { fontSize: 12, lineHeight: 17, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
     timeEditsError: { fontSize: 12, lineHeight: 17, color: colors.destructive, fontFamily: "Inter_400Regular" },
     timeEditsRetry: { fontSize: 13, color: colors.primary, fontFamily: "Inter_600SemiBold", paddingVertical: 3 },
-    timeEditCard: { gap: 5, padding: 10, borderRadius: 8, backgroundColor: colors.muted },
+    timeEditCard: { gap: 5, padding: 10, borderRadius: radii.compact, backgroundColor: colors.muted },
     timeEditMeta: { fontSize: 11, lineHeight: 16, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
     timeEditValue: { fontSize: 12, lineHeight: 17, color: colors.foreground, fontFamily: "Inter_400Regular" },
     section: {},
-    commentsSection: { gap: 8, padding: 12, borderRadius: 14, backgroundColor: colors.secondary + "45", borderWidth: 1, borderColor: colors.primary + "33", borderLeftWidth: 3, borderLeftColor: colors.accent },
+    commentsSection: { gap: 8, padding: 13, borderRadius: radii.card, backgroundColor: colors.secondary + "45", borderWidth: 1, borderColor: colors.primary + "33", borderLeftWidth: 3, borderLeftColor: colors.accent },
     commentsHeading: { flexDirection: "row", alignItems: "center", gap: 8 },
     commentsIconWrap: { width: 28, height: 28, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: colors.accent + "20" },
     commentCountBadge: { minWidth: 24, height: 24, paddingHorizontal: 7, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: colors.accent + "20" },
     commentCountText: { fontSize: 12, color: colors.accent, fontFamily: "Inter_600SemiBold" },
     sectionTitle: { fontSize: 14, fontWeight: "600" as const, color: colors.foreground, marginBottom: 6, fontFamily: "Inter_600SemiBold" },
-    descBox: { backgroundColor: colors.card, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: colors.primary + "55", borderLeftWidth: 3 },
+    descBox: { backgroundColor: colors.card, borderRadius: radii.control, padding: 14, borderWidth: 1, borderColor: colors.primary + "55", borderLeftWidth: 3 },
     desc: { fontSize: 15, color: colors.foreground, lineHeight: 22, fontFamily: "Inter_400Regular" },
     pendingAttachmentsCard: {
-      gap: 8, padding: 12, borderRadius: 12, borderWidth: 1,
+      gap: 8, padding: 12, borderRadius: radii.control, borderWidth: 1,
       borderColor: colors.destructive + "55", backgroundColor: colors.card,
     },
     pendingAttachmentsHeader: { flexDirection: "row", alignItems: "center", gap: 7 },
@@ -1744,30 +1745,30 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     pendingAttachmentName: { flex: 1, fontSize: 13, color: colors.foreground, fontFamily: "Inter_400Regular" },
     pendingAttachmentReplaceButton: {
       flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 6,
-      paddingHorizontal: 8, borderRadius: 8, borderWidth: 1, borderColor: colors.border,
+      paddingHorizontal: 8, borderRadius: radii.compact, borderWidth: 1, borderColor: colors.border,
     },
     pendingAttachmentReplaceText: { fontSize: 12, color: colors.primary, fontFamily: "Inter_500Medium" },
     retryAttachmentsButton: {
       minHeight: 42, flexDirection: "row", alignItems: "center", justifyContent: "center",
-      gap: 8, paddingHorizontal: 12, borderRadius: 10, backgroundColor: colors.primary,
+      gap: 8, paddingHorizontal: 12, borderRadius: radii.control, backgroundColor: colors.primary,
     },
     retryAttachmentsButtonText: { fontSize: 14, color: colors.primaryForeground, fontFamily: "Inter_600SemiBold" },
     resolutionCard: {
       backgroundColor: colors.success + "18",
-      borderRadius: 12, padding: 14,
+      borderRadius: radii.control, padding: 14,
       borderWidth: 1, borderColor: colors.success + "40",
     },
     resolutionHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 },
     resolutionTitle: { fontSize: 14, fontWeight: "600" as const, color: colors.success, fontFamily: "Inter_600SemiBold" },
     resolutionText: { fontSize: 14, color: colors.foreground, lineHeight: 20, fontFamily: "Inter_400Regular" },
     statusRow: { flexDirection: "row", gap: 8 },
-    statusBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
+    statusBtn: { minHeight: 40, justifyContent: "center", paddingHorizontal: 14, paddingVertical: 8, borderRadius: radii.pill, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
     statusBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
     statusBtnText: { fontSize: 13, color: colors.mutedForeground, fontFamily: "Inter_500Medium" },
     statusBtnTextActive: { color: colors.primaryForeground },
-    commentCard: { backgroundColor: colors.card, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: colors.border },
+    commentCard: { backgroundColor: colors.card, borderRadius: radii.card, padding: 12, borderWidth: 1, borderColor: colors.border },
     commentHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 5 },
-    commentAvatar: { width: 28, height: 28, borderRadius: 10, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" },
+    commentAvatar: { width: 28, height: 28, borderRadius: radii.control, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" },
     commentInitial: { color: colors.primaryForeground, fontWeight: "700" as const, fontSize: 12, fontFamily: "Inter_700Bold" },
     commentAuthor: { fontSize: 12, fontWeight: "600" as const, color: colors.foreground, fontFamily: "Inter_600SemiBold" },
     commentDate: { fontSize: 11, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
@@ -1775,11 +1776,11 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     commentInputWrap: { flexDirection: "row", gap: 10, alignItems: "flex-end" },
     commentInput: {
       flex: 1, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
-      borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10,
+      borderRadius: radii.card, paddingHorizontal: 14, paddingVertical: 10,
       fontSize: 14, color: colors.foreground, minHeight: 48, maxHeight: 120, fontFamily: "Inter_400Regular",
     },
     mentionHint: { fontSize: 11, color: colors.mutedForeground, marginTop: 2 },
-    mentionList: { maxHeight: 300, borderWidth: 1, borderColor: colors.border, borderRadius: 12, overflow: "hidden", backgroundColor: colors.card },
+    mentionList: { maxHeight: 300, borderWidth: 1, borderColor: colors.border, borderRadius: radii.card, overflow: "hidden", backgroundColor: colors.card },
     mentionOption: { minHeight: 48, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
     mentionAvatar: { width: 30, height: 30, borderRadius: 15, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary },
     mentionGroupAvatar: { backgroundColor: colors.accent },
@@ -1804,14 +1805,14 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     durationRow: { flexDirection: "row", gap: 12 },
     durationInput: {
       flex: 1, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
-      borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
+      borderRadius: radii.control, paddingHorizontal: 14, paddingVertical: 12,
       fontSize: 15, color: colors.foreground, fontFamily: "Inter_400Regular",
     },
     durationInputError: { borderColor: colors.destructive },
     durationError: { fontSize: 12, color: colors.destructive, fontFamily: "Inter_400Regular" },
     modalInput: {
       backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
-      borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
+      borderRadius: radii.control, paddingHorizontal: 14, paddingVertical: 12,
       fontSize: 15, color: colors.foreground, minHeight: 120, fontFamily: "Inter_400Regular",
     },
     modalFooter: {
@@ -1819,18 +1820,18 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       borderTopWidth: 1, borderTopColor: colors.border,
     },
     skipBtn: {
-      flex: 1, paddingVertical: 14, borderRadius: 12,
+      flex: 1, minHeight: 48, paddingVertical: 14, borderRadius: radii.control,
       backgroundColor: colors.muted, alignItems: "center",
     },
     skipBtnText: { fontSize: 15, color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" },
     confirmBtn: {
       flex: 2, flexDirection: "row", alignItems: "center", justifyContent: "center",
-      gap: 8, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.success,
+      gap: 8, minHeight: 48, paddingVertical: 14, borderRadius: radii.control, backgroundColor: colors.success,
     },
     confirmBtnText: { fontSize: 15, color: "#fff", fontFamily: "Inter_600SemiBold" },
     actionBtn: {
       flex: 1, flexDirection: "row" as const, alignItems: "center" as const, justifyContent: "center" as const,
-      gap: 6, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10,
+      gap: 6, paddingVertical: 10, paddingHorizontal: 12, borderRadius: radii.control,
       backgroundColor: colors.card, borderWidth: 1, borderColor: colors.primary,
     },
     actionBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },

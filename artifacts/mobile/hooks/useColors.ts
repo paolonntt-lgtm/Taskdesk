@@ -1,8 +1,10 @@
 import colors from "@/constants/colors";
+import { useColorScheme } from "react-native";
 
 /**
- * Returns the light palette while the mobile app is being tried in light mode.
+ * Returns the palette matching the device appearance.
  */
 export function useColors() {
-  return { ...colors.light, radius: colors.radius };
+  const scheme = useColorScheme();
+  return { ...(scheme === "dark" ? colors.dark : colors.light), radius: colors.radius };
 }

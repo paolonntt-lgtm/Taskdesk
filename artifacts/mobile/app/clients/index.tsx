@@ -5,6 +5,7 @@ import { router } from "expo-router";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { listClients } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
+import { radii } from "@/constants/colors";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiGet, apiPatch, apiPost } from "@/utils/api";
@@ -279,17 +280,17 @@ export default function ClientsScreen() {
 const styles = (c: ReturnType<typeof useColors>) => StyleSheet.create({
   root: { flex: 1, backgroundColor: c.background }, center: { alignItems: "center", justifyContent: "center", padding: 24 }, content: { padding: 16, gap: 10 },
   list: { paddingBottom: 100 },
-  retry: { backgroundColor: c.primary, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10, marginTop: 8 }, retryText: { color: c.primaryForeground, fontFamily: "Inter_600SemiBold" },
+  retry: { backgroundColor: c.primary, borderRadius: radii.control, paddingHorizontal: 16, paddingVertical: 10, marginTop: 8 }, retryText: { color: c.primaryForeground, fontFamily: "Inter_600SemiBold" },
   heading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 40 }, title: { color: c.foreground, fontSize: 22, fontFamily: "Inter_700Bold" },
-  add: { flexDirection: "row", alignItems: "center", gap: 5, borderRadius: 10, backgroundColor: c.primary, paddingHorizontal: 12, minHeight: 40 }, addText: { color: c.primaryForeground, fontFamily: "Inter_600SemiBold" },
-  search: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, minHeight: 44, borderRadius: 12, borderWidth: 1, borderColor: c.border, backgroundColor: c.card },
+  add: { flexDirection: "row", alignItems: "center", gap: 5, borderRadius: radii.control, backgroundColor: c.primary, paddingHorizontal: 12, minHeight: 44 }, addText: { color: c.primaryForeground, fontFamily: "Inter_600SemiBold" },
+  search: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, minHeight: 48, borderRadius: radii.control, borderWidth: 1, borderColor: c.border, backgroundColor: c.card },
   state: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 18, paddingHorizontal: 12 },
-  searchInput: { flex: 1, color: c.foreground, paddingVertical: 8 }, card: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 64, marginHorizontal: 16, marginBottom: 10, paddingHorizontal: 12, paddingVertical: 9, backgroundColor: c.card, borderColor: c.border, borderWidth: 1, borderRadius: 12 },
+  searchInput: { flex: 1, color: c.foreground, paddingVertical: 8 }, card: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 64, marginHorizontal: 16, marginBottom: 10, paddingHorizontal: 12, paddingVertical: 9, backgroundColor: c.card, borderColor: c.border, borderWidth: 1, borderLeftWidth: 2, borderLeftColor: c.accent, borderRadius: radii.card, shadowColor: c.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.045, shadowRadius: 6, elevation: 1 },
   main: { flex: 1, gap: 2, minWidth: 0 },
   name: { color: c.foreground, fontSize: 15, lineHeight: 20, fontFamily: "Inter_600SemiBold", flexShrink: 1 }, secondary: { color: c.mutedForeground, fontSize: 12, lineHeight: 16, flexShrink: 1 },
   edit: { width: 44, height: 44, alignItems: "center", justifyContent: "center" }, muted: { color: c.mutedForeground, fontSize: 13 },
-  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", padding: 20 }, modal: { backgroundColor: c.card, borderRadius: 18, padding: 18, gap: 12, maxHeight: "92%" },
-  modalTitle: { color: c.foreground, fontSize: 19, fontFamily: "Inter_700Bold" }, formScroll: { flexGrow: 1, flexShrink: 1 }, formFields: { gap: 12, paddingBottom: 4 }, input: { borderWidth: 1, borderColor: c.border, backgroundColor: c.background, borderRadius: 10, color: c.foreground, paddingHorizontal: 12, paddingVertical: 11 },
+  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", padding: 20 }, modal: { backgroundColor: c.card, borderRadius: radii.prominent, padding: 18, gap: 12, maxHeight: "92%" },
+  modalTitle: { color: c.foreground, fontSize: 19, fontFamily: "Inter_700Bold" }, formScroll: { flexGrow: 1, flexShrink: 1 }, formFields: { gap: 12, paddingBottom: 4 }, input: { minHeight: 48, borderWidth: 1, borderColor: c.border, backgroundColor: c.background, borderRadius: radii.control, color: c.foreground, paddingHorizontal: 12, paddingVertical: 11 },
   notesInput: { minHeight: 96 },
-  actions: { flexDirection: "row", justifyContent: "flex-end", gap: 10 }, cancel: { padding: 12 }, cancelText: { color: c.foreground }, save: { backgroundColor: c.primary, borderRadius: 10, paddingHorizontal: 18, justifyContent: "center" }, saveText: { color: c.primaryForeground, fontFamily: "Inter_600SemiBold" },
+  actions: { flexDirection: "row", justifyContent: "flex-end", gap: 10 }, cancel: { minHeight: 44, justifyContent: "center", paddingHorizontal: 12 }, cancelText: { color: c.foreground }, save: { minHeight: 44, backgroundColor: c.primary, borderRadius: radii.control, paddingHorizontal: 18, justifyContent: "center" }, saveText: { color: c.primaryForeground, fontFamily: "Inter_600SemiBold" },
 });

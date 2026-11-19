@@ -7,6 +7,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiGet, apiPatch } from "@/utils/api";
 import { getListTicketActivityQueryKey } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
+import { radii } from "@/constants/colors";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { canEditTicketTracking } from "@/utils/ticketDetailRules";
@@ -493,21 +494,21 @@ const styles = StyleSheet.create({
   headerTitle: { fontFamily: "Inter_600SemiBold", fontSize: 16 },
   content: { padding: 18, paddingBottom: 32, gap: 8 },
   label: { fontFamily: "Inter_600SemiBold", fontSize: 13, marginTop: 6 },
-  input: { minHeight: 44, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontFamily: "Inter_400Regular", fontSize: 14 },
+  input: { minHeight: 48, borderWidth: 1, borderRadius: radii.control, paddingHorizontal: 12, paddingVertical: 10, fontFamily: "Inter_400Regular", fontSize: 14 },
   multiline: { minHeight: 110, textAlignVertical: "top" },
   priorityRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  priority: { borderWidth: 1, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8 },
+  priority: { minHeight: 40, borderWidth: 1, borderRadius: radii.pill, paddingHorizontal: 12, paddingVertical: 8 },
   selectionSection: { gap: 5 },
   assignmentModeRow: { flexDirection: "row", gap: 8 },
-  assignmentMode: { minHeight: 38, borderWidth: 1, borderRadius: 18, paddingHorizontal: 14, alignItems: "center", justifyContent: "center" },
-  selectionButton: { minHeight: 44, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  assignmentMode: { minHeight: 40, borderWidth: 1, borderRadius: radii.pill, paddingHorizontal: 14, alignItems: "center", justifyContent: "center" },
+  selectionButton: { minHeight: 48, borderWidth: 1, borderRadius: radii.control, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   selectionText: { flex: 1, fontFamily: "Inter_400Regular", fontSize: 14 },
-  optionList: { borderWidth: 1, borderRadius: 10, overflow: "hidden" },
+  optionList: { borderWidth: 1, borderRadius: radii.control, overflow: "hidden" },
   searchInput: { minHeight: 42, paddingHorizontal: 12, borderBottomWidth: 1, fontFamily: "Inter_400Regular", fontSize: 14 },
   optionsScroll: { maxHeight: 200 },
   optionRow: { minHeight: 42, paddingHorizontal: 12, justifyContent: "center", borderBottomWidth: StyleSheet.hairlineWidth },
   optionText: { fontFamily: "Inter_400Regular", fontSize: 14 },
-  trackingCard: { marginTop: 14, borderWidth: 1, borderRadius: 12, padding: 14 },
+  trackingCard: { marginTop: 14, borderWidth: 1, borderRadius: radii.card, padding: 14 },
   switchRow: { minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   switchLabel: { flex: 1, fontFamily: "Inter_500Medium", fontSize: 13 },
   hint: { fontSize: 12, marginBottom: 5 },

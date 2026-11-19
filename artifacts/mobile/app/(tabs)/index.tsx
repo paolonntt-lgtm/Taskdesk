@@ -10,6 +10,7 @@ import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useColors } from "@/hooks/useColors";
+import { radii } from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { apiGet, PRIORITY_COLORS } from "@/utils/api";
@@ -590,7 +591,7 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       marginBottom: 20,
       paddingHorizontal: 20,
       paddingVertical: 20,
-      borderRadius: colors.radius * 2.4,
+      borderRadius: radii.prominent,
       flexDirection: "row",
       alignItems: "center",
       overflow: "hidden",
@@ -696,7 +697,7 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     greetingIllustration: {
       width: 78,
       height: 82,
-      borderRadius: 25,
+      borderRadius: radii.prominent,
       alignItems: "center",
       justifyContent: "center",
       borderWidth: 1,
@@ -707,11 +708,11 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       shadowRadius: 10,
       elevation: 4,
     },
-    weatherIllustration: { width: 88, height: 108, borderRadius: 26, gap: 1 },
+    weatherIllustration: { width: 88, height: 108, borderRadius: radii.prominent, gap: 1 },
     weatherIconBadge: {
       width: 46,
       height: 46,
-      borderRadius: 16,
+      borderRadius: radii.control + 2,
       alignItems: "center",
       justifyContent: "center",
       backgroundColor: colors.background,
@@ -755,7 +756,7 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     statCard: {
       flex: 1, minWidth: "45%",
       backgroundColor: colors.card,
-      borderRadius: colors.radius + 3, padding: 10,
+      borderRadius: radii.card, padding: 10,
       borderLeftWidth: 3,
       gap: 5,
       borderWidth: 1, borderColor: colors.border,
@@ -776,7 +777,7 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     ticketRow: {
       flexDirection: "row", alignItems: "center",
       backgroundColor: colors.card,
-      borderRadius: colors.radius + 2, padding: 14, marginBottom: 8,
+      borderRadius: radii.card, padding: 14, marginBottom: 8,
       borderWidth: 1, borderColor: colors.border, gap: 12,
       shadowColor: colors.primary, shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.045, shadowRadius: 6, elevation: 1,

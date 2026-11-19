@@ -52,4 +52,12 @@ const colors = {
   radius: 12,
 };
 
+export const radii = {
+  compact: 8,
+  control: 12,
+  card: 18,
+  prominent: 24,
+  pill: 999,
+} as const;
+
 export default colors;

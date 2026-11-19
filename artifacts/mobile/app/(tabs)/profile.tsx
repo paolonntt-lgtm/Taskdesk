@@ -8,6 +8,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import { router } from "expo-router";
 import { useColors } from "@/hooks/useColors";
+import { radii } from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Lang } from "@/i18n/translations";
@@ -781,7 +782,7 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     initials: { fontSize: 28, fontWeight: "700" as const, color: colors.primaryForeground, fontFamily: "Inter_700Bold" },
     name: { fontSize: 22, fontWeight: "700" as const, color: colors.foreground, marginBottom: 8, fontFamily: "Inter_700Bold" },
     roleBadge: {
-      paddingHorizontal: 12, paddingVertical: 4, borderRadius: 20,
+      paddingHorizontal: 12, paddingVertical: 4, borderRadius: radii.pill,
       backgroundColor: colors.muted,
     },
     roleBadgeAdmin: { backgroundColor: colors.primary + "22" },
@@ -796,7 +797,7 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       fontFamily: "Inter_500Medium",
     },
     card: {
-      backgroundColor: colors.card, borderRadius: 14,
+      backgroundColor: colors.card, borderRadius: radii.card,
       borderWidth: 1, borderColor: colors.border, overflow: "hidden",
     },
     cardTitle: {
@@ -807,19 +808,19 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       textTransform: "uppercase", letterSpacing: 0.5,
     },
     workspaceSummary: { minHeight: 72, flexDirection: "row", alignItems: "center", gap: 11, padding: 14 },
-    workspaceIcon: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary + "14" },
+    workspaceIcon: { width: 40, height: 40, borderRadius: radii.control + 2, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary + "14" },
     workspaceCopy: { flex: 1, minWidth: 0, gap: 3 },
     workspaceLabel: { color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_500Medium" },
     workspaceName: { color: colors.foreground, fontSize: 15, fontFamily: "Inter_600SemiBold" },
-    workspaceChangeButton: { minHeight: 40, flexDirection: "row", alignItems: "center", gap: 3, paddingHorizontal: 8, borderRadius: 10, backgroundColor: colors.primary + "12" },
+    workspaceChangeButton: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 3, paddingHorizontal: 9, borderRadius: radii.control, backgroundColor: colors.primary + "12" },
     workspaceChangeButtonDisabled: { opacity: 0.55 },
     workspaceChangeText: { color: colors.primary, fontSize: 12, fontFamily: "Inter_600SemiBold" },
     workspaceModalBackdrop: { flex: 1, justifyContent: "center", padding: 22, backgroundColor: "rgba(0,0,0,0.45)" },
-    workspaceModal: { padding: 18, borderRadius: 18, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
+    workspaceModal: { padding: 18, borderRadius: radii.prominent, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
     workspaceModalHeader: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 14 },
     workspaceModalTitle: { color: colors.foreground, fontSize: 19, fontFamily: "Inter_700Bold" },
     workspaceModalSubtitle: { color: colors.mutedForeground, fontSize: 13, lineHeight: 18, marginTop: 4, fontFamily: "Inter_400Regular" },
-    workspaceOption: { minHeight: 58, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 12, borderWidth: 1, borderColor: colors.border, marginTop: 8 },
+    workspaceOption: { minHeight: 60, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 12, paddingVertical: 9, borderRadius: radii.card, borderWidth: 1, borderColor: colors.border, marginTop: 8 },
     workspaceOptionSelected: { backgroundColor: colors.primary + "0C", borderColor: colors.primary },
     workspaceOptionCopy: { flex: 1, gap: 3 },
     workspaceOptionName: { color: colors.foreground, fontSize: 14, fontFamily: "Inter_600SemiBold" },
@@ -833,17 +834,17 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     workspacePeopleError: { color: colors.destructive, fontSize: 13, lineHeight: 18, fontFamily: "Inter_500Medium" },
     workspacePeopleNotice: { color: colors.success, fontSize: 13, lineHeight: 18, fontFamily: "Inter_500Medium" },
     workspaceInviteInput: {
-      minHeight: 46, paddingHorizontal: 12, borderWidth: 1, borderColor: colors.border,
-      borderRadius: 10, color: colors.foreground, backgroundColor: colors.background,
+      minHeight: 48, paddingHorizontal: 12, borderWidth: 1, borderColor: colors.border,
+      borderRadius: radii.control, color: colors.foreground, backgroundColor: colors.background,
       fontSize: 14, fontFamily: "Inter_400Regular",
     },
     workspaceFieldLabel: { color: colors.foreground, fontSize: 13, fontFamily: "Inter_500Medium" },
     workspaceRoleOptions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-    workspaceRoleOption: { minHeight: 38, justifyContent: "center", paddingHorizontal: 12, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
+    workspaceRoleOption: { minHeight: 40, justifyContent: "center", paddingHorizontal: 12, borderRadius: radii.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
     workspaceRoleOptionSelected: { borderColor: colors.primary, backgroundColor: colors.primary + "15" },
     workspaceRoleOptionText: { color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_500Medium" },
     workspaceRoleOptionTextSelected: { color: colors.primary, fontFamily: "Inter_600SemiBold" },
-    workspaceInviteButton: { minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 2, paddingHorizontal: 14, borderRadius: 11, backgroundColor: colors.primary },
+    workspaceInviteButton: { minHeight: 48, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 2, paddingHorizontal: 14, borderRadius: radii.control, backgroundColor: colors.primary },
     workspaceInviteButtonText: { color: colors.primaryForeground, fontSize: 14, fontFamily: "Inter_600SemiBold" },
     workspaceActionDisabled: { opacity: 0.55 },
     workspacePeopleSection: { gap: 6, paddingTop: 13, borderTopWidth: 1, borderTopColor: colors.border },
@@ -857,7 +858,7 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     workspacePersonCopy: { flex: 1, minWidth: 0, gap: 2 },
     workspacePersonName: { color: colors.foreground, fontSize: 13, fontFamily: "Inter_600SemiBold" },
     workspacePersonOrganization: { color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_400Regular" },
-    workspacePersonRole: { overflow: "hidden", maxWidth: 112, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, backgroundColor: colors.muted, color: colors.mutedForeground, fontSize: 10, fontFamily: "Inter_500Medium" },
+    workspacePersonRole: { overflow: "hidden", maxWidth: 112, paddingHorizontal: 8, paddingVertical: 4, borderRadius: radii.pill, backgroundColor: colors.muted, color: colors.mutedForeground, fontSize: 10, fontFamily: "Inter_500Medium" },
     workspacePersonRoleAdmin: { color: colors.primary, backgroundColor: colors.primary + "18" },
     workspaceRevokeButton: { minWidth: 36, minHeight: 36, alignItems: "center", justifyContent: "center" },
   menuSectionHeader: {
@@ -887,7 +888,7 @@ const styles = (colors: ReturnType<typeof useColors>) =>
   },
   menuIconWrap: {
     width: 30, height: 30, alignItems: "center", justifyContent: "center",
-    borderRadius: 9,
+      borderRadius: radii.compact + 2,
   },
   menuItemBorder: { borderBottomWidth: 1 },
   menuItemLast: { borderBottomWidth: 0 },
@@ -903,7 +904,7 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     langRow: { flexDirection: "row", gap: 8 },
     langBtn: {
       flexDirection: "row", alignItems: "center", gap: 6,
-      paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20,
+      paddingHorizontal: 12, paddingVertical: 7, borderRadius: radii.pill,
       backgroundColor: colors.muted, borderWidth: 1, borderColor: colors.border,
     },
     langBtnActive: { backgroundColor: colors.primary + "18", borderColor: colors.primary },
@@ -913,7 +914,7 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     logoutBtn: {
       flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10,
       backgroundColor: colors.destructive + "15",
-      borderRadius: 12, paddingVertical: 14,
+      borderRadius: radii.control, paddingVertical: 14,
       borderWidth: 1, borderColor: colors.destructive + "30",
     },
     logoutText: { color: colors.destructive, fontSize: 15, fontWeight: "600" as const, fontFamily: "Inter_600SemiBold" },

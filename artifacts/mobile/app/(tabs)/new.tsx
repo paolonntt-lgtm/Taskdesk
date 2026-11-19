@@ -7,6 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useColors } from "@/hooks/useColors";
+import { radii } from "@/constants/colors";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { apiPost, apiGet, apiFetch, PRIORITIES } from "@/utils/api";
 import { useTicketStatuses } from "@/hooks/useTicketStatuses";
@@ -474,7 +475,7 @@ export default function NewTicketScreen() {
         width: "100%",
         minHeight: 46,
         padding: "10px 12px",
-        borderRadius: 10,
+        borderRadius: radii.control,
         border: `1px solid ${colors.border}`,
         background: colors.card,
         color: colors.foreground,
@@ -1140,8 +1141,8 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     field: { marginBottom: 20 },
     label: { fontSize: 13, fontWeight: "600" as const, color: colors.foreground, marginBottom: 8, fontFamily: "Inter_600SemiBold" },
     input: {
-      backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
-      borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12,
+      minHeight: 48, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
+      borderRadius: radii.control, paddingHorizontal: 14, paddingVertical: 12,
       fontSize: 15, color: colors.foreground, fontFamily: "Inter_400Regular",
     },
     textarea: { minHeight: 100, paddingTop: 12 },
@@ -1149,7 +1150,7 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     suggestionText: { fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
     recentTitleSuggestions: {
       marginTop: 8, overflow: "hidden", borderWidth: 1, borderColor: colors.border,
-      borderRadius: 10, backgroundColor: colors.card,
+      borderRadius: radii.card, backgroundColor: colors.card,
     },
     recentTitleHeader: {
       flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 12,
@@ -1166,7 +1167,7 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     },
     recentTitleStatusBadge: {
       maxWidth: "80%", paddingHorizontal: 7, paddingVertical: 3,
-      borderRadius: 6, backgroundColor: colors.muted,
+      borderRadius: radii.compact, backgroundColor: colors.muted,
     },
     recentTitleStatusText: {
       fontSize: 11, color: colors.mutedForeground, fontFamily: "Inter_500Medium",
@@ -1177,13 +1178,13 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       flex: 1, flexShrink: 1, fontSize: 13, color: colors.foreground, fontFamily: "Inter_500Medium",
     },
     suggestionChip: {
-      maxWidth: "100%", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14,
+      maxWidth: "100%", paddingHorizontal: 10, paddingVertical: 5, borderRadius: radii.pill,
       borderWidth: 1, borderColor: colors.primary, backgroundColor: colors.card,
     },
     suggestionChipText: { fontSize: 12, color: colors.primary, fontFamily: "Inter_500Medium" },
     chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
     chip: {
-      paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
+      minHeight: 40, justifyContent: "center", paddingHorizontal: 14, paddingVertical: 7, borderRadius: radii.pill,
       backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
     },
     chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
@@ -1192,7 +1193,7 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     priorityRow: { flexDirection: "row", gap: 8 },
     priorityBtn: {
       flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
-      gap: 5, paddingVertical: 10, borderRadius: 10,
+      gap: 5, minHeight: 44, paddingVertical: 10, borderRadius: radii.control,
       backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
     },
     priorityBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
@@ -1202,7 +1203,7 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     inlineAction: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 4 },
     inlineActionText: { color: colors.primary, fontSize: 13, fontFamily: "Inter_600SemiBold" },
     optionList: {
-      marginTop: 8, borderRadius: 10, borderWidth: 1, borderColor: colors.border,
+      marginTop: 8, borderRadius: radii.control, borderWidth: 1, borderColor: colors.border,
       backgroundColor: colors.card, overflow: "hidden",
     },
     optionRow: {
@@ -1216,46 +1217,46 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     dateRow: { flexDirection: "row", alignItems: "center", gap: 8 },
     dateButton: {
       minHeight: 46, flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 12,
-      borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card,
+      borderRadius: radii.control, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card,
     },
     dateButtonText: { flex: 1, fontSize: 14, color: colors.foreground, fontFamily: "Inter_500Medium" },
     clearDate: { alignSelf: "flex-start", marginTop: 6, paddingVertical: 4 },
     iconAction: {
       width: 42, height: 42, alignItems: "center", justifyContent: "center",
-      borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card,
+      borderRadius: radii.control, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card,
     },
     pickerContainer: {
-      marginTop: 8, borderRadius: 12, borderWidth: 1, borderColor: colors.border,
+      marginTop: 8, borderRadius: radii.card, borderWidth: 1, borderColor: colors.border,
       backgroundColor: colors.card, overflow: "hidden",
     },
     pickerDone: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 6, padding: 12, borderTopWidth: 1, borderTopColor: colors.border },
     pickerDoneText: { color: colors.primary, fontSize: 14, fontFamily: "Inter_600SemiBold" },
     toggleRow: { minHeight: 46, flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 6 },
     toggleBox: {
-      width: 22, height: 22, borderRadius: 6, borderWidth: 1, borderColor: colors.border,
+      width: 22, height: 22, borderRadius: radii.compact, borderWidth: 1, borderColor: colors.border,
       alignItems: "center", justifyContent: "center", backgroundColor: colors.card,
     },
     toggleBoxActive: { borderColor: colors.primary, backgroundColor: colors.primary },
     taskTrackPanel: {
       paddingHorizontal: 12, borderWidth: 1, borderColor: colors.border,
-      borderRadius: 12, backgroundColor: colors.card,
+      borderRadius: radii.card, backgroundColor: colors.card,
     },
     taskTrackOptions: { paddingTop: 8, paddingBottom: 12 },
     taskTrackInnerField: {
       marginBottom: 0, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border,
     },
-    recurrencePanel: { marginTop: 10, padding: 12, gap: 12, borderWidth: 1, borderColor: colors.border, borderRadius: 12, backgroundColor: colors.card },
+    recurrencePanel: { marginTop: 10, padding: 12, gap: 12, borderWidth: 1, borderColor: colors.border, borderRadius: radii.card, backgroundColor: colors.card },
     attachmentRow: {
       flexDirection: "row", alignItems: "center", gap: 10, marginTop: 8, padding: 11,
-      borderWidth: 1, borderColor: colors.border, borderRadius: 10, backgroundColor: colors.card,
+      borderWidth: 1, borderColor: colors.border, borderRadius: radii.control, backgroundColor: colors.card,
     },
     checklistPanel: { marginTop: 8, gap: 8 },
     checklistAddRow: { flexDirection: "row", alignItems: "center", gap: 8 },
     modalBackdrop: { flex: 1, justifyContent: "center", padding: 20, backgroundColor: "rgba(0,0,0,0.45)" },
-    modalCard: { gap: 12, padding: 18, borderRadius: 16, backgroundColor: colors.background },
+    modalCard: { gap: 12, padding: 18, borderRadius: radii.prominent, backgroundColor: colors.background },
     modalTitle: { flex: 1, fontSize: 18, color: colors.foreground, fontFamily: "Inter_600SemiBold" },
     btn: {
-      backgroundColor: colors.primary, borderRadius: 12,
+      backgroundColor: colors.primary, borderRadius: radii.control,
       paddingVertical: 16, flexDirection: "row",
       alignItems: "center", justifyContent: "center", gap: 8, marginTop: 8,
     },
