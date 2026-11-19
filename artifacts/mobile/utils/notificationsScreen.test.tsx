@@ -56,7 +56,15 @@ vi.mock("react-native", async () => {
     },
     ActivityIndicator: () => null,
     Pressable: component("button"),
-    ScrollView: component("div"),
+    FlatList: ({ data, renderItem, ListHeaderComponent, ListEmptyComponent, ...props }: Record<string, any>) =>
+      ReactModule.createElement("div", props,
+        ListHeaderComponent,
+        data.length
+          ? data.map((item: unknown, index: number) =>
+              ReactModule.createElement(ReactModule.Fragment, { key: index }, renderItem({ item })),
+            )
+          : ListEmptyComponent,
+      ),
     StyleSheet: { create: (styles: unknown) => styles },
     Text: component("span"),
     View: component("div"),

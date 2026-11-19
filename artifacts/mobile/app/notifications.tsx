@@ -1,5 +1,5 @@
 import React from "react";
-import { AccessibilityInfo, ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -21,7 +21,6 @@ export default function NotificationsScreen() {
   const { data = [], isLoading, error } = useQuery({
     queryKey: ["mobile-notifications"],
     queryFn: () => apiGet<NotificationItem[]>("/notifications"),
-    refetchInterval: 30_000,
   });
   const visible = data.filter(item => filter === "all" || (filter === "unread" ? !item.isRead : item.isRead));
   const inboxState = isLoading ? "loading" : error ? "error" : visible.length === 0 ? "empty" : null;
@@ -57,7 +56,7 @@ export default function NotificationsScreen() {
     else if (item.ticketId) router.push(`/ticket/${item.ticketId}`);
   };
   const s = styles(colors);
-  return <ScrollView style={s.root} contentContainerStyle={s.content}>
+  const header = <>
     <View style={s.heading}><Pressable onPress={() => void markAllRead()}><Text style={s.link}>{t.notifications.markAllRead}</Text></Pressable></View>
     <View style={s.filters}>{(["all", "unread", "read"] as const).map(value => <Pressable key={value} onPress={() => setFilter(value)} style={[s.filter, filter === value && s.filterActive]}><Text style={[s.filterText, filter === value && s.filterTextActive]}>{t.notifications[value]}</Text></Pressable>)}</View>
     {isLoading ? <View accessible={false} style={s.state}>
@@ -65,9 +64,22 @@ export default function NotificationsScreen() {
       <Text accessibilityRole="progressbar" accessibilityLabel={t.notifications.loading} accessibilityLiveRegion="polite" style={s.muted}>{t.notifications.loading}</Text>
     </View> : null}
     {error ? <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={s.error}>{t.notifications.loadError}</Text> : null}
-    {!isLoading && !error && visible.length === 0 ? <Text accessibilityRole="text" accessibilityLiveRegion="polite" style={s.muted}>{t.notifications.empty}</Text> : null}
-    {visible.map((item) => <Pressable
-      key={item.id}
+  </>;
+  return <FlatList
+    style={s.root}
+    contentContainerStyle={s.content}
+    data={visible}
+    scrollEnabled={visible.length > 0}
+    keyExtractor={(item) => String(item.id)}
+    ListHeaderComponent={header}
+    ListEmptyComponent={!isLoading && !error
+      ? <Text accessibilityRole="text" accessibilityLiveRegion="polite" style={s.muted}>{t.notifications.empty}</Text>
+      : null}
+    initialNumToRender={12}
+    maxToRenderPerBatch={10}
+    windowSize={7}
+    removeClippedSubviews
+    renderItem={({ item }) => <Pressable
       accessible
       accessibilityRole="button"
       accessibilityLabel={`${item.notificationText}. ${item.isRead ? t.notifications.itemRead : t.notifications.itemUnread}`}
@@ -82,8 +94,8 @@ export default function NotificationsScreen() {
         <Text style={s.date}>{new Date(item.createdAt).toLocaleString()}</Text>
       </View>
       <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
-    </Pressable>)}
-  </ScrollView>;
+    </Pressable>}
+  />;
 }
 
 const styles = (c: ReturnType<typeof useColors>) => StyleSheet.create({
