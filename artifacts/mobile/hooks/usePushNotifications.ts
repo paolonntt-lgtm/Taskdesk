@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Platform } from "react-native";
+import { AppState, Platform } from "react-native";
 import Constants from "expo-constants";
 import type { NotificationResponse } from "expo-notifications";
 import { apiFetch } from "@/utils/api";
@@ -41,7 +41,10 @@ function resolveProjectId(): string | null {
   return fromConfig as string;
 }
 
-async function registerForPushNotifications(Notifications: NotificationsModule): Promise<string | null> {
+async function registerForPushNotifications(
+  Notifications: NotificationsModule,
+  requestPermission = true,
+): Promise<string | null> {
   if (Platform.OS === "web") return null;
 
   await setupAndroidNotificationChannel(Notifications);
@@ -49,7 +52,7 @@ async function registerForPushNotifications(Notifications: NotificationsModule):
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
   let finalStatus = existingStatus;
 
-  if (existingStatus !== "granted") {
+  if (existingStatus !== "granted" && requestPermission) {
     const { status } = await Notifications.requestPermissionsAsync();
     finalStatus = status;
   }
@@ -81,10 +84,13 @@ async function registerForPushNotifications(Notifications: NotificationsModule):
 
 async function saveTokenToServer(token: string): Promise<void> {
   try {
-    await apiFetch("/notifications/push-token", {
+    const response = await apiFetch("/notifications/push-token", {
       method: "POST",
       body: JSON.stringify({ token }),
     });
+    if (!response.ok) {
+      throw new Error(`Token registration failed with HTTP ${response.status}`);
+    }
   } catch (err) {
     console.warn("[PushNotifications] Failed to save token to server:", err);
   }
@@ -177,18 +183,30 @@ export function usePushNotifications(isLoggedIn: boolean) {
     if (Platform.OS === "web" || (Platform.OS === "android" && Constants.appOwnership === "expo")) return;
 
     let active = true;
-    const register = async () => {
+    let registrationInProgress = false;
+    let previousAppState = AppState.currentState;
+    const register = async (requestPermission: boolean) => {
+      if (!active || registrationInProgress) return;
+      registrationInProgress = true;
       try {
         const Notifications = await import("expo-notifications");
-        const token = await registerForPushNotifications(Notifications);
-        if (token && active) void saveTokenToServer(token);
+        const token = await registerForPushNotifications(Notifications, requestPermission);
+        if (token && active) await saveTokenToServer(token);
       } catch (error) {
         console.warn("[PushNotifications] Push registration is unavailable in this runtime.", error);
+      } finally {
+        registrationInProgress = false;
       }
     };
-    void register();
+    void register(true);
+    const appStateSubscription = AppState.addEventListener("change", (nextAppState) => {
+      const resumed = previousAppState !== "active" && nextAppState === "active";
+      previousAppState = nextAppState;
+      if (resumed) void register(false);
+    });
     return () => {
       active = false;
+      appStateSubscription.remove();
     };
   }, [isLoggedIn]);
 
