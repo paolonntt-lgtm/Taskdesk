@@ -41,7 +41,7 @@ function resolveProjectId(): string | null {
   return fromConfig as string;
 }
 
-async function registerForPushNotifications(
+export async function registerForPushNotifications(
   Notifications: NotificationsModule,
   requestPermission = true,
 ): Promise<string | null> {
