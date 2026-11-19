@@ -83,3 +83,4 @@
 - [Profile screen information and menu layout](profile-menu-list-layout.md) — Put email under identity, language under Settings, and tools/admin in one continuous, divided list.
 - [Ritorno dopo creazione ticket mobile](ticket-create-back-navigation.md) — Dal dettaglio di un ticket appena creato, Indietro torna all’elenco, non al modulo.
 - [Privacy meteo mobile](mobile-weather-privacy.md) — Usa WeatherAPI dal server, chiedi consenso GPS e invia solo coordinate arrotondate non salvate nell’account.
+- [Expo build quota pacing](expo-build-quota.md) — Use at most 3 Android and 3 iOS builds weekly, with a hard monthly cap of 15 per platform.
