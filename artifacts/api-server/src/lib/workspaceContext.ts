@@ -12,17 +12,16 @@ export interface WorkspaceOption {
 
 export async function getUserWorkspaces(userId: number, billingOrganizationId: number | null, homeRole: string): Promise<WorkspaceOption[]> {
   const workspaces: WorkspaceOption[] = [];
-  if (billingOrganizationId != null) {
-    const [home] = await db.select({
+  const homeQuery = billingOrganizationId == null
+    ? Promise.resolve([])
+    : db.select({
       id: organizationsTable.id,
       name: organizationsTable.name,
       isSharedWorkspace: organizationsTable.isSharedWorkspace,
       externalSharingEnabled: organizationsTable.externalSharingEnabled,
       billingOwnerOrganizationId: organizationsTable.billingOwnerOrganizationId,
     }).from(organizationsTable).where(eq(organizationsTable.id, billingOrganizationId));
-    if (home) workspaces.push({ ...home, role: homeRole });
-  }
-  const memberships = await db.select({
+  const membershipsQuery = db.select({
     id: organizationsTable.id,
     name: organizationsTable.name,
     role: workspaceMembershipsTable.role,
@@ -32,6 +31,9 @@ export async function getUserWorkspaces(userId: number, billingOrganizationId: n
   }).from(workspaceMembershipsTable)
     .innerJoin(organizationsTable, eq(organizationsTable.id, workspaceMembershipsTable.workspaceOrganizationId))
     .where(eq(workspaceMembershipsTable.userId, userId));
+  const [homeRows, memberships] = await Promise.all([homeQuery, membershipsQuery]);
+  const [home] = homeRows;
+  if (home) workspaces.push({ ...home, role: homeRole });
   const seen = new Set(workspaces.map((workspace) => workspace.id));
   for (const membership of memberships) {
     if (!seen.has(membership.id)) workspaces.push(membership);
