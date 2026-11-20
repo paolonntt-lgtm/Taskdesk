@@ -29,7 +29,7 @@ TaskDesk is a publicly deployed internal ticketing platform with a React web cli
 - **API to object storage** — uploaded files and private object paths cross into a storage system with ACL support; storage routes must not treat object paths as bearer secrets.
 - **API to external providers** — Stripe webhooks and API calls, Google OAuth exchanges, inbound-email webhooks, SMTP/Resend email delivery, and OpenAI requests cross service boundaries and require integrity validation.
 - **Internal/development to production** — committed config files, logs, and development helpers are out of scope unless they materially weaken a production path or expose production secrets.
-- **CORS boundary** — the API must restrict cross-origin credentialed access to known-trusted origins only. The current `cors({ origin: true, credentials: true })` configuration reflects any origin and is a confirmed HIGH vulnerability (see scan findings). CORS MUST be restricted to an explicit allowlist before this boundary is considered enforced.
+- **CORS boundary** — the API must restrict cross-origin credentialed access to known-trusted origins only. As of the 2024 scan this is REMEDIATED: `app.ts` now uses an explicit origin allowlist (taskdesk.it/.uk/.replit.app plus `ALLOWED_ORIGINS`) with a `*.replit.dev` preview regex, instead of the previous `origin: true`. Future scans should only reflag this if the `*.replit.dev` regex or allowlist proves bypassable.
 
 ## Scan Anchors
 
@@ -57,7 +57,7 @@ Authenticated users can create and update tickets, comments, attachments, profil
 
 Ticket details, internal notes, comments, attachments, client records, billing details, user records, knowledge-base articles, and object storage contents are all sensitive organization-scoped data. Every read path must verify both authentication and tenant/role authorization, and private object storage paths must never become a bearer secret that grants unauthorized download access. Secondary convenience surfaces such as stats, reports, bot context search, and attachment metadata must not reveal data outside the caller's role or organization.
 
-**CORS risk (confirmed HIGH)**: The current `cors({ origin: true, credentials: true })` configuration allows any third-party website to make credentialed API requests on behalf of an authenticated user and read the full response. This breaks the cross-origin information-disclosure boundary for all authenticated API endpoints. The CORS origin option MUST be changed to an explicit domain allowlist.
+**CORS (remediated)**: The previously-confirmed `origin: true` reflection has been replaced with an explicit allowlist in `app.ts` (see Trust Boundaries). No longer an open finding.
 
 **Legacy password hashing (confirmed MEDIUM)**: Accounts that pre-date the bcrypt migration retain SHA-256 hashes with a hardcoded salt (`"ticketing_salt"`), which is crackable in minutes upon database compromise. A forced password-reset migration should be completed.
 
@@ -69,4 +69,4 @@ The API exposes unauthenticated auth, OAuth, invite, seed/bootstrap, Stripe webh
 
 This project has a user/admin/superadmin hierarchy. Server-side route handlers must enforce those privileges directly, not rely on frontend controls, and subordinate ticket resources such as comments, notes, activity, attachments, clients, knowledge-base content, and object downloads must inherit the same organization and role restrictions as the parent ticket. All database writes must remain parameterized and any direct SQL usage must avoid attacker-controlled interpolation.
 
-**SSRF risk (confirmed MEDIUM)**: The email channel SMTP test endpoint (`POST /api/settings/email-channels/:id/test`) will open a TCP connection to whatever `host` an admin configured, including internal/cloud-metadata IPs. The `host` field must be validated against an allowlist or RFC 1918 blocklist before storage or use.
+**SSRF (partially remediated, residual MEDIUM)**: `lib/smtpHostValidator.ts` now blocks loopback/RFC-1918/link-local/metadata ranges for SMTP channel hosts. Residual gap flagged in 2024 scan: the validator only blocks canonical dotted/colon IP literals and allows hosts whose DNS resolution errors, so non-canonical encodings (e.g. decimal `2130706433`) bypass it because `net.isIPv4` rejects them while nodemailer's `dns.lookup` canonicalizes them to the blocked address. A DNS-rebinding TOCTOU gap also remains (validate-then-connect). See new vulnerability `ssrf-smtp-host-validator-noncanonical-ip-bypass`. Admin-only, SMTP sink, so MEDIUM.
