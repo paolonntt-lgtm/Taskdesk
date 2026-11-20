@@ -21,3 +21,13 @@ export function trackEvent(name: string, data?: AnalyticsData): void {
     console.log(`[analytics] ${name}`, data);
   }
 }
+
+export async function trackAfterSuccess<T>(
+  action: () => Promise<T>,
+  name: string,
+  data?: AnalyticsData,
+): Promise<T> {
+  const result = await action();
+  trackEvent(name, data);
+  return result;
+}

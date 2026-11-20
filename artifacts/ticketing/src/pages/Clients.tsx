@@ -27,6 +27,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import { readSheet } from 'read-excel-file/browser';
 import { invalidateTicketDataAfterClientRename } from '../lib/clientNameCache';
+import { trackAfterSuccess } from '../lib/analytics';
 import ClientEmailAddressFields, { getClientEmailAddressConflicts, parseClientEmailAddresses } from '../components/ClientEmailAddressFields';
 import {
   createDefaultHeaderlessMapping,
@@ -292,7 +293,11 @@ export default function Clients() {
           await invalidateTicketDataAfterClientRename(qc);
         }
       } else {
-        await createClient.mutateAsync({ data: payload });
+        await trackAfterSuccess(
+          () => createClient.mutateAsync({ data: payload }),
+          'client_created',
+          { source: 'clients_page' },
+        );
         await qc.invalidateQueries({ queryKey: getListClientEmailAssociationsQueryKey() });
       }
       qc.invalidateQueries({ queryKey: getListClientsQueryKey() });

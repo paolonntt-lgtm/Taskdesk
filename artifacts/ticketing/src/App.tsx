@@ -37,7 +37,7 @@ import TicketTrash from "./pages/TicketTrash";
 import CookieConsentBanner from "./components/CookieConsentBanner";
 import { createAuthRefreshHandler, startAuthRefreshPolling } from "@workspace/api-client-react";
 import type { User } from "@workspace/api-client-react";
-import { trackEvent } from "./lib/analytics";
+import { trackAfterSuccess, trackEvent } from "./lib/analytics";
 import { hasConfirmedTrialRegistration, parseProfessionalTrialAttribution } from "./lib/professionalTrialAttribution";
 import TimeTrackingReportPage from "./pages/TimeTrackingReport";
 import PersonalTimeTrackingReportPage from "./pages/PersonalTimeTrackingReport";
@@ -562,31 +562,42 @@ function AppShell() {
   const switchWorkspace = async (workspaceId: number) => {
     if (!user) return;
     const previousWorkspaceId = (user as any).activeWorkspaceId ?? user.organizationId;
-    activeWorkspaceHeader = workspaceId === (user as any).billingOrganizationId ? null : workspaceId;
-    activeWorkspaceCacheId = workspaceId;
-    try { localStorage.setItem(workspaceStorageKey(user.id), String(workspaceId)); } catch {}
-    qc.clear();
-    setLocation("/");
-    const response = await fetch("/api/auth/me", { credentials: "include", cache: "no-store" });
-    if (!response.ok) {
-      activeWorkspaceHeader = null;
-      activeWorkspaceCacheId = (user as any).billingOrganizationId ?? user.organizationId;
-      try { localStorage.removeItem(workspaceStorageKey(user.id)); } catch {}
+    const performSwitch = async () => {
+      activeWorkspaceHeader = workspaceId === (user as any).billingOrganizationId ? null : workspaceId;
+      activeWorkspaceCacheId = workspaceId;
+      try { localStorage.setItem(workspaceStorageKey(user.id), String(workspaceId)); } catch {}
       qc.clear();
-      const homeResponse = await fetch("/api/auth/me", { credentials: "include", cache: "no-store" });
-      if (homeResponse.ok) {
-        const homeUser = await homeResponse.json();
-        activeWorkspaceCacheId = (homeUser as any).activeWorkspaceId ?? homeUser.organizationId ?? null;
-        userRef.current = homeUser;
-        setUser(homeUser);
-        setLocation("/");
+      setLocation("/");
+      const response = await fetch("/api/auth/me", { credentials: "include", cache: "no-store" });
+      if (!response.ok) {
+        activeWorkspaceHeader = null;
+        activeWorkspaceCacheId = (user as any).billingOrganizationId ?? user.organizationId;
+        try { localStorage.removeItem(workspaceStorageKey(user.id)); } catch {}
+        qc.clear();
+        const homeResponse = await fetch("/api/auth/me", { credentials: "include", cache: "no-store" });
+        if (homeResponse.ok) {
+          const homeUser = await homeResponse.json();
+          activeWorkspaceCacheId = (homeUser as any).activeWorkspaceId ?? homeUser.organizationId ?? null;
+          userRef.current = homeUser;
+          setUser(homeUser);
+          setLocation("/");
+        }
+        throw new Error("Non hai accesso a questo spazio.");
       }
-      throw new Error("Non hai accesso a questo spazio.");
+      const freshUser = await response.json();
+      activeWorkspaceCacheId = (freshUser as any).activeWorkspaceId ?? freshUser.organizationId ?? null;
+      userRef.current = freshUser;
+      setUser(freshUser);
+    };
+
+    if (previousWorkspaceId === workspaceId) {
+      await performSwitch();
+      return;
     }
-    const freshUser = await response.json();
-    activeWorkspaceCacheId = (freshUser as any).activeWorkspaceId ?? freshUser.organizationId ?? null;
-    userRef.current = freshUser;
-    setUser(freshUser);
+
+    await trackAfterSuccess(performSwitch, "workspace_switched", {
+      workspace_kind: workspaceId === (user as any).billingOrganizationId ? "home" : "shared",
+    });
   };
 
   return (
