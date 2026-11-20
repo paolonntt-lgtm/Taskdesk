@@ -136,6 +136,8 @@ describe("source-confirmed public small-text contrast (WCAG 1.4.3 AA)", () => {
       /<span className="([^"]*text-\[10px\][^"]*)">\s*<span className="([^"]+)">3<\/span>/,
     );
     expect(cardClass).toBeDefined();
+    expect(stylesheet).not.toMatch(/--color-white\s*:/);
+    expect(theme).toMatch(/--color-white:\s*#fff;/);
     expect(organizedLabel).not.toBeNull();
     expect(sourceCount).not.toBeNull();
     expect(landing).toContain('organized: "Tutto al suo posto"');
@@ -155,5 +157,16 @@ describe("source-confirmed public small-text contrast (WCAG 1.4.3 AA)", () => {
   it("rejects the previously faint foregrounds against white", () => {
     expect(contrast(tokenLuminance("gray-400"), 1)).toBeLessThan(4.5);
     expect(contrast(hexLuminance("#9ca3af"), 1)).toBeLessThan(4.5);
+  });
+
+  it.each([
+    ["chat timestamps and reply labels", "gray-400", "#f8faff"],
+    ["composer placeholder", "gray-400", "gray-50"],
+    ["unified request label and source count", "blue-500", "#fff"],
+  ])("rejects the original %s contrast on its actual background", (_, foreground, background) => {
+    const backgroundLuminance = background.startsWith("#")
+      ? hexLuminance(background)
+      : tokenLuminance(background);
+    expect(contrast(tokenLuminance(foreground), backgroundLuminance)).toBeLessThan(4.5);
   });
 });
