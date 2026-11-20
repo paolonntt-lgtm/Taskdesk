@@ -66,6 +66,7 @@ overrides:
   esbuild: 0.28.2
   fast-copy: 4.1.2
   fast-uri: 3.1.9
+  fast-xml-parser@<=5.11.2: 5.12.1
   fast-xml-builder@<=1.1.6: 1.1.7
   form-data: 4.0.6
   glob@>=9.0.0 <14.0.2: 14.0.3
@@ -81,7 +82,7 @@ overrides:
   minimatch@<11.0.1: 11.0.3
   nanoid@>=3.0.0 <4: 3.3.18
   nanoid@>=5.0.0 <6: 5.1.16
-  node-forge: 1.4.2
+  node-forge: 1.4.3
   nodemailer: 10.3.1
   path-to-regexp@>=8.0.0 <8.4.0: 8.4.2
   picomatch@<2.3.2: 2.3.2

@@ -12,7 +12,7 @@ const lock = readFileSync(path.join(root, "pnpm-lock.yaml"), "utf8");
 const snapshots = lock.split("\nsnapshots:\n")[1];
 
 function lockedVersions(name) {
-  return [...snapshots.matchAll(/^  '?([^@\s][^:\n]*?)@([0-9][^(:'\n]*).*:\n/gm)]
+  return [...snapshots.matchAll(/^  '?([^@\s][^:\n]*?)@([0-9][^(:'\n]*).*:(?: \{\})?\n/gm)]
     .filter(([, packageName]) => packageName === name)
     .map(([, , version]) => version);
 }
@@ -39,7 +39,10 @@ function patchedPackageRequire(name, version) {
 
 const micromatch = consumerRequire("micromatch", "4.0.8")(".");
 const braces = consumerRequire("micromatch", "4.0.8")("braces");
-const forge = consumerRequire("@expo/code-signing-certificates", "0.0.6")("node-forge");
+const mobileRequire = createRequire(path.join(root, "artifacts/mobile/package.json"));
+const expoCliRequire = createRequire(mobileRequire.resolve("@expo/cli/package.json"));
+const certificatesRequire = createRequire(expoCliRequire.resolve("@expo/code-signing-certificates"));
+const forge = certificatesRequire("node-forge");
 const deepmerge = patchedPackageRequire("deepmerge", "4.3.1");
 // Old virtual-store directories can survive upgrades. Only test legacy
 // consumers when they remain in the current dependency graph.
@@ -48,7 +51,10 @@ const { sprintf, vsprintf } = hasLegacySprintf
   ? consumerRequire("argparse", "1.0.10")("sprintf-js") : {};
 const { ArgumentParser } = hasLegacySprintf
   ? consumerRequire("argparse", "1.0.10")(".") : {};
-const expoCertificates = consumerRequire("@expo/code-signing-certificates", "0.0.6")(".");
+const expoCertificates = expoCliRequire("@expo/code-signing-certificates");
+const scriptsRequire = createRequire(path.join(root, "scripts/package.json"));
+const apiRequire = createRequire(path.join(root, "artifacts/api-server/package.json"));
+const storageRequire = createRequire(apiRequire.resolve("@google-cloud/storage"));
 const apiSpecRequire = createRequire(path.join(root, "lib/api-spec/package.json"));
 const orvalRequire = createRequire(apiSpecRequire.resolve("orval"));
 const orvalCoreRequire = createRequire(orvalRequire.resolve("@orval/core"));
@@ -161,6 +167,119 @@ test("node-forge accepts valid RSA signatures but rejects malformed DigestAlgori
     [oid(), create(asn1.Type.NULL, true, [])],
   ]) {
     assert.throws(() => keys.publicKey.verify(digest, signature(algorithm)), /DigestInfo/);
+  }
+});
+
+test("all Forge and XML parser consumers resolve published security fixes", () => {
+  assert.deepEqual(lockedVersions("node-forge"), ["1.4.3"]);
+  assert.deepEqual(lockedVersions("fast-xml-parser"), ["5.12.1"]);
+  assert.equal(expoCliRequire("node-forge/package.json").version, "1.4.3");
+  assert.equal(certificatesRequire("node-forge/package.json").version, "1.4.3");
+  assert.equal(scriptsRequire.resolve("fast-xml-parser"), storageRequire.resolve("fast-xml-parser"));
+});
+
+test("Forge rejects small-order Ed25519 keys and still verifies legitimate signatures", () => {
+  const publicKey = Buffer.alloc(32);
+  publicKey[0] = 1; // Identity point.
+  const signature = Buffer.alloc(64);
+  signature[0] = 1; // R = identity; S = zero.
+  assert.equal(forge.ed25519.verify({
+    message: "admin=true", encoding: "utf8", publicKey, signature,
+  }), false);
+  const pair = forge.ed25519.generateKeyPair();
+  const signed = forge.ed25519.sign({
+    message: "valid message", encoding: "utf8", privateKey: pair.privateKey,
+  });
+  assert.equal(forge.ed25519.verify({
+    message: "valid message", encoding: "utf8", publicKey: pair.publicKey, signature: signed,
+  }), true);
+});
+
+function tlsClient(errors = []) {
+  return forge.tls.createConnection({
+    server: false,
+    tlsDataReady: c => c.tlsData.getBytes(),
+    dataReady: c => c.data.getBytes(),
+    closed() {},
+    error: (_c, error) => errors.push(error.message),
+  });
+}
+
+test("Forge ignores sessionless TLS handshakes before starting and after closing", () => {
+  for (const state of ["before", "close", "close_notify"]) {
+    const errors = [];
+    const client = tlsClient(errors);
+    if (state !== "before") client.handshake();
+    if (state === "close") client.close();
+    if (state === "close_notify") client.process(forge.util.hexToBytes("15030100020100"));
+    assert.equal(client.session, null);
+    assert.doesNotThrow(() => client.process(forge.util.hexToBytes("160301000402000000")));
+    assert.deepEqual(errors, []);
+  }
+});
+
+test("Forge rejects unoffered TLS compression via its error callback", () => {
+  for (const compression of [1, 255]) {
+    const errors = [];
+    const client = tlsClient(errors);
+    client.handshake();
+    // TLS 1.2 ServerHello: version, random, empty session ID, AES128-SHA, compression.
+    const body = "0303" + "00".repeat(32) + "00002f" + compression.toString(16).padStart(2, "0");
+    const record = "160303002a" + "02000026" + body;
+    assert.doesNotThrow(() => client.process(forge.util.hexToBytes(record)));
+    assert.deepEqual(errors, ["Unsupported compression method."]);
+    assert.equal(client.fail, true);
+  }
+});
+
+test("Forge HTTP trims headers and cookies without quadratic whitespace scanning", () => {
+  const result = spawnSync(process.execPath, ["--input-type=commonjs", "-e", `
+    const assert = require('node:assert/strict');
+    const forge = require(process.argv[1]);
+    require(process.argv[2]);
+    const response = forge.http.createResponse();
+    const value = 'a' + '\\t '.repeat(200000) + 'X';
+    assert.equal(response.readHeader(forge.util.createBuffer(
+      'HTTP/1.1 200 OK\\r\\nX-Test: ' + value + ' \\t\\r\\n' +
+      'Set-Cookie: session=' + value + ' \\t\\r\\n\\r\\n')), true);
+    assert.equal(response.fields['X-Test'][0], value);
+    assert.equal(response.getCookies()[0].value, value);
+  `, certificatesRequire.resolve("node-forge"), certificatesRequire.resolve("node-forge/lib/http")],
+  { timeout: 5000, encoding: "utf8" });
+  assert.ifError(result.error);
+  assert.equal(result.status, 0, result.stderr);
+});
+
+test("XML consumers preserve sitemap and multipart-upload XML parsing and building", () => {
+  for (const require of [scriptsRequire, storageRequire]) {
+    const { XMLParser, XMLBuilder } = require("fast-xml-parser");
+    const sitemap = new XMLParser({ ignoreAttributes: false }).parse(
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://example.test/?a=1&amp;b=2</loc></url></urlset>',
+    );
+    assert.equal(sitemap.urlset.url.loc, "https://example.test/?a=1&b=2");
+    assert.equal(sitemap.urlset["@_xmlns"], "http://www.sitemaps.org/schemas/sitemap/0.9");
+    const xml = new XMLBuilder({ arrayNodeName: "Part" }).build([
+      { PartNumber: 1, ETag: '"upload-etag"' },
+    ]);
+    assert.deepEqual(new XMLParser().parse(xml), {
+      Part: { PartNumber: 1, ETag: '"upload-etag"' },
+    });
+  }
+});
+
+test("XML stop nodes reject large unterminated tags without quadratic scanning", () => {
+  for (const require of [scriptsRequire, storageRequire]) {
+    const result = spawnSync(process.execPath, ["--input-type=commonjs", "-e", `
+      const assert = require('node:assert/strict');
+      const { XMLParser } = require(process.argv[1]);
+      const parser = new XMLParser({ stopNodes: ['stop'] });
+      assert.deepEqual(parser.parse('<stop><a>raw</a></stop>'), { stop: '<a>raw</a>' });
+      for (const n of [100000, 200000]) {
+        assert.throws(() => parser.parse('<stop>' + '<a '.repeat(n)));
+      }
+    `, require.resolve("fast-xml-parser")], { timeout: 5000, encoding: "utf8" });
+    assert.ifError(result.error);
+    assert.equal(result.status, 0, result.stderr);
   }
 });
 

@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@workspace/db": "workspace:*",
-    "fast-xml-parser": "^5.8.0"
+    "fast-xml-parser": "^5.12.1"
   },
   "devDependencies": {
     "@types/node": "catalog:",
