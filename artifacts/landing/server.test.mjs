@@ -128,6 +128,27 @@ test("slash, index.html and bare-home variants converge to canonical URLs in one
   await redirect("/", "/it/");
 });
 
+test("account deletion links and direct requests preserve language and noindex", async () => {
+  await redirect("/account-deletion", "/it/account-deletion");
+  await redirect("/account-deletion", "/it/account-deletion", { method: "HEAD" });
+
+  for (const lang of ["it", "en"]) {
+    const home = await page(`/${lang}/`);
+    const target = `/${lang}/account-deletion`;
+    assert.equal(
+      home.querySelector('footer [data-testid="link-account-deletion"]')?.getAttribute("href"),
+      target,
+      `${lang} homepage must link directly to localized deletion instructions`,
+    );
+    const document = await page(target);
+    assert.equal(document.documentElement.lang, lang);
+    assert.ok(document.body.textContent.includes(
+      lang === "it" ? "Eliminazione account e dati" : "Account and data deletion",
+    ));
+    assert.equal(document.querySelector('meta[name="robots"]')?.content, "noindex, follow");
+  }
+});
+
 test("static assets, health checks, legal redirects and real 404s remain available", async () => {
   for (const path of ["/healthz", "/robots.txt", "/llms.txt", "/favicon.svg"]) {
     assert.equal((await request(path)).status, 200, path);
