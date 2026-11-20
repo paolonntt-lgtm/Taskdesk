@@ -8,6 +8,7 @@
 
 import net from "net";
 import dns from "dns";
+import { domainToASCII } from "node:url";
 
 // ── Blocked IPv4 ranges ────────────────────────────────────────────────────
 
@@ -99,60 +100,92 @@ const BLOCKED_HOSTNAMES = new Set([
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
+export interface SmtpResolvedAddress {
+  address: string;
+  family: 4 | 6;
+}
+
+export type SmtpHostValidation =
+  | { ok: true; host: string; servername?: string }
+  | { ok: false; error: string };
+
+type HostLookup = (hostname: string) => Promise<SmtpResolvedAddress[]>;
+
+const INVALID_HOST_ERROR = "L'host SMTP non è valido o non è stato risolto";
+const BLOCKED_HOST_ERROR = "L'host SMTP non può essere un indirizzo IP privato, di loopback o riservato";
+
+function isValidHostname(hostname: string): boolean {
+  const withoutTrailingDot = hostname.endsWith(".") ? hostname.slice(0, -1) : hostname;
+  if (!withoutTrailingDot || withoutTrailingDot.length > 253) return false;
+  return withoutTrailingDot.split(".").every((label) =>
+    label.length <= 63 && /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i.test(label)
+  );
+}
+
+async function systemLookup(hostname: string): Promise<SmtpResolvedAddress[]> {
+  const addresses = await dns.promises.lookup(hostname, { all: true, verbatim: true });
+  return addresses.map(({ address, family }) => ({ address, family: family as 4 | 6 }));
+}
+
 /**
- * Validates that `host` is safe to use as an SMTP server address.
- *
- * For literal IP addresses the check is purely local.
- * For hostnames a DNS lookup is performed and every resolved address is
- * checked.  If DNS resolution fails (e.g. NXDOMAIN, timeout) we allow the
- * connection attempt to proceed — nodemailer will fail with its own error —
- * so that legitimate misconfiguration is not silently swallowed.
- *
- * @returns An Italian-language error message if the host is disallowed, or
- *          `null` if it is acceptable.
+ * Validates an SMTP host and returns a numeric address for Nodemailer to
+ * connect to directly. The original hostname is retained for TLS SNI and
+ * certificate verification. Numeric host encodings are normalized by the
+ * system resolver, and DNS errors fail closed.
  */
-export async function validateSmtpHost(host: string): Promise<string | null> {
+export async function validateSmtpHost(host: string, lookupHost: HostLookup = systemLookup): Promise<SmtpHostValidation> {
   const trimmed = host.trim();
-  const lower = trimmed.toLowerCase();
+  if (!trimmed) return { ok: false, error: INVALID_HOST_ERROR };
 
-  // Blocked plain-text hostnames
-  if (BLOCKED_HOSTNAMES.has(lower)) {
-    return "L'host SMTP non può essere un indirizzo riservato o di loopback";
+  const isBracketed = trimmed.startsWith("[") || trimmed.endsWith("]");
+  if (isBracketed && !(trimmed.startsWith("[") && trimmed.endsWith("]"))) {
+    return { ok: false, error: INVALID_HOST_ERROR };
   }
+  const unbracketed = isBracketed ? trimmed.slice(1, -1) : trimmed;
 
-  const unbracketed = trimmed.replace(/^\[|\]$/g, "");
-
-  // Literal IPv4
   if (net.isIPv4(unbracketed)) {
-    return isBlockedIPv4(unbracketed)
-      ? "L'host SMTP non può essere un indirizzo IP privato, di loopback o link-local"
-      : null;
+    if (isBlockedIPv4(unbracketed)) return { ok: false, error: BLOCKED_HOST_ERROR };
+    return { ok: true, host: unbracketed };
   }
 
-  // Literal IPv6 (with or without surrounding brackets)
   if (net.isIPv6(unbracketed)) {
-    return isBlockedIPv6(unbracketed)
-      ? "L'host SMTP non può essere un indirizzo IPv6 riservato"
-      : null;
+    if (isBlockedIPv6(unbracketed)) return { ok: false, error: BLOCKED_HOST_ERROR };
+    return { ok: true, host: unbracketed };
   }
 
-  // Hostname — resolve and validate every resulting address
-  const [addrs4, addrs6] = await Promise.all([
-    dns.promises.resolve4(trimmed).catch((): string[] => []),
-    dns.promises.resolve6(trimmed).catch((): string[] => []),
-  ]);
+  const asciiHostname = domainToASCII(unbracketed).toLowerCase();
+  const hostname = asciiHostname.endsWith(".") ? asciiHostname.slice(0, -1) : asciiHostname;
+  if (!asciiHostname || !isValidHostname(asciiHostname)) {
+    return { ok: false, error: INVALID_HOST_ERROR };
+  }
+  if (BLOCKED_HOSTNAMES.has(hostname)) {
+    return { ok: false, error: "L'host SMTP non può essere un indirizzo riservato o di loopback" };
+  }
 
-  for (const ip of addrs4) {
-    if (isBlockedIPv4(ip)) {
-      return `L'host SMTP risolve a un indirizzo IP privato o riservato (${ip})`;
+  let addresses: SmtpResolvedAddress[];
+  try {
+    // getaddrinfo canonicalizes legacy numeric IP forms and checks the
+    // addresses Node will actually dial, unlike resolve4/resolve6.
+    addresses = await lookupHost(asciiHostname);
+  } catch {
+    return { ok: false, error: INVALID_HOST_ERROR };
+  }
+  if (addresses.length === 0) return { ok: false, error: INVALID_HOST_ERROR };
+
+  for (const resolved of addresses) {
+    if (
+      (resolved.family === 4 && isBlockedIPv4(resolved.address)) ||
+      (resolved.family === 6 && isBlockedIPv6(resolved.address))
+    ) {
+      return { ok: false, error: BLOCKED_HOST_ERROR };
     }
   }
 
-  for (const ip of addrs6) {
-    if (isBlockedIPv6(ip)) {
-      return `L'host SMTP risolve a un indirizzo IPv6 riservato (${ip})`;
-    }
-  }
-
-  return null;
+  const firstAddress = addresses[0];
+  const isNumericAddressForm = /^(?:0x[0-9a-f]+|[0-9.]+)$/i.test(hostname);
+  return {
+    ok: true,
+    host: firstAddress.address,
+    ...(!isNumericAddressForm ? { servername: hostname } : {}),
+  };
 }

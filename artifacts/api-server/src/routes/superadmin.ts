@@ -10,8 +10,7 @@ import {
 import { eq, desc, and, sql, asc, isNull, isNotNull, or } from "drizzle-orm";
 import { requireAuth, requireSuperAdmin } from "../middlewares/auth";
 import { z } from "zod/v4";
-import { getPlatformSmtpConfig } from "../lib/email";
-import nodemailer from "nodemailer";
+import { createSmtpTransport, getPlatformSmtpConfig } from "../lib/email";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
@@ -425,12 +424,7 @@ router.post("/superadmin/bug-reports/:id/reply", requireAuth, requireSuperAdmin,
   const text = `Ciao ${report.userName},\n\nGrazie per la segnalazione. Ecco la risposta del nostro team:\n\n${replyText}\n\n— Il team TaskDesk`;
 
   try {
-    const transporter = nodemailer.createTransport({
-      host: config.host,
-      port: config.port,
-      secure: config.secure,
-      auth: { user: config.user, pass: config.password },
-    });
+    const transporter = await createSmtpTransport(config);
     await transporter.sendMail({
       from: config.from || config.user,
       to: report.userEmail,

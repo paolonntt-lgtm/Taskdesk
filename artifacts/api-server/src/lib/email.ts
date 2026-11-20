@@ -2,6 +2,7 @@ import nodemailer from "nodemailer";
 import { eq, and } from "drizzle-orm";
 import { db, emailChannelsTable } from "@workspace/db";
 import { logger } from "./logger";
+import { validateSmtpHost, type SmtpHostValidation } from "./smtpHostValidator";
 
 export interface SmtpConfig {
   host: string;
@@ -12,13 +13,19 @@ export interface SmtpConfig {
   from: string;
 }
 
-function createTransportFromConfig(config: SmtpConfig) {
-  return nodemailer.createTransport({
-    host: config.host,
+export async function createSmtpTransport(config: SmtpConfig, validatedHost?: SmtpHostValidation) {
+  const hostValidation = validatedHost ?? await validateSmtpHost(config.host);
+  if (!hostValidation.ok) throw new Error(hostValidation.error);
+  // Connect to the resolved IP directly. Explicit servername preserves TLS SNI
+  // and certificate verification when the configured host was a DNS name.
+  const transportOptions = {
+    host: hostValidation.host,
+    ...(hostValidation.servername ? { servername: hostValidation.servername } : {}),
     port: config.port,
     secure: config.secure,
     auth: { user: config.user, pass: config.password },
-  });
+  } as any;
+  return nodemailer.createTransport(transportOptions);
 }
 
 /**
@@ -117,7 +124,7 @@ export async function sendEmailForOrg(
     return { ok: false, error: "Nessun server SMTP disponibile. Contatta l'amministratore di sistema." };
   }
   try {
-    const transporter = createTransportFromConfig(config);
+    const transporter = await createSmtpTransport(config);
     const info = await transporter.sendMail({
       from: config.from || config.user,
       to: args.to,
@@ -158,8 +165,15 @@ export async function sendEmail(args: SendEmailArgs): Promise<SendEmailResult> {
     return { ok: false, error: "Credenziali SMTP di sistema mancanti" };
   }
   try {
-    const transporter = nodemailer.createTransport({ host, port, secure: port === 465, auth: { user, pass } });
     const from = process.env.SMTP_FROM || user;
+    const transporter = await createSmtpTransport({
+      host,
+      port,
+      secure: port === 465,
+      user,
+      password: pass,
+      from,
+    });
     const info = await transporter.sendMail({ from, to: args.to, subject: args.subject, html: args.html, text: args.text, ...(args.replyTo ? { replyTo: args.replyTo } : {}) });
     return { ok: true, messageId: info.messageId ?? undefined };
   } catch (err: any) {

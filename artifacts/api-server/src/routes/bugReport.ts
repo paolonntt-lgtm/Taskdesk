@@ -1,8 +1,7 @@
 import { Router, type IRouter } from "express";
 import { z } from "zod/v4";
 import { requireAuth } from "../middlewares/auth";
-import { getPlatformSmtpConfig } from "../lib/email";
-import nodemailer from "nodemailer";
+import { createSmtpTransport, getPlatformSmtpConfig } from "../lib/email";
 import { logger } from "../lib/logger";
 import { db, bugReportsTable } from "@workspace/db";
 
@@ -78,12 +77,7 @@ router.post("/bug-report", requireAuth, async (req, res) => {
 
   if (config) {
     try {
-      const transporter = nodemailer.createTransport({
-        host: config.host,
-        port: config.port,
-        secure: config.secure,
-        auth: { user: config.user, pass: config.password },
-      });
+      const transporter = await createSmtpTransport(config);
       await transporter.sendMail({
         from: config.from || config.user,
         to: destination,

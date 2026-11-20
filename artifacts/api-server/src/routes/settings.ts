@@ -3,7 +3,7 @@ import { eq, and, isNull, inArray } from "drizzle-orm";
 import { db, settingsTable, organizationsTable, usersTable, groupsTable, ticketTimeSessionsTable, ticketStatusesTable, ticketsTable, ticketActivityLogsTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { stripeService } from "../stripeService";
-import { type SmtpConfig } from "../lib/email";
+import { createSmtpTransport, type SmtpConfig } from "../lib/email";
 import { validateSmtpHost } from "../lib/smtpHostValidator";
 import { getDefaultCategoriesForProfession, getOrganizationBusinessType, isOrganizationProfession } from "../lib/organizationProfession";
 
@@ -718,8 +718,8 @@ router.put("/settings/outbound-email", requireAuth, requireAdmin, async (req, re
   if (!user || typeof user !== "string") { res.status(400).json({ message: "Utente SMTP obbligatorio" }); return; }
   if (!from || typeof from !== "string") { res.status(400).json({ message: "Indirizzo mittente obbligatorio" }); return; }
 
-  const hostErrPut = await validateSmtpHost(host);
-  if (hostErrPut) { res.status(400).json({ message: hostErrPut }); return; }
+  const hostValidation = await validateSmtpHost(host);
+  if (!hostValidation.ok) { res.status(400).json({ message: hostValidation.error }); return; }
 
   const key = `org_${orgId}_smtp_config`;
   const [existing] = await db.select().from(settingsTable).where(eq(settingsTable.key, key));
@@ -755,8 +755,9 @@ router.post("/settings/outbound-email/test", requireAuth, requireAdmin, async (r
   const { host, port, secure, user, password, from } = req.body ?? {};
   if (!host || !user) { res.status(400).json({ message: "Host e utente SMTP obbligatori" }); return; }
 
-  const hostErrTest = await validateSmtpHost(String(host).trim());
-  if (hostErrTest) { res.status(400).json({ message: hostErrTest }); return; }
+  const smtpHost = String(host).trim();
+  const hostValidation = await validateSmtpHost(smtpHost);
+  if (!hostValidation.ok) { res.status(400).json({ message: hostValidation.error }); return; }
 
   let resolvedPassword = password;
   if (!resolvedPassword || resolvedPassword === "***") {
@@ -769,13 +770,14 @@ router.post("/settings/outbound-email/test", requireAuth, requireAdmin, async (r
   if (!resolvedPassword) { res.status(400).json({ message: "Password obbligatoria per il test" }); return; }
 
   try {
-    const nodemailerMod = await import("nodemailer");
-    const transporter = nodemailerMod.default.createTransport({
-      host: String(host).trim(),
+    const transporter = await createSmtpTransport({
+      host: smtpHost,
       port: typeof port === "number" ? port : parseInt(String(port), 10) || 587,
       secure: secure === true,
-      auth: { user: String(user).trim(), pass: resolvedPassword },
-    });
+      user: String(user).trim(),
+      password: resolvedPassword,
+      from: from || user,
+    }, hostValidation);
     await transporter.verify();
     await transporter.sendMail({
       from: from || user,

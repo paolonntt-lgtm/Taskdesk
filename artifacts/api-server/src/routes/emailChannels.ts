@@ -2,8 +2,8 @@ import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
 import { db, emailChannelsTable, settingsTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
-import nodemailer from "nodemailer";
 import { validateSmtpHost } from "../lib/smtpHostValidator";
+import { createSmtpTransport } from "../lib/email";
 
 const router: IRouter = Router();
 
@@ -31,8 +31,8 @@ router.post("/settings/email-channels", requireAuth, requireAdmin, async (req, r
   if (!user || typeof user !== "string") { res.status(400).json({ message: "Utente/email obbligatorio" }); return; }
   if (!password || typeof password !== "string") { res.status(400).json({ message: "Password obbligatoria" }); return; }
 
-  const hostError = await validateSmtpHost(host);
-  if (hostError) { res.status(400).json({ message: hostError }); return; }
+  const hostValidation = await validateSmtpHost(host);
+  if (!hostValidation.ok) { res.status(400).json({ message: hostValidation.error }); return; }
 
   if (isPrimary) {
     await db.update(emailChannelsTable)
@@ -76,8 +76,8 @@ router.put("/settings/email-channels/:id", requireAuth, requireAdmin, async (req
   if (!host || typeof host !== "string") { res.status(400).json({ message: "Host obbligatorio" }); return; }
   if (!user || typeof user !== "string") { res.status(400).json({ message: "Utente/email obbligatorio" }); return; }
 
-  const hostErrorPut = await validateSmtpHost(host);
-  if (hostErrorPut) { res.status(400).json({ message: hostErrorPut }); return; }
+  const hostValidation = await validateSmtpHost(host);
+  if (!hostValidation.ok) { res.status(400).json({ message: hostValidation.error }); return; }
 
   const resolvedPassword = (typeof password === "string" && password !== "***" && password.length > 0)
     ? password
@@ -139,10 +139,19 @@ router.post("/settings/email-channels/:id/test", requireAuth, requireAdmin, asyn
   if (channel.type !== "smtp") { res.status(400).json({ message: "Solo i canali SMTP sono supportati" }); return; }
 
   try {
-    const transporter = nodemailer.createTransport({
-      host: channel.host, port: channel.port, secure: channel.secure,
-      auth: { user: channel.user, pass: channel.password },
-    });
+    const hostValidation = await validateSmtpHost(channel.host);
+    if (!hostValidation.ok) {
+      res.json({ ok: false, error: hostValidation.error });
+      return;
+    }
+    const transporter = await createSmtpTransport({
+      host: channel.host,
+      port: channel.port,
+      secure: channel.secure,
+      user: channel.user,
+      password: channel.password,
+      from: channel.fromAddress || channel.user,
+    }, hostValidation);
     await transporter.verify();
     await transporter.sendMail({
       from: channel.fromAddress || channel.user,

@@ -68,6 +68,7 @@
 - [React Query context in Vite workspaces](react-query-context-dedupe.md) — Dedupe React Query when workspace packages resolve it with different React peer versions.
 - [Inbound email client titles](inbound-email-client-titles.md) — Prefix associated email-ticket titles, preserve the subject, and hide the client field after matching.
 - [Inbound email notifications](inbound-email-notification-routing.md) — When an email ticket has an assigned operator, send its notification only to that operator.
+- [SMTP DNS pinning](smtp-dns-pinning.md) — Pin Nodemailer to the validated numeric IP and pass the original hostname separately for TLS verification.
 - [Client email matching](client-email-association-priority.md) — Automatically match only email/PEC contacts saved in the same organization's client profile.
 - [Client note hashtags](client-note-hashtags.md) — Year-label all note categories, default bare tags to this year, and seed profession-specific declaratives.
 - [Microsoft SPA token redemption](microsoft-spa-token-origin.md) — Entra SPA token endpoint requests from the backend need a matching Origin header for code exchange and refresh.
