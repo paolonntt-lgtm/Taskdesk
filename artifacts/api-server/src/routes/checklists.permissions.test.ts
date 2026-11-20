@@ -2,9 +2,12 @@ import { createServer, type Server } from "node:http";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   db,
+  checklistTemplateItemsTable,
+  checklistTemplatesTable,
   organizationsTable,
   pool,
   sessionsTable,
+  ticketActivityLogsTable,
   ticketChecklistsTable,
   ticketChecklistItemsTable,
   ticketsTable,
@@ -21,6 +24,7 @@ let organizationId: number;
 let userId: number;
 let userSessionId: string;
 let ticketId: number;
+const createdTicketIds: number[] = [];
 let checklistId: number;
 let itemId: number;
 
@@ -64,6 +68,7 @@ describe("checklist item permissions", () => {
       organizationId,
     }).returning({ id: ticketsTable.id });
     ticketId = ticket.id;
+    createdTicketIds.push(ticketId);
 
     const [checklist] = await db.insert(ticketChecklistsTable).values({
       ticketId,
@@ -97,7 +102,9 @@ describe("checklist item permissions", () => {
         server.close((error) => (error ? reject(error) : resolve()));
       });
     }
-    if (ticketId) await db.delete(ticketsTable).where(eq(ticketsTable.id, ticketId));
+    for (const createdTicketId of createdTicketIds) {
+      await db.delete(ticketsTable).where(eq(ticketsTable.id, createdTicketId));
+    }
     if (userSessionId) await db.delete(sessionsTable).where(eq(sessionsTable.sessionId, userSessionId));
     if (userId) await db.delete(usersTable).where(eq(usersTable.id, userId));
     if (organizationId) await db.delete(organizationsTable).where(eq(organizationsTable.id, organizationId));
@@ -130,5 +137,66 @@ describe("checklist item permissions", () => {
     );
     expect(deleteItem.status).toBe(200);
     expect(deleteItem.body).toEqual({ success: true });
+  });
+
+  it("does not apply checklist templates to admin-only or deleted tickets", async () => {
+    const [template] = await db.insert(checklistTemplatesTable).values({
+      orgId: organizationId,
+      title: "Restricted ticket template",
+    }).returning({ id: checklistTemplatesTable.id });
+    await db.insert(checklistTemplateItemsTable).values({
+      templateId: template.id,
+      orgId: organizationId,
+      text: "Template item",
+    });
+
+    const [privateTicket] = await db.insert(ticketsTable).values({
+      title: `Private checklist ticket ${runId}`,
+      description: "Admin-only ticket",
+      category: "Support",
+      location: "Office",
+      createdBy: userId,
+      organizationId,
+      visibility: "admins",
+    }).returning({ id: ticketsTable.id });
+    createdTicketIds.push(privateTicket.id);
+    const [deletedTicket] = await db.insert(ticketsTable).values({
+      title: `Deleted checklist ticket ${runId}`,
+      description: "Deleted ticket",
+      category: "Support",
+      location: "Office",
+      createdBy: userId,
+      organizationId,
+      deletedAt: new Date(),
+    }).returning({ id: ticketsTable.id });
+    createdTicketIds.push(deletedTicket.id);
+
+    const privateResult = await request(
+      `/api/tickets/${privateTicket.id}/checklists/from-template/${template.id}`,
+      { method: "POST" },
+    );
+    const deletedResult = await request(
+      `/api/tickets/${deletedTicket.id}/checklists/from-template/${template.id}`,
+      { method: "POST" },
+    );
+
+    expect(privateResult.status).toBe(404);
+    expect(deletedResult.status).toBe(404);
+
+    const visibleResult = await request(
+      `/api/tickets/${ticketId}/checklists/from-template/${template.id}`,
+      { method: "POST" },
+    );
+    expect(visibleResult.status).toBe(201);
+    expect(visibleResult.body.items).toHaveLength(1);
+
+    for (const restrictedTicketId of [privateTicket.id, deletedTicket.id]) {
+      const checklists = await db.select().from(ticketChecklistsTable)
+        .where(eq(ticketChecklistsTable.ticketId, restrictedTicketId));
+      const activity = await db.select().from(ticketActivityLogsTable)
+        .where(eq(ticketActivityLogsTable.ticketId, restrictedTicketId));
+      expect(checklists).toHaveLength(0);
+      expect(activity).toHaveLength(0);
+    }
   });
 });

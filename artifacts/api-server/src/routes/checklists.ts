@@ -1,25 +1,11 @@
 import { Router, type IRouter } from "express";
-import { eq, and, asc, inArray, isNull } from "drizzle-orm";
+import { eq, and, asc, inArray } from "drizzle-orm";
 import { db, ticketsTable, ticketChecklistsTable, ticketChecklistItemsTable, ticketActivityLogsTable, usersTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
+import { getTicketForUser } from "../lib/ticketAccess";
 import { z } from "zod";
 
 const router: IRouter = Router();
-
-async function getTicketForUser(ticketId: number, orgId: number | null, isAdmin: boolean) {
-  const [ticket] = await db
-    .select({ id: ticketsTable.id, organizationId: ticketsTable.organizationId, visibility: ticketsTable.visibility })
-    .from(ticketsTable)
-    .where(
-      and(
-        eq(ticketsTable.id, ticketId),
-        isNull(ticketsTable.deletedAt),
-        orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined
-      )
-    );
-  if (!ticket || (!isAdmin && ticket.visibility === "admins")) return null;
-  return ticket;
-}
 
 async function getChecklistForTicket(checklistId: number, ticketId: number) {
   const [checklist] = await db

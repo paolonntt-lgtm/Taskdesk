@@ -1,7 +1,8 @@
 import { Router, type IRouter } from "express";
 import { eq, and, asc, inArray } from "drizzle-orm";
-import { db, checklistTemplatesTable, checklistTemplateItemsTable, ticketChecklistsTable, ticketChecklistItemsTable, ticketActivityLogsTable, ticketsTable } from "@workspace/db";
+import { db, checklistTemplatesTable, checklistTemplateItemsTable, ticketChecklistsTable, ticketChecklistItemsTable, ticketActivityLogsTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
+import { getTicketForUser } from "../lib/ticketAccess";
 import { z } from "zod";
 
 const router: IRouter = Router();
@@ -248,12 +249,7 @@ router.post("/tickets/:ticketId/checklists/from-template/:templateId", requireAu
 
   if (isNaN(ticketId) || isNaN(templateId)) { res.status(400).json({ error: "Invalid ID" }); return; }
 
-  const [ticket] = await db.select({ id: ticketsTable.id, organizationId: ticketsTable.organizationId })
-    .from(ticketsTable)
-    .where(and(
-      eq(ticketsTable.id, ticketId),
-      orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined
-    ));
+  const ticket = await getTicketForUser(ticketId, orgId, currentUser.role === "admin");
   if (!ticket) { res.status(404).json({ error: "Ticket not found" }); return; }
 
   const [template] = await db.select().from(checklistTemplatesTable).where(
