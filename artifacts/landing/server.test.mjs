@@ -136,6 +136,7 @@ test("static assets, health checks, legal redirects and real 404s remain availab
     await redirect(`/${slug}`, `/it/${slug}`);
     await redirect(`/en/${slug}`, `/it/${slug}`);
   }
+  await redirect("/account-deletion", "/it/account-deletion");
   for (const path of ["/it/nonexistent", "/it/nonexistent/"]) {
     const response = await request(path);
     assert.equal(response.status, 404, path);

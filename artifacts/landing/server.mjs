@@ -60,6 +60,7 @@ const BARE_REDIRECTS = {
   "/terms": "/it/terms",
   "/dpa": "/it/dpa",
   "/cookie-policy": "/it/cookie-policy",
+  "/account-deletion": "/it/account-deletion",
 };
 
 // 301 permanent redirects: English legal pages → Italian canonical (legal content is IT-only)

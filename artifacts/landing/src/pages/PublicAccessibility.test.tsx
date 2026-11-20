@@ -108,7 +108,7 @@ describe("public visitor controls", () => {
     expect(cookieButton.textContent?.trim())
       .toBe(lang === "it" ? "Preferenze cookie" : "Cookie preferences");
     expect(footer.querySelector('[data-testid="link-account-deletion"]')?.getAttribute("href"))
-      .toBe("/account-deletion");
+      .toBe(`/${lang}/account-deletion`);
     const openSettings = vi.fn();
     window.addEventListener("td-open-cookie-settings", openSettings);
     try {

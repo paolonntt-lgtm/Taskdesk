@@ -994,7 +994,7 @@ export default function Landing() {
           <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 pt-2 border-t border-gray-100">
             <Link href="/privacy-policy" className="text-xs text-gray-600 hover:text-gray-900 focus-visible:text-gray-900 transition-colors">Privacy Policy</Link>
             <Link
-              href="/account-deletion"
+              href={`/${lang}/account-deletion`}
               data-testid="link-account-deletion"
               className="text-xs text-gray-600 hover:text-gray-900 focus-visible:text-gray-900 transition-colors"
             >
