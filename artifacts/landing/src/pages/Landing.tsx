@@ -293,8 +293,8 @@ function TicketChatMockup({ lang }: { lang: "it" | "en" }) {
                 )}
               </div>
               <div className="flex items-center gap-2 mt-1 px-1">
-                <span className="text-xs text-gray-400">{m.time}</span>
-                <span className="text-xs text-gray-400 hover:text-blue-500 cursor-pointer">
+                <span className="text-xs text-gray-600">{m.time}</span>
+                <span className="text-xs text-gray-600 hover:text-blue-700 cursor-pointer">
                   {lang === "it" ? "Rispondi" : "Reply"}
                 </span>
                 {(m as any).liked ? (
@@ -329,7 +329,7 @@ function TicketChatMockup({ lang }: { lang: "it" | "en" }) {
       </div>
 
       <div className="px-4 py-3 border-t border-gray-100 bg-white">
-        <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-400">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-600">
           <span className="flex-1">{lang === "it" ? "Scrivi un commento…" : "Write a comment…"}</span>
           <span className="text-gray-300 text-base font-bold">B</span>
           <span className="text-gray-300 text-base italic">I</span>
@@ -450,7 +450,7 @@ function UnifiedRequestVisual({ lang }: { lang: "it" | "en" }) {
       <div className="absolute bottom-[18px] left-1/2 z-20 w-[min(340px,88%)] -translate-x-1/2 overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-[0_22px_60px_#2855a71f]">
         <div className="flex items-start justify-between border-b border-gray-100 px-5 py-4">
           <div>
-            <div className="mb-1 text-[10px] font-bold uppercase tracking-[.12em] text-blue-500">{copy.organized}</div>
+            <div className="mb-1 text-[10px] font-bold uppercase tracking-[.12em] text-blue-700">{copy.organized}</div>
             <div className="text-sm font-bold text-gray-900">{copy.practice}</div>
             <div className="mt-1 text-xs text-gray-500">{copy.practiceTitle}</div>
           </div>
@@ -462,7 +462,7 @@ function UnifiedRequestVisual({ lang }: { lang: "it" | "en" }) {
             <span className="grid h-7 w-7 place-items-center rounded-full border-2 border-white bg-blue-600 text-[9px] font-bold text-white">LB</span>
           </div>
           <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-gray-500">
-            <span className="text-blue-500">3</span> {copy.sources}
+            <span className="text-blue-700">3</span> {copy.sources}
           </span>
           <span className="grid h-7 w-7 place-items-center rounded-lg bg-blue-600 text-white">
             <CheckCircle2 aria-hidden="true" size={14} strokeWidth={2.5} />
