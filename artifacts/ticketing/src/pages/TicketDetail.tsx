@@ -482,6 +482,7 @@ export default function TicketDetail() {
       trackEvent('ticket_status_changed', { status: newStatus });
       queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
       queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
+      void invalidateTicketCalendarCache(queryClient);
     } catch (err: any) {
       if (err?.data?.error === 'TIMER_ALREADY_ACTIVE') {
         const active = err.data.activeTicket;
@@ -517,6 +518,7 @@ export default function TicketDetail() {
       });
       await queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
       queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
+      void invalidateTicketCalendarCache(queryClient);
       setResolutionDialog(false);
       setResolutionNote('');
       setWorkedHours('');

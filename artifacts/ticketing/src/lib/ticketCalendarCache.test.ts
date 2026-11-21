@@ -10,7 +10,7 @@ describe('ticket calendar cache', () => {
     queryClient = undefined;
   });
 
-  it('refreshes cached events when the calendar is opened after ticket metadata changes', async () => {
+  it('refreshes cached events after a ticket status change', async () => {
     queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false, staleTime: Infinity } },
     });
@@ -19,6 +19,7 @@ describe('ticket calendar cache', () => {
       {
         type: 'ticket',
         id: 42,
+        status: 'resolved',
         priority: 'high',
         assignee: { id: 7, name: 'New assignee' },
       },
@@ -27,6 +28,7 @@ describe('ticket calendar cache', () => {
       {
         type: 'ticket',
         id: 42,
+        status: 'open',
         priority: 'low',
         assignee: { id: 3, name: 'Old assignee' },
       },
