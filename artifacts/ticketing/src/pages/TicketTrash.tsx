@@ -89,6 +89,7 @@ export default function TicketTrash() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: trashQueryKey }),
         queryClient.invalidateQueries({ queryKey: ['/api/tickets'] }),
+        queryClient.invalidateQueries({ queryKey: ['/api/calendar'] }),
       ]);
       setPendingAction(null);
     },
