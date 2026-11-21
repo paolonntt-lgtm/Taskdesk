@@ -24,11 +24,21 @@ describe('ticket trash calendar refresh', () => {
     root = createRoot(host);
     queryClient = new QueryClient({
       defaultOptions: {
-        queries: { retry: false },
+        queries: { retry: false, staleTime: Infinity },
         mutations: { retry: false },
       },
     });
     invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries');
+    queryClient.setQueryData(['ticket-trash'], [{
+      id: 42,
+      ticketNumber: 42,
+      title: 'Restorable ticket',
+      category: 'Support',
+      status: 'open',
+      priority: 'medium',
+      createdAt: '2026-01-01T10:00:00.000Z',
+      deletedAt: '2026-01-02T10:00:00.000Z',
+    }]);
     fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       if (String(input) === '/api/tickets/trash') {
         return {
@@ -76,13 +86,11 @@ describe('ticket trash calendar refresh', () => {
           <TicketTrash />
         </QueryClientProvider>,
       );
-      await new Promise((resolve) => setTimeout(resolve, 50));
     });
 
     const actionButton = document.querySelector<HTMLButtonElement>(
       `button[aria-label="${buttonLabel}"]`,
     );
-    if (!actionButton) console.log(host.textContent, fetchMock.mock.calls, queryClient.getQueryState(['ticket-trash']));
     expect(actionButton).toBeDefined();
 
     await act(async () => {
