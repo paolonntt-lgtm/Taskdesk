@@ -50,6 +50,9 @@ describe("optional mobile navigation tabs", () => {
     expect(enabled.clients).toBe(true);
     expect(disabled.clients).toBe(false);
     expect(noOrganization.clients).toBe(false);
+    expect(enabled.statistics).toBe(false);
+    expect(disabled.statistics).toBe(true);
+    expect(noOrganization.statistics).toBe(false);
   });
 
   it("shows Hours only to organization admins when TaskTrack is enabled", () => {
@@ -92,7 +95,7 @@ describe("optional mobile navigation tabs", () => {
         hasOrganization: true,
         isOrganizationAdmin: false,
       }),
-    ).toEqual({ clients: true, hoursReport: false });
+    ).toEqual({ clients: true, hoursReport: false, statistics: false });
   });
 
   it("hides optional navigation whenever organization settings are unavailable", () => {
@@ -103,14 +106,14 @@ describe("optional mobile navigation tabs", () => {
         hasOrganization: true,
         isOrganizationAdmin: true,
       }),
-    ).toEqual({ clients: false, hoursReport: false });
+    ).toEqual({ clients: false, hoursReport: false, statistics: false });
   });
 
-  it("keeps Calendar visible and places only enabled Clients beside New for every module combination", () => {
+  it("fills the bottom bar with Statistics only when Clients and TaskTrack are disabled", () => {
     const scenarios = [
       {
         settings: { clientsEnabled: false, timeTrackingModuleEnabled: false },
-        expectedRoutes: ["index", "tickets", "new", "calendar"],
+        expectedRoutes: ["index", "tickets", "new", "calendar", "reports"],
       },
       {
         settings: { clientsEnabled: true, timeTrackingModuleEnabled: false },
@@ -138,6 +141,7 @@ describe("optional mobile navigation tabs", () => {
         "tickets",
         "calendar",
         ...(access.clients ? ["clients-tab"] : []),
+        ...(access.statistics ? ["reports"] : []),
       ];
       const layout = getMobileBottomBarLayout(routes, true);
 
@@ -173,6 +177,7 @@ describe("optional mobile navigation tabs", () => {
         "tickets",
         "calendar",
         ...(access.clients ? ["clients-tab"] : []),
+        ...(access.statistics ? ["reports"] : []),
       ];
 
       return {
@@ -191,6 +196,7 @@ describe("optional mobile navigation tabs", () => {
       timeTrackingModuleEnabled: false,
     });
     expect(getMenu().routes).toContain("calendar");
+    expect(getMenu().routes).toContain("reports");
 
     cacheMobileOrganizationSettings(queryClient, organizationId, {
       clientsEnabled: true,
@@ -198,18 +204,21 @@ describe("optional mobile navigation tabs", () => {
     });
     expect(getMenu().routes).toContain("clients-tab");
     expect(getMenu().routes).toContain("calendar");
+    expect(getMenu().routes).not.toContain("reports");
 
     cacheMobileOrganizationSettings(queryClient, organizationId, {
       clientsEnabled: false,
       timeTrackingModuleEnabled: false,
     });
     expect(getMenu().routes).not.toContain("clients-tab");
+    expect(getMenu().routes).toContain("reports");
 
     cacheMobileOrganizationSettings(queryClient, organizationId, {
       clientsEnabled: false,
       timeTrackingModuleEnabled: true,
     });
     expect(getMenu().routes).not.toContain("hours-report-tab");
+    expect(getMenu().routes).not.toContain("reports");
     expect(getMenu().routes).toContain("calendar");
 
     cacheMobileOrganizationSettings(queryClient, organizationId, {
@@ -217,6 +226,7 @@ describe("optional mobile navigation tabs", () => {
       timeTrackingModuleEnabled: false,
     });
     expect(getMenu().routes).not.toContain("hours-report-tab");
+    expect(getMenu().routes).toContain("reports");
 
     cacheMobileOrganizationSettings(queryClient, organizationId, {
       clientsEnabled: true,
@@ -225,15 +235,21 @@ describe("optional mobile navigation tabs", () => {
     const enabledMenu = getMenu();
     expect(enabledMenu.routes).toContain("clients-tab");
     expect(enabledMenu.routes).toContain("calendar");
+    expect(enabledMenu.routes).not.toContain("reports");
     expect(enabledMenu.routes).not.toContain("hours-report-tab");
     expect(enabledMenu.layout.find((item) => item.routeName === "new")?.left).toBe(40);
     expect(currentRoute).toBe("tickets");
     expect(menuSnapshots).toHaveLength(6);
     expect(menuSnapshots[1]).toContain("clients-tab");
+    expect(menuSnapshots[1]).not.toContain("reports");
     expect(menuSnapshots[2]).not.toContain("clients-tab");
+    expect(menuSnapshots[2]).toContain("reports");
     expect(menuSnapshots[3]).not.toContain("hours-report-tab");
+    expect(menuSnapshots[3]).not.toContain("reports");
     expect(menuSnapshots[4]).not.toContain("hours-report-tab");
+    expect(menuSnapshots[4]).toContain("reports");
     expect(menuSnapshots[5]).toContain("calendar");
+    expect(menuSnapshots[5]).not.toContain("reports");
 
     unsubscribe();
     expect(currentRoute).toBe("tickets");

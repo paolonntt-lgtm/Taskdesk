@@ -331,7 +331,7 @@ vi.mock("@/contexts/LanguageContext", () => ({
         calendar: "Calendar",
         hoursReport: "Hours report",
         clients: "Clients",
-        reports: mocks.language === "it" ? "Report" : "Reports",
+        reports: mocks.language === "it" ? "Statistiche" : "Statistics",
         profile: mocks.language === "it" ? "Profilo" : "Profile",
       },
       dashboard: {
@@ -1431,18 +1431,21 @@ describe("mobile ticket creation navigation", () => {
       width: 320,
       settings: { clientsEnabled: false, timeTrackingModuleEnabled: false },
       hiddenRoutes: ["clients-tab", "hours-report-tab"],
+      visibleRoutes: ["reports"],
     },
     {
       platform: "android" as const,
       width: 360,
       settings: { clientsEnabled: true, timeTrackingModuleEnabled: false },
       hiddenRoutes: ["hours-report-tab"],
+      visibleRoutes: [],
     },
     {
       platform: "android" as const,
       width: 412,
       settings: { clientsEnabled: false, timeTrackingModuleEnabled: true },
       hiddenRoutes: ["clients-tab"],
+      visibleRoutes: [],
     },
   ])("renders a centered, usable New action and remaining tabs on $platform at $width pt", async (scenario) => {
     mocks.user = { ...mocks.user, role: "admin" };
@@ -1455,6 +1458,9 @@ describe("mobile ticket creation navigation", () => {
       expect(host.querySelector(`[data-route="${route}"]`)?.getAttribute("data-href")).toBe("hidden");
       expect(host.querySelector(`[aria-label="${route === "clients-tab" ? "Clients" : "Hours report"}"]`))
         .toBeNull();
+    }
+    for (const route of scenario.visibleRoutes ?? []) {
+      expect(host.querySelector(`[data-route="${route}"]`)?.getAttribute("data-href")).toBe("visible");
     }
 
     const newButton = host.querySelector<HTMLButtonElement>('button[aria-label="New"]');
@@ -1472,6 +1478,15 @@ describe("mobile ticket creation navigation", () => {
       expect(button).not.toBeNull();
       await act(async () => button!.click());
       expect(mocks.navigate).toHaveBeenLastCalledWith(route, undefined);
+    }
+    if (scenario.visibleRoutes?.includes("reports")) {
+      const statisticsButton = host.querySelector<HTMLButtonElement>(
+        'button[aria-label="Statistics"]',
+      );
+      expect(statisticsButton).not.toBeNull();
+      expect(statisticsButton?.dataset.touchLeft).toBe("80%");
+      await act(async () => statisticsButton!.click());
+      expect(mocks.navigate).toHaveBeenLastCalledWith("reports", undefined);
     }
   });
 
@@ -1644,12 +1659,13 @@ describe("mobile ticket creation navigation", () => {
   });
 
   it.each([
-    { language: "en", returnLabel: "Back to Reports" },
-    { language: "it", returnLabel: "Torna a Report" },
+    { language: "en", returnLabel: "Back to Statistics" },
+    { language: "it", returnLabel: "Torna a Statistiche" },
   ] as const)(
-    "returns to Reports from Profile and labels the back action in $language",
+    "returns to Statistics from Profile and labels the back action in $language",
     async ({ language, returnLabel }) => {
       mocks.language = language;
+      mocks.organizationSettings = { clientsEnabled: true, timeTrackingModuleEnabled: false };
       await render(TabLayout);
 
       const reportsRoute = registeredRoutes().find((route) => route.dataset.route === "reports");

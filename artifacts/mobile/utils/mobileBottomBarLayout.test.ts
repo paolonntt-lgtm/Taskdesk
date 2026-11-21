@@ -35,9 +35,9 @@ describe("mobile bottom bar layout", () => {
     expect(layout.find(({ routeName }) => routeName === "new")?.left).toBe(40);
   });
 
-  it("keeps New centered when both optional tabs are hidden", () => {
+  it("fills the open slot with Statistics when Clients and TaskTrack are disabled", () => {
     const layout = getMobileBottomBarLayout(
-      ["index", "tickets", "calendar"],
+      ["index", "tickets", "calendar", "reports"],
       true,
     );
 
@@ -46,8 +46,10 @@ describe("mobile bottom bar layout", () => {
       "tickets",
       "new",
       "calendar",
+      "reports",
     ]);
     expect(layout.find(({ routeName }) => routeName === "new")?.left).toBe(40);
+    expect(layout.every(({ width }) => (width * 320) / 100 >= 56)).toBe(true);
   });
 
   it("keeps Calendar and Clients around a centered New action when both products are enabled", () => {

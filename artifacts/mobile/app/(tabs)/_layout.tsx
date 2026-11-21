@@ -479,12 +479,13 @@ function TabContent() {
   });
   const clientsEnabled = optionalTabAccess.clients;
   const hoursReportEnabled = optionalTabAccess.hoursReport;
+  const statisticsEnabled = optionalTabAccess.statistics;
   const showOrganizationSettingsError =
     user?.organizationId != null &&
     (organizationSettings.isError || organizationSettings.isRefetchError);
   const showNewTicketTab = true;
   const hiddenRoutes = [
-    "reports",
+    ...(!statisticsEnabled ? ["reports"] : []),
     "hours-report-tab",
     ...(!clientsEnabled ? ["clients-tab"] : []),
   ];
@@ -691,7 +692,19 @@ function TabContent() {
             ),
         }}
       />
-      <Tabs.Screen name="reports" options={{ href: null, title: t.tabs.reports }} />
+      <Tabs.Screen
+        name="reports"
+        options={{
+          href: statisticsEnabled ? undefined : null,
+          title: t.tabs.reports,
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="chart.pie" tintColor={color} size={24} />
+            ) : (
+              <Feather name="pie-chart" size={24} color={color} />
+            ),
+        }}
+      />
       <Tabs.Screen
         name="profile"
         options={{
@@ -731,6 +744,7 @@ function BottomTabBar({
     "tickets",
     "calendar",
     "clients-tab",
+    "reports",
   ];
   const visibleMenuRoutes = menuRouteNames.filter(
     (name) =>

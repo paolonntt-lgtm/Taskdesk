@@ -10,6 +10,7 @@ export type MobileOptionalTabSettings = {
 export type MobileOptionalTabAccess = {
   clients: boolean;
   hoursReport: boolean;
+  statistics: boolean;
 };
 
 export function getMobileOrganizationSettingsRefetchInterval(
@@ -58,5 +59,10 @@ export function getMobileOptionalTabAccess({
       settingsLoaded &&
       isOrganizationAdmin &&
       settings?.timeTrackingModuleEnabled === true,
+    statistics:
+      hasOrganization &&
+      settingsLoaded &&
+      settings?.clientsEnabled === false &&
+      settings?.timeTrackingModuleEnabled === false,
   };
 }
