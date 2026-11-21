@@ -240,4 +240,36 @@ describe("calendar scheduled tickets", () => {
     ]);
     expect(recurrenceItems.every((item) => item.ticketEvent === "recurrence" && item.status === null)).toBe(true);
   });
+
+  it("returns a restored ticket to the calendar with its original due date", async () => {
+    const now = new Date();
+    const calendarUrl = `${baseUrl}/api/calendar?year=${now.getFullYear()}&month=${now.getMonth() + 1}`;
+    const headers = { Cookie: `session_id=${adminSessionId}` };
+
+    const beforeRestore = await fetch(calendarUrl, { headers });
+    expect(beforeRestore.status).toBe(200);
+    const itemsBeforeRestore = await beforeRestore.json() as Array<{ id: number }>;
+    expect(itemsBeforeRestore.some((item) => item.id === deletedDueTicketId)).toBe(false);
+
+    const restoreResponse = await fetch(
+      `${baseUrl}/api/tickets/${deletedDueTicketId}/restore`,
+      { method: "POST", headers },
+    );
+    expect(restoreResponse.status).toBe(200);
+
+    const afterRestore = await fetch(calendarUrl, { headers });
+    expect(afterRestore.status).toBe(200);
+    const itemsAfterRestore = await afterRestore.json() as Array<{
+      id: number;
+      type: string;
+      ticketEvent?: string;
+      date: string;
+    }>;
+    expect(itemsAfterRestore).toContainEqual(expect.objectContaining({
+      id: deletedDueTicketId,
+      type: "ticket",
+      ticketEvent: "due",
+      date: dateKey(new Date(now.getFullYear(), now.getMonth(), 10, 12)),
+    }));
+  });
 });
