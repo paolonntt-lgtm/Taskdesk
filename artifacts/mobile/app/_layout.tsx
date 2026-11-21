@@ -12,6 +12,7 @@ import { Stack, router } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useRef } from "react";
 import { Platform, Pressable } from "react-native";
+import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -21,6 +22,7 @@ import { WorkspaceAccessRevokedAlert } from "@/components/WorkspaceAccessRevoked
 import { TicketsWidgetSync } from "@/components/TicketsWidgetSync";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
+import { ThemeProvider, useResolvedColorScheme } from "@/contexts/ThemeContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
@@ -57,6 +59,7 @@ function RootLayoutNav() {
   const { user, isLoading } = useAuth();
   const { lang, t } = useLanguage();
   const colors = useColors();
+  const colorScheme = useResolvedColorScheme();
   const pendingTicketNotification = usePushNotifications(!!user);
   const routedNotificationSequence = useRef(0);
 
@@ -82,6 +85,8 @@ function RootLayoutNav() {
   }, [isLoading, user, pendingTicketNotification]);
 
   return (
+    <>
+    <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
     <Stack screenOptions={({ navigation, route }) => {
       const openedFromProfile =
         (route.params as { fromProfile?: unknown } | undefined)?.fromProfile === "1";
@@ -158,6 +163,7 @@ function RootLayoutNav() {
       <Stack.Screen name="clients/index" options={{ title: t.tabs.clients }} />
       <Stack.Screen name="time-report" options={{ title: t.tabs.hoursReport }} />
     </Stack>
+    </>
   );
 }
 
@@ -184,11 +190,13 @@ export default function RootLayout() {
           <GestureHandlerRootView style={{ flex: 1 }}>
             <KeyboardProvider>
               <LanguageProvider>
-                <AuthProvider>
-                  <WorkspaceAccessRevokedAlert />
-                  <TicketsWidgetSync />
-                  <RootLayoutNav />
-                </AuthProvider>
+                <ThemeProvider>
+                  <AuthProvider>
+                    <WorkspaceAccessRevokedAlert />
+                    <TicketsWidgetSync />
+                    <RootLayoutNav />
+                  </AuthProvider>
+                </ThemeProvider>
               </LanguageProvider>
             </KeyboardProvider>
           </GestureHandlerRootView>

@@ -290,6 +290,11 @@ vi.mock("@/contexts/LanguageContext", () => ({
       profile: {
         settings: "Settings",
         languageLabel: "App language",
+        themeLabel: "Theme",
+        themeSystem: "Automatic",
+        themeLight: "Light",
+        themeDark: "Dark",
+        themeSaveError: "Could not save the theme preference.",
         photoAdd: "Add photo",
         photoChange: "Change photo",
         photoRemove: "Remove photo",
@@ -530,6 +535,10 @@ describe("mobile list position after returning from Profile", () => {
     expect(host.textContent).toContain("paolo@example.com");
     expect(host.textContent).toContain("Settings");
     expect(host.textContent).toContain("App language");
+    expect(host.textContent).toContain("Theme");
+    expect(host.querySelector('[data-testid="profile-theme-system"]')).not.toBeNull();
+    expect(host.querySelector('[data-testid="profile-theme-light"]')).not.toBeNull();
+    expect(host.querySelector('[data-testid="profile-theme-dark"]')).not.toBeNull();
     expect(host.textContent).not.toContain("Account information");
     expect(host.textContent).not.toContain("Ticketing system");
     expect(host.textContent).not.toContain("Version");

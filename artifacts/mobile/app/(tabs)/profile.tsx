@@ -11,6 +11,7 @@ import { useColors } from "@/hooks/useColors";
 import { radii } from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useThemePreference, type ThemePreference } from "@/contexts/ThemeContext";
 import { Lang } from "@/i18n/translations";
 import * as Haptics from "expo-haptics";
 import { apiGet, apiPatch, apiPost, getUserAvatarQueryKey } from "@/utils/api";
@@ -29,6 +30,11 @@ export default function ProfileScreen() {
   const colors = useColors();
   const { user, activeWorkspaceRole, logout, updateUser, switchWorkspace } = useAuth();
   const { t, lang, setLang } = useLanguage();
+  const {
+    preference: themePreference,
+    isLoaded: themePreferenceLoaded,
+    setThemePreference,
+  } = useThemePreference();
   const queryClient = useQueryClient();
   const s = styles(colors);
   const [generatingInvite, setGeneratingInvite] = useState(false);
@@ -42,6 +48,7 @@ export default function ProfileScreen() {
   const [workspaceInviteRole, setWorkspaceInviteRole] = useState<"user" | "admin">("user");
   const [workspaceInviteError, setWorkspaceInviteError] = useState<string | null>(null);
   const [workspaceInviteNotice, setWorkspaceInviteNotice] = useState<string | null>(null);
+  const [savingThemePreference, setSavingThemePreference] = useState(false);
   const [mediaPermission, requestMediaPermission] = ImagePicker.useMediaLibraryPermissions();
   const activeWorkspaceId = user?.activeWorkspaceId ?? user?.organizationId ?? null;
   const workspacePeopleEnabled = user?.isSharedWorkspace === true &&
@@ -70,6 +77,18 @@ export default function ProfileScreen() {
     queryFn: () => apiGet<MobileOrganizationSettings>("/settings/organization"),
     enabled: user?.organizationId != null,
   });
+
+  const handleThemePreferenceChange = async (nextPreference: ThemePreference) => {
+    if (nextPreference === themePreference || savingThemePreference) return;
+    setSavingThemePreference(true);
+    try {
+      await setThemePreference(nextPreference);
+    } catch {
+      Alert.alert(t.profile.themeSaveError);
+    } finally {
+      setSavingThemePreference(false);
+    }
+  };
 
   const handleGenerateInvite = async () => {
     setGeneratingInvite(true);
@@ -568,6 +587,52 @@ export default function ProfileScreen() {
             ))}
           </View>
         </View>
+        <View style={s.themeSetting}>
+          <View style={s.infoLeft}>
+            <Feather
+              name={themePreference === "dark" ? "moon" : "sun"}
+              size={16}
+              color={colors.mutedForeground}
+            />
+            <Text style={s.infoLabel}>{t.profile.themeLabel}</Text>
+          </View>
+          <View style={s.themeOptions} accessibilityRole="radiogroup">
+            {[
+              { value: "system" as const, label: t.profile.themeSystem, icon: "smartphone" as const },
+              { value: "light" as const, label: t.profile.themeLight, icon: "sun" as const },
+              { value: "dark" as const, label: t.profile.themeDark, icon: "moon" as const },
+            ].map((option) => {
+              const selected = themePreference === option.value;
+              const disabled = !themePreferenceLoaded || savingThemePreference;
+              return (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[
+                    s.themeOption,
+                    selected && s.themeOptionActive,
+                    disabled && s.themeOptionDisabled,
+                  ]}
+                  onPress={() => void handleThemePreferenceChange(option.value)}
+                  disabled={disabled}
+                  activeOpacity={0.75}
+                  accessibilityRole="radio"
+                  accessibilityLabel={option.label}
+                  accessibilityState={{ checked: selected, disabled }}
+                  testID={`profile-theme-${option.value}`}
+                >
+                  <Feather
+                    name={option.icon}
+                    size={14}
+                    color={selected ? colors.primary : colors.mutedForeground}
+                  />
+                  <Text style={[s.themeOptionText, selected && s.themeOptionTextActive]}>
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
       </View>
 
       <View style={s.card}>
@@ -911,6 +976,23 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     langFlag: { fontSize: 10, color: colors.primary, fontWeight: "700" as const, fontFamily: "Inter_700Bold", letterSpacing: 0.4 },
     langLabel: { fontSize: 13, color: colors.mutedForeground, fontFamily: "Inter_500Medium" },
     langLabelActive: { color: colors.primary, fontWeight: "600" as const },
+    themeSetting: {
+      gap: 11, paddingHorizontal: 16, paddingVertical: 14,
+      borderTopWidth: 1, borderTopColor: colors.border,
+    },
+    themeOptions: { flexDirection: "row", gap: 7 },
+    themeOption: {
+      flex: 1, minHeight: 40, flexDirection: "row", alignItems: "center",
+      justifyContent: "center", gap: 5, paddingHorizontal: 5,
+      borderRadius: radii.pill, borderWidth: 1, borderColor: colors.border,
+      backgroundColor: colors.muted,
+    },
+    themeOptionActive: { borderColor: colors.primary, backgroundColor: colors.primary + "18" },
+    themeOptionDisabled: { opacity: 0.55 },
+    themeOptionText: {
+      color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_500Medium",
+    },
+    themeOptionTextActive: { color: colors.primary, fontFamily: "Inter_600SemiBold" },
     logoutBtn: {
       flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10,
       backgroundColor: colors.destructive + "15",

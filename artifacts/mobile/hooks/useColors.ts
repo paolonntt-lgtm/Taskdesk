@@ -1,10 +1,10 @@
 import colors from "@/constants/colors";
-import { useColorScheme } from "react-native";
+import { useResolvedColorScheme } from "@/contexts/ThemeContext";
 
 /**
- * Returns the palette matching the device appearance.
+ * Returns the palette matching the selected app appearance.
  */
 export function useColors() {
-  const scheme = useColorScheme();
+  const scheme = useResolvedColorScheme();
   return { ...(scheme === "dark" ? colors.dark : colors.light), radius: colors.radius };
 }
