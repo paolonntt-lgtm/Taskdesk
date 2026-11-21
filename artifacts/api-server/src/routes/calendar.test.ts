@@ -339,6 +339,39 @@ describe("calendar scheduled tickets", () => {
     }));
   });
 
+  it("returns recurrence previews after restoring a deleted recurring template", async () => {
+    const now = new Date();
+    const calendarUrl = `${baseUrl}/api/calendar?year=${now.getFullYear()}&month=${now.getMonth() + 1}`;
+    const headers = { Cookie: `session_id=${adminSessionId}` };
+
+    const beforeRestore = await fetch(calendarUrl, { headers });
+    expect(beforeRestore.status).toBe(200);
+    const itemsBeforeRestore = await beforeRestore.json() as Array<{ id: number }>;
+    expect(itemsBeforeRestore.some((item) => item.id === deletedRecurringTicketId)).toBe(false);
+
+    const restoreResponse = await fetch(
+      `${baseUrl}/api/tickets/${deletedRecurringTicketId}/restore`,
+      { method: "POST", headers },
+    );
+    expect(restoreResponse.status).toBe(200);
+
+    const afterRestore = await fetch(calendarUrl, { headers });
+    expect(afterRestore.status).toBe(200);
+    const itemsAfterRestore = await afterRestore.json() as Array<{
+      id: number;
+      ticketEvent?: string;
+      status?: string | null;
+      date: string;
+    }>;
+    const recurrenceItems = itemsAfterRestore.filter((item) => item.id === deletedRecurringTicketId);
+    expect(recurrenceItems.map((item) => item.date)).toEqual([
+      dateKey(recurrenceStart),
+      dateKey(new Date(recurrenceStart.getFullYear(), recurrenceStart.getMonth(), recurrenceStart.getDate() + 1, 12)),
+      dateKey(recurrenceEnd),
+    ]);
+    expect(recurrenceItems.every((item) => item.ticketEvent === "recurrence" && item.status === null)).toBe(true);
+  });
+
   it("hides private ticket events and recurrence previews from collaborators but keeps them for admins", async () => {
     const now = new Date();
     const path = `/api/calendar?year=${now.getFullYear()}&month=${now.getMonth() + 1}`;
