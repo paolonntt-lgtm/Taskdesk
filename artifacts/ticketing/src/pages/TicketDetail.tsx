@@ -43,6 +43,7 @@ import { trackEvent } from '../lib/analytics';
 import { getEmailClientAssociationExplanationKey } from '../lib/emailClientAssociationDisplay';
 import { scopeWorkspaceQueryKey } from '../lib/workspaceQueryScope';
 import { formatTicketDeadlineLabel } from '../lib/ticketDeadline';
+import { saveTicketDeadline } from '../lib/ticketDeadlineMutation';
 import { moveTicketToTrash } from '../lib/ticketTrash';
 
 interface TabPanelProps {
@@ -588,12 +589,14 @@ export default function TicketDetail() {
   const handleDueAtChange = async (val: string) => {
     setTicketUpdateError(null);
     try {
-      await updateTicket.mutateAsync({
-        id: ticketId,
-        data: { dueAt: val ? new Date(val) as any : null } as any,
+      await saveTicketDeadline({
+        ticketId,
+        value: val,
+        updateTicket: updateTicket.mutateAsync,
+        invalidateQueries: (filters) => queryClient.invalidateQueries(filters),
+        ticketQueryKey: getGetTicketQueryKey(ticketId),
+        ticketListQueryKey: getListTicketsQueryKey(),
       });
-      queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
-      queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
       setDueEditVal(val);
       setDueAnchor(null);
     } catch (err: any) {
