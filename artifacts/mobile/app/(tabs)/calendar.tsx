@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from "react";
-import { ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import React, { useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, Alert, AppState, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -7,7 +7,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useColors } from "@/hooks/useColors";
 import { radii } from "@/constants/colors";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { apiDelete, apiGet, apiPost, apiPut } from "@/utils/api";
+import { apiDelete, apiPost, apiPut } from "@/utils/api";
 import {
   dateKey,
   getCalendarDayMarkers,
@@ -17,6 +17,7 @@ import {
   groupCalendarItemsByDate,
   type CalendarItem,
 } from "@/utils/calendar";
+import { getMobileCalendarQueryOptions } from "@/utils/calendarRefresh";
 
 const localDateTimeValue = (date: Date) => {
   const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
@@ -43,6 +44,7 @@ export default function CalendarScreen() {
   const c = useColors();
   const { lang, t } = useLanguage();
   const it = lang === "it";
+  const [appState, setAppState] = useState(AppState.currentState ?? "active");
   const [month, setMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [selectedDate, setSelectedDate] = useState(() => dateKey(new Date()));
   const [formOpen, setFormOpen] = useState(false);
@@ -59,10 +61,16 @@ export default function CalendarScreen() {
   const monthNumber = month.getMonth() + 1;
   const todayKey = dateKey(new Date());
   const qc = useQueryClient();
-  const { data = [], isLoading, error, refetch } = useQuery({
-    queryKey: ["mobile-calendar", year, monthNumber],
-    queryFn: () => apiGet<CalendarItem[]>(`/calendar?year=${year}&month=${monthNumber}`),
-  });
+  const { data = [], isLoading, error, refetch } = useQuery(
+    getMobileCalendarQueryOptions(year, monthNumber, appState),
+  );
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      setAppState(nextAppState);
+      if (nextAppState === "active") void refetch();
+    });
+    return () => subscription.remove();
+  }, [refetch]);
   const itemsByDate = useMemo(() => groupCalendarItemsByDate(data), [data]);
   const gridDays = useMemo(() => getMonthGridDays(year, monthNumber), [year, monthNumber]);
   const selectedItems = useMemo(

@@ -53,6 +53,10 @@ vi.mock("react-native", async () => {
   return {
     ActivityIndicator: () => null,
     Alert: { alert: vi.fn() },
+    AppState: {
+      currentState: "active",
+      addEventListener: () => ({ remove: () => undefined }),
+    },
     Modal: ({ visible, children }: { visible: boolean; children: React.ReactNode }) =>
       visible ? element("div", { "data-testid": "calendar-modal" }, children) : null,
     Platform: { OS: "ios" },
