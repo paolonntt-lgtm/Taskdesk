@@ -2141,6 +2141,10 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     )
 ;
 
+  const isResolutionNoteOnlyUpdate =
+    parsed.data.resolutionNote !== undefined &&
+    Object.keys(parsed.data).length === 1
+;
 
   // A self-assign attempt: user wants to assign the ticket to themselves (or remove their own assignment).
   // This must bypass the creator-only gate so any authenticated user can self-assign an unassigned ticket.
@@ -2232,10 +2236,22 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   
 }
 
+  if (
+    isTimeTrackedTicket &&
+    isResolutionNoteOnlyUpdate &&
+    !isAdmin &&
+    !isAssignee
+  ) {
+    res.status(403).json({
+      error: "Only admins or the current assignee can edit the resolution note of a time-tracked ticket",
+    });
+    return;
+  }
+
 
   // Authorization: admins, group-permission users, the assigned person, the creator,
   // and anyone performing a valid self-assign can act on the ticket.
-  if (!isAdmin && !isStatusAccessUpdate && !isClientAssociationUpdate && !hasGroupStatusPermission && !isAssignee && existing.createdBy !== currentUser.id && !isSelfAssignAttempt && !(isTimeTrackedTicket && hasTrackedAssignmentPermission && hasAssignmentRequest))
+  if (!isAdmin && !isStatusAccessUpdate && !isResolutionNoteOnlyUpdate && !isClientAssociationUpdate && !hasGroupStatusPermission && !isAssignee && existing.createdBy !== currentUser.id && !isSelfAssignAttempt && !(isTimeTrackedTicket && hasTrackedAssignmentPermission && hasAssignmentRequest))
 {
 
     res.status(403).json(
@@ -2351,7 +2367,7 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
       
 }
 
-    : isStatusAccessUpdate
+    : isStatusAccessUpdate || isResolutionNoteOnlyUpdate
     ? 
 {
 

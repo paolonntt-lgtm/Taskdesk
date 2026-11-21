@@ -128,6 +128,7 @@ export default function TicketDetail() {
   const [groups, setGroups] = useState<string[]>([]);
   const [assignMode, setAssignMode] = useState<'user' | 'group'>('user');
   const [resolutionDialog, setResolutionDialog] = useState(false);
+  const [editingResolutionNote, setEditingResolutionNote] = useState(false);
   const [resolutionNote, setResolutionNote] = useState('');
   const [closureSummary, setClosureSummary] = useState<any | null>(null);
   const [closureSummaryOpen, setClosureSummaryOpen] = useState(false);
@@ -464,6 +465,7 @@ export default function TicketDetail() {
   const handleStatusChange = async (newStatus: string) => {
     if (newStatus === ticket.status) return;
     if (isClosedKey(newStatus) && !isClosedKey(ticket.status)) {
+      setEditingResolutionNote(false);
       setResolutionNote('');
       const initialWorkedTime = splitWorkedMinutes((ticket as any).workedMinutes);
       setWorkedHours(initialWorkedTime.hours);
@@ -526,6 +528,27 @@ export default function TicketDetail() {
     } catch (err: any) {
       setStatusError(err?.data?.message || err?.message || t.ticketDetail.statusChangeError);
     }
+  };
+
+  const saveResolutionNote = async () => {
+    try {
+      await updateTicket.mutateAsync({
+        id: ticketId,
+        data: { resolutionNote: resolutionNote.trim() || null } as any,
+      });
+      await queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
+      queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
+      setResolutionDialog(false);
+      setEditingResolutionNote(false);
+    } catch (err: any) {
+      setStatusError(err?.data?.message || err?.message || t.ticketDetail.statusChangeError);
+    }
+  };
+
+  const openResolutionNoteEditor = () => {
+    setResolutionNote((ticket as any).resolutionNote ?? '');
+    setEditingResolutionNote(true);
+    setResolutionDialog(true);
   };
 
   const handlePriorityChange = async (newPriority: string) => {
@@ -914,6 +937,9 @@ export default function TicketDetail() {
   const canChangeDueAt = isAdmin || isAssignee;
   // Anyone who can open the ticket may change its status and priority.
   const canChangeStatus = (ticket as any).timeTrackingEnabled
+    ? isAdmin || isAssignee
+    : !!currentUser;
+  const canEditResolutionNote = (ticket as any).timeTrackingEnabled
     ? isAdmin || isAssignee
     : !!currentUser;
   const creator = (ticket as any).creator;
@@ -1766,16 +1792,30 @@ export default function TicketDetail() {
                 </Menu>
 
                 {/* Resolution note */}
-                {(ticket as any).resolutionNote && (
+                {((ticket as any).resolutionNote || (isClosedKey(ticket.status) && canEditResolutionNote)) && (
                   <Box display="flex" gap={1.5} mt={1}>
                     <Avatar sx={{ bgcolor: 'success.main', width: 34, height: 34, flexShrink: 0 }}><CheckCircleOutline sx={{ fontSize: 16 }} /></Avatar>
                     <Box flex={1} borderRadius={1} overflow="hidden" sx={{ border: '1px solid', borderColor: 'success.200' }}>
                       <Box display="flex" alignItems="center" gap={1} px={1.5} py={0.6} sx={{ bgcolor: 'success.100', borderBottom: '1px solid', borderColor: 'success.200' }}>
                         <Box component="span" sx={{ fontWeight: 700, fontSize: 12, color: '#1b5e20', flexShrink: 0 }}>✓ {t.ticketDetail.resolutionNoteLabel}</Box>
                         {closerActivity?.user?.name && <Box component="span" sx={{ fontSize: 12, color: '#1b5e20', opacity: 0.75, flexShrink: 0 }}>· {closerActivity.user.name}</Box>}
+                        {isClosedKey(ticket.status) && canEditResolutionNote && (
+                          <Button
+                            size="small"
+                            startIcon={<EditOutlined fontSize="small" />}
+                            onClick={openResolutionNoteEditor}
+                            sx={{ ml: 'auto', minWidth: 0, py: 0, fontSize: 12, color: 'success.dark' }}
+                          >
+                            {(ticket as any).resolutionNote
+                              ? t.ticketDetail.editResolutionNote
+                              : t.ticketDetail.addResolutionNote}
+                          </Button>
+                        )}
                       </Box>
                       <Box px={1.5} py={1} sx={{ background: (theme) => `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.08)} 0%, ${alpha(theme.palette.success.main, 0.16)} 100%)` }}>
-                        <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', color: 'success.dark' }}>{(ticket as any).resolutionNote}</Typography>
+                        <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', color: 'success.dark' }}>
+                          {(ticket as any).resolutionNote || t.ticketDetail.closureSummaryNoNote}
+                        </Typography>
                       </Box>
                     </Box>
                   </Box>
@@ -2119,12 +2159,14 @@ export default function TicketDetail() {
       {/* ── Dialogs ── */}
 
       {/* Resolution note dialog */}
-      <Dialog open={resolutionDialog} onClose={() => setResolutionDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>{t.ticketDetail.resolutionNoteTitle}</DialogTitle>
+      <Dialog open={resolutionDialog} onClose={() => { setResolutionDialog(false); setEditingResolutionNote(false); }} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          {editingResolutionNote ? t.ticketDetail.editResolutionNote : t.ticketDetail.resolutionNoteTitle}
+        </DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" mb={2}>{t.ticketDetail.resolutionNoteSubtitle}</Typography>
           <TextField fullWidth multiline rows={4} placeholder={t.ticketDetail.resolutionNotePlaceholder} value={resolutionNote} onChange={(e) => setResolutionNote(e.target.value)} autoFocus />
-          {workedTimeEnabled && (
+          {!editingResolutionNote && workedTimeEnabled && (
             <>
               <Typography variant="body2" color="text.secondary" mt={2} mb={1}>{t.ticketDetail.workedTimeOptional}</Typography>
               <Box display="flex" gap={1.5}>
@@ -2156,10 +2198,23 @@ export default function TicketDetail() {
           )}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
-          <Button onClick={() => confirmResolved('')} disabled={updateTicket.isPending} color="inherit">{t.ticketDetail.resolutionNoteSkip}</Button>
-          <Button variant="contained" color="success" onClick={() => confirmResolved(resolutionNote)} disabled={updateTicket.isPending} startIcon={<CheckCircleOutline />}>
-            {updateTicket.isPending ? '...' : t.ticketDetail.resolutionNoteConfirm}
-          </Button>
+          {editingResolutionNote ? (
+            <>
+              <Button onClick={() => { setResolutionDialog(false); setEditingResolutionNote(false); }} disabled={updateTicket.isPending} color="inherit">
+                {t.ticketDetail.editCancel}
+              </Button>
+              <Button variant="contained" color="success" onClick={() => void saveResolutionNote()} disabled={updateTicket.isPending} startIcon={<CheckCircleOutline />}>
+                {updateTicket.isPending ? '...' : t.ticketDetail.saveResolutionNote}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button onClick={() => confirmResolved('')} disabled={updateTicket.isPending} color="inherit">{t.ticketDetail.resolutionNoteSkip}</Button>
+              <Button variant="contained" color="success" onClick={() => confirmResolved(resolutionNote)} disabled={updateTicket.isPending} startIcon={<CheckCircleOutline />}>
+                {updateTicket.isPending ? '...' : t.ticketDetail.resolutionNoteConfirm}
+              </Button>
+            </>
+          )}
         </DialogActions>
       </Dialog>
 

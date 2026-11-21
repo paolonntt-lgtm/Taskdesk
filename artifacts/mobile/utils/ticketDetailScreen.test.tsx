@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   activity: [] as Array<Record<string, any>>,
   lang: "it" as "it" | "en",
   apiGet: vi.fn(),
+  apiPatch: vi.fn(),
   apiPost: vi.fn(),
   user: {
     id: 1,
@@ -117,7 +118,7 @@ vi.mock("@workspace/api-client-react", () => ({
 }));
 vi.mock("@/utils/api", () => ({
   apiGet: mocks.apiGet,
-  apiPatch: vi.fn(),
+  apiPatch: mocks.apiPatch,
   apiPost: mocks.apiPost,
   apiDelete: vi.fn(),
   PRIORITY_COLORS: {},
@@ -210,6 +211,7 @@ describe("mobile ticket detail client and assignee", () => {
     mocks.activity = [];
     mocks.lang = "it";
     mocks.apiGet.mockReset().mockImplementation(async (path: string) => mocks.responses[path]);
+    mocks.apiPatch.mockReset().mockResolvedValue({});
     mocks.apiPost.mockReset().mockResolvedValue({});
   });
 
@@ -415,6 +417,51 @@ describe("mobile ticket detail client and assignee", () => {
 
     expect(host.querySelector('[data-testid="ticket-resolution-comment"]')).toBeNull();
     expect(host.querySelector('[data-testid="ticket-comments-section"]')).not.toBeNull();
+  });
+
+  it("lets an authorized user revise a closed ticket's resolution note without changing its status", async () => {
+    mocks.user = {
+      id: 2,
+      role: "user",
+      organizationId: 5,
+      groupPermissions: [],
+      clientsEnabled: true,
+    };
+    mocks.responses["/tickets/9"] = {
+      ...ticketResponse(),
+      status: "resolved",
+      resolutionNote: "Old solution text",
+    };
+    mocks.apiPatch.mockImplementation(async (path: string, data: Record<string, unknown>) => {
+      mocks.responses[path] = {
+        ...(mocks.responses[path] as Record<string, unknown>),
+        resolutionNote: data.resolutionNote,
+      };
+      return mocks.responses[path];
+    });
+    await renderScreen();
+
+    await act(async () => {
+      host.querySelector<HTMLButtonElement>('[data-testid="edit-resolution-note"]')?.click();
+    });
+    const input = host.querySelector<HTMLInputElement>('[data-testid="resolution-note-input"]');
+    expect(input?.value).toBe("Old solution text");
+    await act(async () => {
+      if (!input) return;
+      const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      setValue?.call(input, "Corrected solution text");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => {
+      host.querySelector<HTMLButtonElement>('[data-testid="save-resolution-note"]')?.click();
+    });
+
+    expect(mocks.apiPatch).toHaveBeenCalledWith("/tickets/9", {
+      resolutionNote: "Corrected solution text",
+    });
+    expect(host.querySelector('[data-testid="ticket-resolution-comment"]')?.textContent)
+      .toContain("Corrected solution text");
+    expect((mocks.responses["/tickets/9"] as Record<string, unknown>).status).toBe("resolved");
   });
 
   it("shows the ticket creation date and time before expanding additional details", async () => {

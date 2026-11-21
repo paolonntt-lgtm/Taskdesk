@@ -728,6 +728,11 @@ describe("manual ticket visibility", () => {
       body: JSON.stringify({ clientId: client.id }),
     });
     expect(privateResponse.status).toBe(404);
+    const privateResolutionResponse = await request(`/api/tickets/${privateTicketId}`, userSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ resolutionNote: "Unauthorized note change" }),
+    });
+    expect(privateResolutionResponse.status).toBe(404);
 
     await db.update(organizationsTable)
       .set({ clientsEnabled: false })
@@ -838,6 +843,33 @@ describe("manual ticket visibility", () => {
       resolutionNoteAuthorName: "Visibility Test User",
       resolutionNoteAt: resolutionResponse.body.resolutionNoteAt,
     }));
+
+    const resolutionNoteUpdate = await request(`/api/tickets/${ticketId}`, userSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ resolutionNote: "Soluzione aggiornata dopo la chiusura" }),
+    });
+    expect(resolutionNoteUpdate.status).toBe(200);
+    expect(resolutionNoteUpdate.body).toEqual(
+      expect.objectContaining({
+        status: closeStatus,
+        resolutionNote: "Soluzione aggiornata dopo la chiusura",
+      }),
+    );
+    const [updatedClosedTicket] = await db
+      .select({
+        title: ticketsTable.title,
+        status: ticketsTable.status,
+        priority: ticketsTable.priority,
+        resolutionNote: ticketsTable.resolutionNote,
+      })
+      .from(ticketsTable)
+      .where(eq(ticketsTable.id, ticketId));
+    expect(updatedClosedTicket).toEqual({
+      title: `Status and priority access ${runId}`,
+      status: closeStatus,
+      priority: "urgent",
+      resolutionNote: "Soluzione aggiornata dopo la chiusura",
+    });
 
     const unauthorizedMixedUpdate = await request(`/api/tickets/${ticketId}`, userSessionId, {
       method: "PATCH",

@@ -178,6 +178,7 @@ export default function TicketDetailScreen() {
   const [replacingAttachmentIndex, setReplacingAttachmentIndex] = useState<number | null>(null);
 
   const [resolutionModal, setResolutionModal] = useState(false);
+  const [editingResolutionNote, setEditingResolutionNote] = useState(false);
   const [editModal, setEditModal] = useState(false);
   const [resolutionNote, setResolutionNote] = useState("");
   const [workedHours, setWorkedHours] = useState("");
@@ -424,6 +425,7 @@ export default function TicketDetailScreen() {
   const handleStatusChange = async (status: string) => {
     if (!ticket || ticket.status === status) return;
     if (isClosedKey(status) && !isClosedKey(ticket.status)) {
+      setEditingResolutionNote(false);
       setResolutionNote("");
       setWorkedHours(ticket.workedMinutes == null ? "" : String(Math.floor(ticket.workedMinutes / 60)));
       setWorkedMinutes(ticket.workedMinutes == null ? "" : String(ticket.workedMinutes % 60));
@@ -489,6 +491,27 @@ export default function TicketDetailScreen() {
     } finally {
       setResolving(false);
     }
+  };
+
+  const saveResolutionNote = async () => {
+    if (!ticket) return;
+    setResolving(true);
+    try {
+      await apiPatch(`/tickets/${id}`, { resolutionNote: resolutionNote.trim() || null });
+      await qc.invalidateQueries({ queryKey: ["ticket", id] });
+      setResolutionModal(false);
+      setEditingResolutionNote(false);
+    } catch (e: any) {
+      Alert.alert(t.ticketDetail.error, e.message);
+    } finally {
+      setResolving(false);
+    }
+  };
+
+  const openResolutionNoteEditor = () => {
+    setResolutionNote(ticket?.resolutionNote ?? "");
+    setEditingResolutionNote(true);
+    setResolutionModal(true);
   };
 
   const openRecurrenceModal = () => {
@@ -710,6 +733,9 @@ export default function TicketDetailScreen() {
   }
 
   const isAdmin = user?.role === "admin";
+  const canEditResolutionNote = ticket.timeTrackingEnabled
+    ? isAdmin || ticket.assignedTo === user?.id
+    : Boolean(user);
   const canEditTicket = canEditTicketDetails({
     isAdmin,
     createdBy: ticket.createdBy,
@@ -857,16 +883,38 @@ export default function TicketDetailScreen() {
               <Text style={s.commentText}>{c.commentText}</Text>
             </View>
           ))}
-          {ticket.resolutionNote?.trim() ? (
+          {ticket.resolutionNote?.trim() || (isClosedKey(ticket.status) && canEditResolutionNote) ? (
             <View
               style={[s.commentCard, s.resolutionCommentCard]}
               testID="ticket-resolution-comment"
             >
-              <View style={s.resolutionCommentHeader}>
-                <Feather name="check-circle" size={16} color={colors.success} />
-                <Text style={s.resolutionCommentLabel}>{t.ticketDetail.resolvedHow}</Text>
+              <View style={[s.resolutionCommentHeader, { justifyContent: "space-between" }]}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
+                  <Feather name="check-circle" size={16} color={colors.success} />
+                  <Text style={s.resolutionCommentLabel}>{t.ticketDetail.resolvedHow}</Text>
+                </View>
+                {isClosedKey(ticket.status) && canEditResolutionNote && (
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel={ticket.resolutionNote?.trim()
+                      ? t.ticketDetail.editResolutionNote
+                      : t.ticketDetail.addResolutionNote}
+                    testID="edit-resolution-note"
+                    onPress={openResolutionNoteEditor}
+                    style={{ flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 4, paddingLeft: 8 }}
+                  >
+                    <Feather name="edit-2" size={13} color={colors.primary} />
+                    <Text style={{ color: colors.primary, fontFamily: "Inter_600SemiBold", fontSize: 12 }}>
+                      {ticket.resolutionNote?.trim()
+                        ? t.ticketDetail.editResolutionNote
+                        : t.ticketDetail.addResolutionNote}
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
-              <Text style={s.commentText}>{ticket.resolutionNote.trim()}</Text>
+              {ticket.resolutionNote?.trim() ? (
+                <Text style={s.commentText}>{ticket.resolutionNote.trim()}</Text>
+              ) : null}
               {resolutionMetadata ? (
                 <Text style={s.resolutionMetadata} testID="ticket-resolution-metadata">
                   {resolutionMetadata}
@@ -1622,15 +1670,26 @@ export default function TicketDetailScreen() {
         visible={resolutionModal}
         animationType="slide"
         presentationStyle="pageSheet"
-        onRequestClose={() => setResolutionModal(false)}
+        onRequestClose={() => {
+          setResolutionModal(false);
+          setEditingResolutionNote(false);
+        }}
       >
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={s.modalRoot}>
             <View style={s.modalHeader}>
-              <TouchableOpacity onPress={() => setResolutionModal(false)} style={s.modalCancel}>
+              <TouchableOpacity
+                onPress={() => {
+                  setResolutionModal(false);
+                  setEditingResolutionNote(false);
+                }}
+                style={s.modalCancel}
+              >
                 <Text style={s.modalCancelText}>{t.ticketDetail.cancel}</Text>
               </TouchableOpacity>
-              <Text style={s.modalTitle}>{t.ticketDetail.resolutionModalTitle}</Text>
+              <Text style={s.modalTitle}>
+                {editingResolutionNote ? t.ticketDetail.editResolutionNote : t.ticketDetail.resolutionModalTitle}
+              </Text>
               <View style={{ width: 60 }} />
             </View>
 
@@ -1640,6 +1699,7 @@ export default function TicketDetailScreen() {
               </View>
               <Text style={s.modalSubtitle}>{t.ticketDetail.resolutionSubtitle}</Text>
               <TextInput
+                testID="resolution-note-input"
                 style={s.modalInput}
                 value={resolutionNote}
                 onChangeText={setResolutionNote}
@@ -1649,7 +1709,7 @@ export default function TicketDetailScreen() {
                 textAlignVertical="top"
                 autoFocus
               />
-              {workedTimeEnabled && canEditWorkedMinutes && <><Text style={s.workedTimeHint}>{t.ticketDetail.workedTimeOptional}</Text>
+              {!editingResolutionNote && workedTimeEnabled && canEditWorkedMinutes && <><Text style={s.workedTimeHint}>{t.ticketDetail.workedTimeOptional}</Text>
               <View style={s.durationRow}>
                 <TextInput
                   style={[s.durationInput, workedTimeError && s.durationInputError]}
@@ -1672,16 +1732,19 @@ export default function TicketDetailScreen() {
             </View>
 
             <View style={s.modalFooter}>
-              <TouchableOpacity
-                style={s.skipBtn}
-                onPress={() => confirmResolved("")}
-                disabled={resolving}
-              >
-                <Text style={s.skipBtnText}>{t.ticketDetail.skip}</Text>
-              </TouchableOpacity>
+              {!editingResolutionNote && (
+                <TouchableOpacity
+                  style={s.skipBtn}
+                  onPress={() => confirmResolved("")}
+                  disabled={resolving}
+                >
+                  <Text style={s.skipBtnText}>{t.ticketDetail.skip}</Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity
                 style={[s.confirmBtn, resolving && { opacity: 0.6 }]}
-                onPress={() => confirmResolved(resolutionNote)}
+                testID={editingResolutionNote ? "save-resolution-note" : "confirm-ticket-resolution"}
+                onPress={() => editingResolutionNote ? saveResolutionNote() : confirmResolved(resolutionNote)}
                 disabled={resolving}
               >
                 {resolving
@@ -1689,7 +1752,9 @@ export default function TicketDetailScreen() {
                   : (
                     <>
                       <Feather name="check" size={16} color="#fff" />
-                      <Text style={s.confirmBtnText}>{t.ticketDetail.markResolved}</Text>
+                      <Text style={s.confirmBtnText}>
+                        {editingResolutionNote ? t.ticketDetail.saveResolutionNote : t.ticketDetail.markResolved}
+                      </Text>
                     </>
                   )
                 }
