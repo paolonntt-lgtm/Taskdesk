@@ -21,6 +21,7 @@ import {
   getGetTicketQueryKey, getListTicketCommentsQueryKey, getListTicketAttachmentsQueryKey,
   getListTicketsQueryKey, getListTicketNotesQueryKey, getListNotificationsQueryKey,
 } from '@workspace/api-client-react';
+import { invalidateTicketCalendarCache } from '../lib/ticketCalendarCache';
 import { useParams, useLocation, useSearch } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -557,6 +558,7 @@ export default function TicketDetail() {
     await updateTicket.mutateAsync({ id: ticketId, data: { priority: newPriority as any } });
     queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
     queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
+    void invalidateTicketCalendarCache(queryClient);
   };
 
   const handleAssigneeChange = async (newAssignee: string) => {
@@ -576,6 +578,7 @@ export default function TicketDetail() {
       await updateTicket.mutateAsync({ id: ticketId, data: { assignedTo: assigneeId } });
       queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
       queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
+      void invalidateTicketCalendarCache(queryClient);
       setAssignAnchor(null);
     } catch (err: any) {
       setTicketUpdateError(err?.response?.data?.message || err?.response?.data?.error || err?.data?.message || err?.data?.error || err?.message || t.ticketDetail.ticketUpdateError);
