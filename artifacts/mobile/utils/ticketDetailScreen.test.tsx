@@ -345,6 +345,49 @@ describe("mobile ticket detail client and assignee", () => {
     expect(host.querySelector('[data-testid="ticket-additional-details"]')).toBeNull();
   });
 
+  it.each([
+    { lang: "it" as const, label: translations.it.ticketDetail.resolvedHow },
+    { lang: "en" as const, label: translations.en.ticketDetail.resolvedHow },
+  ])("shows the resolution as a labeled comment in $lang", async ({ lang, label }) => {
+    mocks.lang = lang;
+    mocks.responses["/tickets/9"] = {
+      ...ticketResponse(),
+      resolutionNote: "Replaced the damaged cable.",
+    };
+    mocks.responses["/tickets/9/comments"] = [
+      {
+        id: 4,
+        commentText: "I checked the connection.",
+        isInternal: false,
+        author: { name: "Mario Rossi" },
+        createdAt: "2026-10-24T11:00:00.000Z",
+      },
+    ];
+    await renderScreen();
+
+    const commentsSection = host.querySelector('[data-testid="ticket-comments-section"]');
+    const regularComment = host.querySelector('[data-testid="ticket-comment-4"]');
+    const resolutionComment = host.querySelector('[data-testid="ticket-resolution-comment"]');
+
+    expect(commentsSection).not.toBeNull();
+    expect(resolutionComment?.parentElement).toBe(commentsSection);
+    expect(resolutionComment?.textContent).toContain(label);
+    expect(resolutionComment?.textContent).toContain("Replaced the damaged cable.");
+    expect(commentsSection?.textContent).toContain("I checked the connection.");
+    expect(
+      regularComment!.compareDocumentPosition(resolutionComment!) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(host.querySelectorAll('[data-testid="ticket-resolution-comment"]')).toHaveLength(1);
+  });
+
+  it.each([null, ""])("does not render a solution comment when the note is %s", async (resolutionNote) => {
+    mocks.responses["/tickets/9"] = { ...ticketResponse(), resolutionNote };
+    await renderScreen();
+
+    expect(host.querySelector('[data-testid="ticket-resolution-comment"]')).toBeNull();
+    expect(host.querySelector('[data-testid="ticket-comments-section"]')).not.toBeNull();
+  });
+
   it("shows the ticket creation date and time before expanding additional details", async () => {
     await renderScreen();
 

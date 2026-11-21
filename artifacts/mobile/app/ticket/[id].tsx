@@ -834,7 +834,7 @@ export default function TicketDetailScreen() {
             </View>
           </View>
           {comments.map((c) => (
-            <View key={c.id} style={s.commentCard}>
+            <View key={c.id} style={s.commentCard} testID={`ticket-comment-${c.id}`}>
               <View style={s.commentHeader}>
                 <View style={s.commentAvatar}>
                   <Text style={s.commentInitial}>{c.author?.name?.charAt(0).toUpperCase()}</Text>
@@ -847,6 +847,18 @@ export default function TicketDetailScreen() {
               <Text style={s.commentText}>{c.commentText}</Text>
             </View>
           ))}
+          {ticket.resolutionNote?.trim() ? (
+            <View
+              style={[s.commentCard, s.resolutionCommentCard]}
+              testID="ticket-resolution-comment"
+            >
+              <View style={s.resolutionCommentHeader}>
+                <Feather name="check-circle" size={16} color={colors.success} />
+                <Text style={s.resolutionCommentLabel}>{t.ticketDetail.resolvedHow}</Text>
+              </View>
+              <Text style={s.commentText}>{ticket.resolutionNote.trim()}</Text>
+            </View>
+          ) : null}
 
           <View style={s.commentInputWrap}>
             <TextInput
@@ -1145,16 +1157,6 @@ export default function TicketDetailScreen() {
             </TouchableOpacity>
           </View>
         )}
-
-        {ticket.resolutionNote ? (
-          <View style={s.resolutionCard}>
-            <View style={s.resolutionHeader}>
-              <Feather name="check-circle" size={16} color={colors.success} />
-              <Text style={s.resolutionTitle}>{t.ticketDetail.resolvedHow}</Text>
-            </View>
-            <Text style={s.resolutionText}>{ticket.resolutionNote}</Text>
-          </View>
-        ) : null}
 
         <View style={s.section}>
           <Text style={s.sectionTitle}>{t.ticketDetail.updateStatus}</Text>
@@ -1753,20 +1755,15 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       gap: 8, paddingHorizontal: 12, borderRadius: radii.control, backgroundColor: colors.primary,
     },
     retryAttachmentsButtonText: { fontSize: 14, color: colors.primaryForeground, fontFamily: "Inter_600SemiBold" },
-    resolutionCard: {
-      backgroundColor: colors.success + "18",
-      borderRadius: radii.control, padding: 14,
-      borderWidth: 1, borderColor: colors.success + "40",
-    },
-    resolutionHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 },
-    resolutionTitle: { fontSize: 14, fontWeight: "600" as const, color: colors.success, fontFamily: "Inter_600SemiBold" },
-    resolutionText: { fontSize: 14, color: colors.foreground, lineHeight: 20, fontFamily: "Inter_400Regular" },
     statusRow: { flexDirection: "row", gap: 8 },
     statusBtn: { minHeight: 40, justifyContent: "center", paddingHorizontal: 14, paddingVertical: 8, borderRadius: radii.pill, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
     statusBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
     statusBtnText: { fontSize: 13, color: colors.mutedForeground, fontFamily: "Inter_500Medium" },
     statusBtnTextActive: { color: colors.primaryForeground },
     commentCard: { backgroundColor: colors.card, borderRadius: radii.card, padding: 12, borderWidth: 1, borderColor: colors.border },
+    resolutionCommentCard: { backgroundColor: colors.success + "12", borderColor: colors.success + "55" },
+    resolutionCommentHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 5 },
+    resolutionCommentLabel: { fontSize: 12, color: colors.success, fontFamily: "Inter_600SemiBold" },
     commentHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 5 },
     commentAvatar: { width: 28, height: 28, borderRadius: radii.control, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" },
     commentInitial: { color: colors.primaryForeground, fontWeight: "700" as const, fontSize: 12, fontFamily: "Inter_700Bold" },
