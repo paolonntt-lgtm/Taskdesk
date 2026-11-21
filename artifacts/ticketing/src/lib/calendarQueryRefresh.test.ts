@@ -45,6 +45,7 @@ describe('calendar query refresh', () => {
   });
 
   it('does not poll while the browser is in the background', () => {
+    expect(CALENDAR_QUERY_REFRESH_OPTIONS.refetchInterval).toBe(30_000);
     expect(CALENDAR_QUERY_REFRESH_OPTIONS.refetchIntervalInBackground).toBe(false);
   });
 });

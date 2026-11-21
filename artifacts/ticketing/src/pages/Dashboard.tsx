@@ -63,6 +63,7 @@ import { formatRecentActivitySummary } from './recentActivityLabels';
 import { useAuth } from '../contexts/AuthContext';
 import { useTicketStatuses } from '../hooks/useTicketStatuses';
 import { useEntityTerm } from '../hooks/useEntityTerm';
+import { CALENDAR_QUERY_REFRESH_OPTIONS } from '../lib/calendarQueryRefresh';
 import { useClientNoteDeclaratives } from '../hooks/useClientNoteDeclaratives';
 import { hasDeclarativeClientNoteCategory } from '../lib/clientNoteHashtag';
 import { clientNoteMonthKeyFromDate, getClientNoteMonthKey } from '../lib/clientNoteMonth';
@@ -2630,7 +2631,7 @@ function Dashboard() {
   const [expandedTodayEventId, setExpandedTodayEventId] = useState<string | null>(null);
   const { data: calendarItems = [], isLoading: calendarLoading, isError: calendarError } = useGetCalendar(
     { year: now.getFullYear(), month: now.getMonth() + 1 },
-    { query: { staleTime: 30_000, refetchInterval: POLL_MS, refetchIntervalInBackground: false } as any },
+    { query: { staleTime: 30_000, ...CALENDAR_QUERY_REFRESH_OPTIONS } as any },
   );
   const [motivationalMessages, setMotivationalMessages] = useState<MotivationalMessagesByLanguage>({ it: [], en: [] });
   const [detectedLocation, setDetectedLocation] = useState('');
