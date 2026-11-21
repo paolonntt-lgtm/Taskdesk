@@ -1,6 +1,7 @@
 import { createServer, type Server } from "node:http";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
+  appointmentsTable,
   db,
   organizationsTable,
   pool,
@@ -20,6 +21,11 @@ let adminId: number;
 let adminSessionId: string;
 let recurrenceStart: Date;
 let recurrenceEnd: Date;
+let deletedDueTicketId: number;
+let deletedScheduledTicketId: number;
+let deletedRecurringTicketId: number;
+let activeOccurrenceId: number;
+let appointmentId: number | undefined;
 const ticketIds: number[] = [];
 
 const dateKey = (date: Date) =>
@@ -87,6 +93,77 @@ describe("calendar scheduled tickets", () => {
     }).returning({ id: ticketsTable.id });
     ticketIds.push(recurringTicket.id);
 
+    const [deletedDueTicket] = await db.insert(ticketsTable).values({
+      organizationId,
+      title: `Deleted due ${runId}`,
+      description: "A deleted due ticket should not appear on the calendar.",
+      category: "Support",
+      location: "",
+      status: "open",
+      priority: "medium",
+      createdBy: adminId,
+      dueAt,
+      deletedAt: new Date(),
+    }).returning({ id: ticketsTable.id });
+    deletedDueTicketId = deletedDueTicket.id;
+    ticketIds.push(deletedDueTicket.id);
+
+    const [deletedScheduledTicket] = await db.insert(ticketsTable).values({
+      organizationId,
+      title: `Deleted scheduled ${runId}`,
+      description: "A deleted scheduled ticket should not appear on the calendar.",
+      category: "Support",
+      location: "",
+      status: "open",
+      priority: "medium",
+      createdBy: adminId,
+      scheduledAt,
+      deletedAt: new Date(),
+    }).returning({ id: ticketsTable.id });
+    deletedScheduledTicketId = deletedScheduledTicket.id;
+    ticketIds.push(deletedScheduledTicket.id);
+
+    const [deletedRecurringTicket] = await db.insert(ticketsTable).values({
+      organizationId,
+      title: `Deleted recurring template ${runId}`,
+      description: "A deleted recurring template should not create calendar previews.",
+      category: "Support",
+      location: "",
+      status: "open",
+      priority: "medium",
+      createdBy: adminId,
+      recurrenceRule: { frequency: "daily", interval: 1, endDate: dateKey(recurrenceEnd) },
+      recurrenceNextAt: recurrenceStart,
+      deletedAt: new Date(),
+    }).returning({ id: ticketsTable.id });
+    deletedRecurringTicketId = deletedRecurringTicket.id;
+    ticketIds.push(deletedRecurringTicket.id);
+
+    const [activeOccurrence] = await db.insert(ticketsTable).values({
+      organizationId,
+      title: `Created occurrence ${runId}`,
+      description: "An existing active occurrence remains visible when its parent is deleted.",
+      category: "Support",
+      location: "",
+      status: "open",
+      priority: "medium",
+      createdBy: adminId,
+      dueAt: recurrenceStart,
+      recurrenceParentId: deletedRecurringTicket.id,
+    }).returning({ id: ticketsTable.id });
+    activeOccurrenceId = activeOccurrence.id;
+    ticketIds.push(activeOccurrence.id);
+
+    const appointmentStartsAt = new Date(year, month, 25, 14);
+    const [appointment] = await db.insert(appointmentsTable).values({
+      organizationId,
+      title: `Calendar appointment ${runId}`,
+      startsAt: appointmentStartsAt,
+      endsAt: new Date(appointmentStartsAt.getTime() + 60 * 60 * 1000),
+      createdBy: adminId,
+    }).returning({ id: appointmentsTable.id });
+    appointmentId = appointment.id;
+
     server = createServer(app);
     await new Promise<void>((resolve, reject) => {
       server.once("error", reject);
@@ -105,8 +182,11 @@ describe("calendar scheduled tickets", () => {
         server.close((error) => (error ? reject(error) : resolve()));
       });
     }
-    for (const id of ticketIds) {
+    for (const id of [...ticketIds].reverse()) {
       await db.delete(ticketsTable).where(eq(ticketsTable.id, id));
+    }
+    if (appointmentId) {
+      await db.delete(appointmentsTable).where(eq(appointmentsTable.id, appointmentId));
     }
     if (adminSessionId) {
       await db.delete(sessionsTable).where(eq(sessionsTable.sessionId, adminSessionId));
@@ -138,6 +218,20 @@ describe("calendar scheduled tickets", () => {
     ]));
     expect(items.filter((item) => item.id === ticketIds[2])).toHaveLength(1);
     expect(items.some((item) => item.id === ticketIds[3])).toBe(false);
+    expect(items.some((item) => item.id === deletedDueTicketId)).toBe(false);
+    expect(items.some((item) => item.id === deletedScheduledTicketId)).toBe(false);
+    expect(items.some((item) => item.id === deletedRecurringTicketId)).toBe(false);
+    expect(items).toContainEqual(expect.objectContaining({
+      id: activeOccurrenceId,
+      type: "ticket",
+      ticketEvent: "due",
+      date: dateKey(recurrenceStart),
+    }));
+    expect(items).toContainEqual(expect.objectContaining({
+      id: appointmentId,
+      type: "appointment",
+      date: dateKey(new Date(now.getFullYear(), now.getMonth(), 25, 14)),
+    }));
     const recurrenceItems = items.filter((item) => item.id === ticketIds[4]);
     expect(recurrenceItems.map((item) => item.date)).toEqual([
       dateKey(recurrenceStart),

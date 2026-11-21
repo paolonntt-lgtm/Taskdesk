@@ -30,6 +30,7 @@ router.get("/calendar", requireAuth, async (req, res): Promise<void> => {
       and(isNotNull(ticketsTable.dueAt), gte(ticketsTable.dueAt, start), lt(ticketsTable.dueAt, end)),
       and(isNotNull(ticketsTable.scheduledAt), gte(ticketsTable.scheduledAt, start), lt(ticketsTable.scheduledAt, end)),
     ),
+    isNull(ticketsTable.deletedAt),
   ];
   if (orgId != null) ticketConditions.push(eq(ticketsTable.organizationId, orgId));
   if (!isAdmin) {
@@ -61,6 +62,7 @@ router.get("/calendar", requireAuth, async (req, res): Promise<void> => {
     isNotNull(ticketsTable.recurrenceRule),
     isNotNull(ticketsTable.recurrenceNextAt),
     lt(ticketsTable.recurrenceNextAt, end),
+    isNull(ticketsTable.deletedAt),
   ];
   if (orgId != null) recurrenceConditions.push(eq(ticketsTable.organizationId, orgId));
   if (!isAdmin) {
