@@ -532,6 +532,8 @@ export interface Ticket {
   closedAt?: string | null;
   dueAt?: string | null;
   resolutionNote?: string | null;
+  resolutionNoteAt?: string | null;
+  resolutionNoteAuthorName?: string | null;
   workedMinutes?: number | null;
   workedBillingStatus?: TicketWorkedBillingStatus;
   timeTrackingEnabled?: boolean;

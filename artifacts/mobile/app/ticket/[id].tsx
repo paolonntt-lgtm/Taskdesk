@@ -51,6 +51,8 @@ interface Ticket {
   clientId?: number | null;
   createdAt: string; closedAt?: string;
   resolutionNote?: string | null;
+  resolutionNoteAuthorName?: string | null;
+  resolutionNoteAt?: string | null;
   workedMinutes?: number | null;
   timeTrackingEnabled?: boolean;
   timeTrackingBillable?: boolean;
@@ -666,15 +668,21 @@ export default function TicketDetailScreen() {
     }
   };
 
-  const formatDate = (d: string) =>
-    new Date(d).toLocaleDateString(lang === "en" ? "en-GB" : "it-IT", {
-      day: "2-digit", month: "short", year: "numeric",
-    });
   const formatDateTime = (d: string) =>
     new Date(d).toLocaleString(lang === "en" ? "en-GB" : "it-IT", {
       day: "2-digit", month: "short", year: "numeric",
       hour: "2-digit", minute: "2-digit",
     });
+  const resolutionRecordedAt = ticket?.resolutionNoteAt &&
+    Number.isFinite(Date.parse(ticket.resolutionNoteAt))
+    ? formatDateTime(ticket.resolutionNoteAt)
+    : null;
+  const resolutionMetadata = [
+    ticket?.resolutionNoteAuthorName?.trim()
+      ? `${t.ticketDetail.resolutionRecordedBy} ${ticket.resolutionNoteAuthorName.trim()}`
+      : null,
+    resolutionRecordedAt,
+  ].filter(Boolean).join(" · ");
 
   if (isLoading) {
     return (
@@ -841,7 +849,9 @@ export default function TicketDetailScreen() {
                 </View>
                 <View>
                   <Text style={s.commentAuthor}>{c.author?.name}</Text>
-                  <Text style={s.commentDate}>{formatDate(c.createdAt)}</Text>
+                  <Text style={s.commentDate} testID={`ticket-comment-date-${c.id}`}>
+                    {formatDateTime(c.createdAt)}
+                  </Text>
                 </View>
               </View>
               <Text style={s.commentText}>{c.commentText}</Text>
@@ -857,6 +867,11 @@ export default function TicketDetailScreen() {
                 <Text style={s.resolutionCommentLabel}>{t.ticketDetail.resolvedHow}</Text>
               </View>
               <Text style={s.commentText}>{ticket.resolutionNote.trim()}</Text>
+              {resolutionMetadata ? (
+                <Text style={s.resolutionMetadata} testID="ticket-resolution-metadata">
+                  {resolutionMetadata}
+                </Text>
+              ) : null}
             </View>
           ) : null}
 
@@ -1764,6 +1779,7 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     resolutionCommentCard: { backgroundColor: colors.success + "12", borderColor: colors.success + "55" },
     resolutionCommentHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 5 },
     resolutionCommentLabel: { fontSize: 12, color: colors.success, fontFamily: "Inter_600SemiBold" },
+    resolutionMetadata: { marginTop: 6, color: colors.mutedForeground, fontSize: 11, lineHeight: 15, fontFamily: "Inter_500Medium" },
     commentHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 5 },
     commentAvatar: { width: 28, height: 28, borderRadius: radii.control, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" },
     commentInitial: { color: colors.primaryForeground, fontWeight: "700" as const, fontSize: 12, fontFamily: "Inter_700Bold" },

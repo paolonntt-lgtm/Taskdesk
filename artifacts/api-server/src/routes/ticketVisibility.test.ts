@@ -21,7 +21,7 @@ import {
   ticketsTable,
   usersTable,
 } from "@workspace/db";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import app from "../app";
 import { createSession } from "../lib/session";
 import { ObjectStorageService } from "../lib/objectStorage";
@@ -809,8 +809,35 @@ describe("manual ticket visibility", () => {
     });
     expect(resolutionResponse.status).toBe(200);
     expect(resolutionResponse.body).toEqual(
-      expect.objectContaining({ status: closeStatus, resolutionNote: "Risolto dal collaboratore" }),
+      expect.objectContaining({
+        status: closeStatus,
+        resolutionNote: "Risolto dal collaboratore",
+        resolutionNoteAuthorName: "Visibility Test User",
+      }),
     );
+    expect(Number.isFinite(Date.parse(resolutionResponse.body.resolutionNoteAt))).toBe(true);
+    const [storedResolution] = await db
+      .select({
+        resolutionNoteBy: ticketsTable.resolutionNoteBy,
+        resolutionNoteAt: ticketsTable.resolutionNoteAt,
+      })
+      .from(ticketsTable)
+      .where(eq(ticketsTable.id, ticketId));
+    expect(storedResolution.resolutionNoteBy).toBe(userId);
+    expect(storedResolution.resolutionNoteAt).toBeInstanceOf(Date);
+    const [solutionComments] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(ticketCommentsTable)
+      .where(eq(ticketCommentsTable.ticketId, ticketId));
+    expect(Number(solutionComments.count)).toBe(0);
+
+    const resolutionDetail = await request(`/api/tickets/${ticketId}`, userSessionId);
+    expect(resolutionDetail.status).toBe(200);
+    expect(resolutionDetail.body).toEqual(expect.objectContaining({
+      resolutionNote: "Risolto dal collaboratore",
+      resolutionNoteAuthorName: "Visibility Test User",
+      resolutionNoteAt: resolutionResponse.body.resolutionNoteAt,
+    }));
 
     const unauthorizedMixedUpdate = await request(`/api/tickets/${ticketId}`, userSessionId, {
       method: "PATCH",

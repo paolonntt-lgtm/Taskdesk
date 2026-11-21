@@ -16,6 +16,14 @@ export async function runAppMigrations(): Promise<void> {
       ALTER TABLE tickets ADD COLUMN IF NOT EXISTS ticket_number INTEGER;
     `);
 
+    // Preserve who recorded a resolution note and when without storing it as a comment.
+    await client.query(`
+      ALTER TABLE tickets
+        ADD COLUMN IF NOT EXISTS resolution_note_by INTEGER
+          REFERENCES users(id) ON DELETE SET NULL,
+        ADD COLUMN IF NOT EXISTS resolution_note_at TIMESTAMPTZ;
+    `);
+
     // Store the total time spent on a ticket as whole minutes.
     await client.query(`
       ALTER TABLE tickets ADD COLUMN IF NOT EXISTS worked_minutes INTEGER;

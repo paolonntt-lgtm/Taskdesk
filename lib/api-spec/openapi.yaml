@@ -4766,6 +4766,13 @@ components:
         resolutionNote:
           type: string
           nullable: true
+        resolutionNoteAt:
+          type: string
+          format: date-time
+          nullable: true
+        resolutionNoteAuthorName:
+          type: string
+          nullable: true
         workedMinutes:
           type: integer
           nullable: true

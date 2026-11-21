@@ -22,6 +22,8 @@ export const ticketsTable = pgTable("tickets", {
   assignedTo: integer("assigned_to").references(() => usersTable.id),
   assignedToGroup: text("assigned_to_group"),
   resolutionNote: text("resolution_note"),
+  resolutionNoteBy: integer("resolution_note_by").references(() => usersTable.id, { onDelete: "set null" }),
+  resolutionNoteAt: timestamp("resolution_note_at", { withTimezone: true }),
   workedMinutes: integer("worked_minutes"),
   workedBillingStatus: text("worked_billing_status").notNull().default("unbilled"),
   timeTrackingEnabled: boolean("time_tracking_enabled").notNull().default(false),

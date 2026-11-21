@@ -346,6 +346,7 @@ function buildTicketWithDetails(
   noteCount: number,
   inboundChannelName?: string | null,
   client?: { id: number; name: string; alias?: string | null } | null,
+  resolutionNoteAuthorName?: string | null,
 ) {
   const {
     emailClientAssociationReason: _emailClientAssociationReason,
@@ -353,10 +354,12 @@ function buildTicketWithDetails(
     emailClientAssociationForwarded: _emailClientAssociationForwarded,
     emailOriginalSender: _emailOriginalSender,
     suggestedClientId: _suggestedClientId,
+    resolutionNoteBy: _resolutionNoteBy,
     ...ticketFields
   } = ticket;
   return {
     ...ticketFields,
+    resolutionNoteAuthorName: resolutionNoteAuthorName ?? null,
     creator: {
       id: creator.id,
       name: creator.name,
@@ -1593,6 +1596,7 @@ router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   const [
     creator,
     assignee,
+    resolutionAuthor,
     commentCountResult,
     noteCountResult,
     inboundChannelName,
@@ -1604,6 +1608,7 @@ router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   ] = await Promise.all([
     getTicketUserDetails(ticket.createdBy),
     ticket.assignedTo ? getTicketUserDetails(ticket.assignedTo) : Promise.resolve(null),
+    ticket.resolutionNoteBy ? getTicketUserDetails(ticket.resolutionNoteBy) : Promise.resolve(null),
     db.select({ count: sql<number>`count(*)` })
       .from(ticketCommentsTable)
       .where(eq(ticketCommentsTable.ticketId, id)),
@@ -1681,6 +1686,7 @@ router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     Number(nc),
     inboundChannelName,
     ticketClient,
+    resolutionAuthor?.name ?? null,
   );
   if (currentUser.role === "admin" && clientsEnabled) {
     if (ticket.inboundChannelId || ticket.emailMessageId || ticket.emailConversationId) {
@@ -2247,9 +2253,11 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
 
 
   const updates: typeof ticketUpdateData &
-{
- timeTrackingEnabled?: boolean 
-}
+  {
+    timeTrackingEnabled?: boolean;
+    resolutionNoteBy?: number | null;
+    resolutionNoteAt?: Date | null;
+  }
  = isAdmin
     ? ticketUpdateData
     : hasGroupStatusPermission
@@ -2414,6 +2422,13 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
 ;
 
     // ^ Self-assign-only path: no fields allowed except assignedTo (patched below)
+
+  if (parsed.data.resolutionNote !== undefined && "resolutionNote" in updates) {
+    const hasResolutionNote =
+      typeof updates.resolutionNote === "string" && updates.resolutionNote.trim().length > 0;
+    updates.resolutionNoteBy = hasResolutionNote ? currentUser.id : null;
+    updates.resolutionNoteAt = hasResolutionNote ? new Date() : null;
+  }
 
   if (isClientAssociationUpdate) {
     (updates as any).clientId = parsed.data.clientId;
@@ -3871,6 +3886,10 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
 }
 
 
+  const resolutionAuthor = updated.resolutionNoteBy
+    ? await getTicketUserDetails(updated.resolutionNoteBy)
+    : null;
+
   let updatedClient = null
 ;
 
@@ -3917,7 +3936,16 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
 
 
   const updateResponse = redactClientData(redactWorkedHours(
-    buildTicketWithDetails(updated, creator, assignee, Number(cc), Number(nc), null, updatedClient),
+    buildTicketWithDetails(
+      updated,
+      creator,
+      assignee,
+      Number(cc),
+      Number(nc),
+      null,
+      updatedClient,
+      resolutionAuthor?.name ?? null,
+    ),
     canViewWorkedHours,
   ), clientsEnabled)
 ;

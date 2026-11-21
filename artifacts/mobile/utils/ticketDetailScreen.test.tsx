@@ -353,6 +353,8 @@ describe("mobile ticket detail client and assignee", () => {
     mocks.responses["/tickets/9"] = {
       ...ticketResponse(),
       resolutionNote: "Replaced the damaged cable.",
+      resolutionNoteAuthorName: "Mario Rossi",
+      resolutionNoteAt: "2026-10-24T11:12:00.000Z",
     };
     mocks.responses["/tickets/9/comments"] = [
       {
@@ -367,17 +369,44 @@ describe("mobile ticket detail client and assignee", () => {
 
     const commentsSection = host.querySelector('[data-testid="ticket-comments-section"]');
     const regularComment = host.querySelector('[data-testid="ticket-comment-4"]');
+    const commentDate = host.querySelector('[data-testid="ticket-comment-date-4"]');
     const resolutionComment = host.querySelector('[data-testid="ticket-resolution-comment"]');
 
     expect(commentsSection).not.toBeNull();
+    expect(commentDate?.textContent).toBe(
+      new Date("2026-10-24T11:00:00.000Z").toLocaleString(
+        lang === "en" ? "en-GB" : "it-IT",
+        { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" },
+      ),
+    );
     expect(resolutionComment?.parentElement).toBe(commentsSection);
     expect(resolutionComment?.textContent).toContain(label);
     expect(resolutionComment?.textContent).toContain("Replaced the damaged cable.");
+    const resolutionMetadata = host.querySelector('[data-testid="ticket-resolution-metadata"]');
+    const formattedResolutionTime = new Date("2026-10-24T11:12:00.000Z").toLocaleString(
+      lang === "en" ? "en-GB" : "it-IT",
+      { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" },
+    );
+    expect(resolutionMetadata?.textContent).toContain(translations[lang].ticketDetail.resolutionRecordedBy);
+    expect(resolutionMetadata?.textContent).toContain("Mario Rossi");
+    expect(resolutionMetadata?.textContent).toContain(formattedResolutionTime);
     expect(commentsSection?.textContent).toContain("I checked the connection.");
     expect(
       regularComment!.compareDocumentPosition(resolutionComment!) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(host.querySelectorAll('[data-testid="ticket-resolution-comment"]')).toHaveLength(1);
+  });
+
+  it("keeps legacy resolution notes visible when recording metadata is absent", async () => {
+    mocks.responses["/tickets/9"] = {
+      ...ticketResponse(),
+      resolutionNote: "Legacy solution without recording details.",
+    };
+    await renderScreen();
+
+    expect(host.querySelector('[data-testid="ticket-resolution-comment"]')?.textContent)
+      .toContain("Legacy solution without recording details.");
+    expect(host.querySelector('[data-testid="ticket-resolution-metadata"]')).toBeNull();
   });
 
   it.each([null, ""])("does not render a solution comment when the note is %s", async (resolutionNote) => {
