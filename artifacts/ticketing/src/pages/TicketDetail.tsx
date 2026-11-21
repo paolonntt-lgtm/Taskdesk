@@ -42,6 +42,7 @@ import { trackEvent } from '../lib/analytics';
 import { getEmailClientAssociationExplanationKey } from '../lib/emailClientAssociationDisplay';
 import { scopeWorkspaceQueryKey } from '../lib/workspaceQueryScope';
 import { formatTicketDeadlineLabel } from '../lib/ticketDeadline';
+import { moveTicketToTrash } from '../lib/ticketTrash';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -698,9 +699,15 @@ export default function TicketDetail() {
   };
 
   const handleDeleteConfirm = async () => {
-    await deleteTicket.mutateAsync({ id: ticketId });
-    setDeleteDialog(false);
-    setLocation('/tickets');
+    await moveTicketToTrash(
+      ticketId,
+      (input) => deleteTicket.mutateAsync(input),
+      (filters) => queryClient.invalidateQueries(filters),
+      () => {
+        setDeleteDialog(false);
+        setLocation('/tickets');
+      },
+    );
   };
 
   const handleEditComment = (commentId: number, currentText: string) => {
