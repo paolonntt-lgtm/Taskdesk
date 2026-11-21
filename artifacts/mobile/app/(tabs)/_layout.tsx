@@ -533,7 +533,11 @@ function TabContent() {
           headerShown: true,
           headerStyle: { backgroundColor: colors.card },
           headerTintColor: colors.foreground,
-          headerTitleStyle: { fontFamily: "Inter_600SemiBold", fontSize: 17 },
+          headerTitleStyle: {
+            color: colors.foreground,
+            fontFamily: "Inter_600SemiBold",
+            fontSize: 17,
+          },
           headerTitle:
             route.name === "index" ? () => <DashboardSearchHeader /> : undefined,
           headerTitleAlign: route.name === "index" ? "left" : undefined,

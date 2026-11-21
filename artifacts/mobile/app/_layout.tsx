@@ -87,8 +87,13 @@ function RootLayoutNav() {
         (route.params as { fromProfile?: unknown } | undefined)?.fromProfile === "1";
       return {
         headerBackTitle: lang === "it" ? "Indietro" : "Back",
+        headerStyle: { backgroundColor: colors.card },
         headerTintColor: colors.foreground,
-        headerTitleStyle: { fontFamily: "Inter_600SemiBold", fontSize: 17 },
+        headerTitleStyle: {
+          color: colors.foreground,
+          fontFamily: "Inter_600SemiBold",
+          fontSize: 17,
+        },
         headerLeft: openedFromProfile
           ? () => (
               <Pressable
