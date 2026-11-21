@@ -21,6 +21,7 @@ import {
   useWorkspaceAssigneeSelection,
   useWorkspaceCollaborators,
 } from '../hooks/useWorkspaceCollaborators';
+import { CALENDAR_QUERY_REFRESH_OPTIONS } from '../lib/calendarQueryRefresh';
 
 type CalendarItem = {
   type: 'ticket' | 'appointment';
@@ -470,6 +471,7 @@ export default function CalendarPage() {
     queryFn: () =>
       fetch(`/api/calendar?year=${year}&month=${month}`, { credentials: 'include' }).then((r) => r.json()),
     staleTime: 30000,
+    ...CALENDAR_QUERY_REFRESH_OPTIONS,
   });
 
   const invalidateCalendar = useCallback(() => {
