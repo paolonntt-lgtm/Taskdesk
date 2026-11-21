@@ -18,7 +18,9 @@ let server: Server;
 let baseUrl: string;
 let organizationId: number;
 let adminId: number;
+let collaboratorId: number;
 let adminSessionId: string;
+let collaboratorSessionId: string;
 let recurrenceStart: Date;
 let recurrenceEnd: Date;
 let deletedDueTicketId: number;
@@ -27,6 +29,7 @@ let deletedRecurringTicketId: number;
 let activeOccurrenceId: number;
 let appointmentId: number | undefined;
 const ticketIds: number[] = [];
+const privateTicketIds: number[] = [];
 
 const dateKey = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -54,6 +57,16 @@ describe("calendar scheduled tickets", () => {
     }).returning({ id: usersTable.id });
     adminId = admin.id;
     adminSessionId = await createSession(adminId);
+
+    const [collaborator] = await db.insert(usersTable).values({
+      name: "Calendar Test Collaborator",
+      email: `calendar-collaborator-${runId}@example.test`,
+      passwordHash: "not-used-in-test",
+      role: "user",
+      organizationId,
+    }).returning({ id: usersTable.id });
+    collaboratorId = collaborator.id;
+    collaboratorSessionId = await createSession(collaboratorId);
 
     for (const [title, due, scheduled] of [
       [`Due ${runId}`, dueAt, null],
@@ -92,6 +105,55 @@ describe("calendar scheduled tickets", () => {
       recurrenceNextAt: recurrenceStart,
     }).returning({ id: ticketsTable.id });
     ticketIds.push(recurringTicket.id);
+
+    const [privateDueTicket] = await db.insert(ticketsTable).values({
+      organizationId,
+      title: `Private due ${runId}`,
+      description: "Admin-only due event fixture.",
+      category: "Support",
+      location: "",
+      status: "open",
+      priority: "medium",
+      visibility: "admins",
+      createdBy: adminId,
+      assignedTo: collaboratorId,
+      dueAt,
+    }).returning({ id: ticketsTable.id });
+    privateTicketIds.push(privateDueTicket.id);
+    ticketIds.push(privateDueTicket.id);
+
+    const [privateScheduledTicket] = await db.insert(ticketsTable).values({
+      organizationId,
+      title: `Private scheduled ${runId}`,
+      description: "Admin-only scheduled event fixture.",
+      category: "Support",
+      location: "",
+      status: "open",
+      priority: "medium",
+      visibility: "admins",
+      createdBy: adminId,
+      assignedTo: collaboratorId,
+      scheduledAt,
+    }).returning({ id: ticketsTable.id });
+    privateTicketIds.push(privateScheduledTicket.id);
+    ticketIds.push(privateScheduledTicket.id);
+
+    const [privateRecurringTicket] = await db.insert(ticketsTable).values({
+      organizationId,
+      title: `Private recurring ${runId}`,
+      description: "Admin-only recurrence preview fixture.",
+      category: "Support",
+      location: "",
+      status: "open",
+      priority: "medium",
+      visibility: "admins",
+      createdBy: adminId,
+      assignedTo: collaboratorId,
+      recurrenceRule: { frequency: "daily", interval: 1, endDate: dateKey(recurrenceEnd) },
+      recurrenceNextAt: recurrenceStart,
+    }).returning({ id: ticketsTable.id });
+    privateTicketIds.push(privateRecurringTicket.id);
+    ticketIds.push(privateRecurringTicket.id);
 
     const [deletedDueTicket] = await db.insert(ticketsTable).values({
       organizationId,
@@ -191,6 +253,10 @@ describe("calendar scheduled tickets", () => {
     if (adminSessionId) {
       await db.delete(sessionsTable).where(eq(sessionsTable.sessionId, adminSessionId));
     }
+    if (collaboratorSessionId) {
+      await db.delete(sessionsTable).where(eq(sessionsTable.sessionId, collaboratorSessionId));
+    }
+    if (collaboratorId) await db.delete(usersTable).where(eq(usersTable.id, collaboratorId));
     if (adminId) await db.delete(usersTable).where(eq(usersTable.id, adminId));
     if (organizationId) await db.delete(organizationsTable).where(eq(organizationsTable.id, organizationId));
     await pool.end();
@@ -271,5 +337,26 @@ describe("calendar scheduled tickets", () => {
       ticketEvent: "due",
       date: dateKey(new Date(now.getFullYear(), now.getMonth(), 10, 12)),
     }));
+  });
+
+  it("hides private ticket events and recurrence previews from collaborators but keeps them for admins", async () => {
+    const now = new Date();
+    const path = `/api/calendar?year=${now.getFullYear()}&month=${now.getMonth() + 1}`;
+    const [adminResponse, collaboratorResponse] = await Promise.all([
+      fetch(`${baseUrl}${path}`, { headers: { Cookie: `session_id=${adminSessionId}` } }),
+      fetch(`${baseUrl}${path}`, { headers: { Cookie: `session_id=${collaboratorSessionId}` } }),
+    ]);
+
+    expect(adminResponse.status).toBe(200);
+    expect(collaboratorResponse.status).toBe(200);
+    const adminItems = await adminResponse.json() as Array<{ id: number; ticketEvent?: string }>;
+    const collaboratorItems = await collaboratorResponse.json() as Array<{ id: number }>;
+
+    expect(adminItems).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: privateTicketIds[0], ticketEvent: "due" }),
+      expect.objectContaining({ id: privateTicketIds[1], ticketEvent: "scheduled" }),
+      expect.objectContaining({ id: privateTicketIds[2], ticketEvent: "recurrence" }),
+    ]));
+    expect(collaboratorItems.some((item) => privateTicketIds.includes(item.id))).toBe(false);
   });
 });
